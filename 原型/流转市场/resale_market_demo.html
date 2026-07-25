@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<!--
+  流转市场交互原型 · resale_market_demo.html
+  版本:v2.1.1 | 日期:2026-07-23 | 对齐设计文档:01-流转市场产品设计方案.md v2.1
+  ───────────────────────────────────────────────────────────
+  v2.1 主要改动(对齐合约基准):
+    ① 去掉底部 4 Tab(市场/搜索/活动/我的),改为「市场单视图 + 右上角「我的」入口」
+    ② 首页增加「渠道分类快捷切换」(全部 / 🏷一口价 / 🔨拍卖 / 🔑租赁),4 项单选
+    ③ RentalChannel 从 P3 提前到 P1 完整接入(ERC-4907 使用权分离)
+    ④ 赠送移出挂单弹窗 modal-list(赠送是即时过户,保留在短号中心/商品详情页)
+    ⑤ 一口价渠道天生 0% 手续费(合约无 setFeeBps)
+    ⑥ 拍卖补充 forceSettle/forceCancel/withdrawRefund 归属说明
+    ⑦ 卡片左上角增加渠道角标(🏷一口价 / 🔨拍卖 / 🔑租赁)
+  v2.1.1 补全(严格对齐 7 个渠道合约的全部边界规则):
+    ⑧ 资产详情页 CTA 按渠道区分(立即购买 / 参拍出价 / 确认承租),对齐 buyListed/bid/rent
+    ⑨ 新增 modal-rent 承租确认弹窗(对齐 RentalChannel.rent · 含 ERC-4907 使用权风险提示)
+    ⑩ 我的挂单中拍卖卡按「有无出价」区分撤拍可用/禁用(对齐 cancelAuction 仅无出价时可撤)
+    ⑪ 我的出租新增「非独占模式」示例,展示「所有权仍可转移」状态(对齐 exclusive=false 不 lockSku)
+    ⑫ 订单记录新增「流拍」分支(对齐 AuctionHouse:无出价或未达底价时流拍)
+    ⑬ 筛选抽屉渠道项改为「租赁中(P1)」,荷兰拍标注 🔒P3,资产状态加「可租赁」选项
+    ⑭ 新增 cancelAuction / reclaimExpired 函数(对齐 AuctionHouse.cancelAuction / RentalChannel.reclaimExpired)
+-->
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>流转市场 - Node (v2.1.1)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lightbg: '#f8fafc',
+                        'slate-655': '#475569',
+                        'slate-350': '#cbd5e1',
+                        'indigo-650': '#4f46e5',
+                    },
+                    fontFamily: {
+                        display: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .font-display { font-family: 'Outfit', 'sans-serif'; }
+        .font-mono { font-family: 'JetBrains Mono', 'monospace'; }
+        .premium-card { background: white; border: 1px solid rgba(226,232,240,0.8); box-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 1px 2px rgba(15,23,42,0.02); }
+        .active-scale { transition: transform 0.1s; }
+        .active-scale:active { transform: scale(0.97); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .overlay-blur { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); }
+        .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .gradient-premium { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+        .gradient-free { background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); }
+        .gradient-market { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+        .gradient-goods { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); }
+        .gradient-virtual { background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); }
+        .gradient-service { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
+        .gradient-secret { background: linear-gradient(135deg, #475569 0%, #334155 100%); }
+        .channel-tag-fixed { background: rgba(99,102,241,0.1); color: #4f46e5; }
+        .channel-tag-auction { background: rgba(236,72,153,0.1); color: #db2777; }
+        .channel-tag-rental { background: rgba(245,158,11,0.12); color: #d97706; }
+        /* 卡片左上角渠道角标(实色,与列表内淡色 tag 区分) */
+        .badge-channel-fixed { background: #4f46e5; color: white; }
+        .badge-channel-auction { background: #db2777; color: white; }
+        .badge-channel-rental { background: #d97706; color: white; }
+        .type-tag-premium { background: rgba(245,158,11,0.1); color: #d97706; }
+        .type-tag-free { background: rgba(59,130,246,0.1); color: #2563eb; }
+        .type-tag-goods { background: rgba(14,165,233,0.1); color: #0284c7; }
+        .type-tag-virtual { background: rgba(139,92,246,0.1); color: #7c3aed; }
+        .type-tag-service { background: rgba(20,184,166,0.1); color: #0d9488; }
+        .type-tag-secret { background: rgba(71,85,105,0.1); color: #475569; }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+<div id="phone-frame" class="mx-auto relative bg-white shadow-2xl" style="width:390px; height:844px; overflow:hidden;">
+
+    <!-- 状态栏 -->
+    <div class="absolute top-0 inset-x-0 h-11 flex items-center justify-between px-6 text-xs font-bold text-slate-900 z-50">
+        <span class="font-mono">9:41</span>
+        <div class="flex items-center space-x-1">
+            <span class="text-[10px]">●●●</span><span class="text-[10px]">📶</span><span class="text-[10px]">🔋</span>
+        </div>
+    </div>
+
+    <!-- 主布局 -->
+    <div class="absolute inset-0 pt-11 flex flex-col bg-lightbg">
+
+        <!-- ============ 市场视图 Header ============ -->
+        <header id="header-market" class="px-4 py-3 bg-white border-b border-slate-100 flex-shrink-0 space-y-3">
+            <div class="flex items-center justify-between">
+                <button onclick="goBack()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale">
+                    <span class="text-sm">‹</span>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-lg gradient-market flex items-center justify-center text-white text-xs font-black">🔄</div>
+                    <h1 class="text-base font-black text-slate-900 font-display">流转市场</h1>
+                </div>
+                <!-- v2.1:右上角「我的」入口(原底部 Tab → 单视图右上角) -->
+                <button onclick="enterMine()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale" title="我的资产">
+                    <span class="text-sm">👤</span>
+                </button>
+            </div>
+            <!-- 搜索栏 -->
+            <div class="relative">
+                <input type="text" placeholder="搜索短号、商品码、卖家地址..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-10 py-2.5 text-xs font-medium text-slate-700 placeholder-slate-400">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+                <button onclick="openFilterDrawer()" class="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 active-scale">
+                    <span class="text-xs">⚙</span>
+                </button>
+            </div>
+            <!-- v2.1 新增:渠道分类快捷切换(4 项单选,默认「全部」) -->
+            <div class="flex space-x-2 overflow-x-auto hide-scrollbar -mx-1 px-1">
+                <button onclick="switchChannel('all')" id="ch-all" class="flex-shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-full active-scale">全部</button>
+                <button onclick="switchChannel('fixed')" id="ch-fixed" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full active-scale">🏷 一口价</button>
+                <button onclick="switchChannel('auction')" id="ch-auction" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full active-scale">🔨 拍卖</button>
+                <button onclick="switchChannel('rental')" id="ch-rental" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full active-scale">🔑 租赁</button>
+            </div>
+            <!-- 资产类型 chip 横滑 -->
+            <div class="flex space-x-2 overflow-x-auto hide-scrollbar -mx-1 px-1">
+                <button onclick="switchType('all')" id="type-all" class="flex-shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-full active-scale">全部</button>
+                <button onclick="switchType('short_premium')" id="type-short_premium" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full active-scale">💎 靓号</button>
+                <button onclick="switchType('short_free')" id="type-short_free" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full active-scale">🎁 免费号</button>
+                <button onclick="switchType('goods_real')" id="type-goods_real" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full active-scale">🛒 实物</button>
+                <button onclick="switchType('goods_virtual')" id="type-goods_virtual" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full active-scale">🎫 虚拟</button>
+                <button onclick="switchType('goods_service')" id="type-goods_service" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full active-scale">🛎️ 服务</button>
+                <button onclick="switchType('goods_secret')" id="type-goods_secret" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full active-scale">🔒 保密</button>
+            </div>
+        </header>
+
+        <!-- ============ 我的视图 Header(全屏页 · 右上角入口进入) ============ -->
+        <header id="header-mine" class="hidden px-4 py-3 bg-white border-b border-slate-100 flex-shrink-0">
+            <div class="flex items-center justify-between mb-3">
+                <!-- v2.1:从底部 Tab 进入 → 右上角入口进入,返回按钮调 exitMine() -->
+                <button onclick="exitMine()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale">
+                    <span class="text-sm">←</span>
+                </button>
+                <h1 class="text-base font-black text-slate-900 font-display">我的资产</h1>
+                <button onclick="openHistoryDrawer()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale">
+                    <span class="text-xs">📋</span>
+                </button>
+            </div>
+            <!-- 资产概览卡 · v2.1 加「出租1」统计 -->
+            <div class="bg-slate-900 rounded-2xl p-4 relative overflow-hidden">
+                <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">资产总览</span>
+                        <span class="text-[9px] text-indigo-400 font-mono">0x71C7...898A5</span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2 mb-3">
+                        <div>
+                            <p class="text-lg font-black font-display text-white">8</p>
+                            <p class="text-[9px] text-slate-400 mt-0.5">持有资产</p>
+                        </div>
+                        <div>
+                            <p class="text-lg font-black font-display text-amber-400">3</p>
+                            <p class="text-[9px] text-slate-400 mt-0.5">在售挂单</p>
+                        </div>
+                        <!-- v2.1 新增:出租中(v2.1.1 改为 2,对齐独占+非独占两个示例) -->
+                        <div>
+                            <p class="text-lg font-black font-display text-orange-400">2</p>
+                            <p class="text-[9px] text-slate-400 mt-0.5">出租中</p>
+                        </div>
+                        <div>
+                            <p class="text-lg font-black font-display text-emerald-400">1.2k</p>
+                            <p class="text-[9px] text-slate-400 mt-0.5">累计收益U</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] pt-2 border-t border-slate-700/50">
+                        <span class="text-slate-400">资产估值</span>
+                        <span class="font-bold text-white">≈ 2,450 USDRs</span>
+                    </div>
+                </div>
+            </div>
+            <!-- 我的子 Tab · v2.1 加「我的出租」(4 项) -->
+            <div class="flex mt-3 -mb-3">
+                <button onclick="switchMineTab('assets')" id="mine-assets" class="flex-1 py-2 text-[11px] font-bold border-b-2 border-indigo-600 text-indigo-600">我的资产</button>
+                <button onclick="switchMineTab('listings')" id="mine-listings" class="flex-1 py-2 text-[11px] font-bold border-b-2 border-transparent text-slate-400">我的挂单</button>
+                <button onclick="switchMineTab('rentals')" id="mine-rentals" class="flex-1 py-2 text-[11px] font-bold border-b-2 border-transparent text-slate-400">我的出租</button>
+                <button onclick="switchMineTab('orders')" id="mine-orders" class="flex-1 py-2 text-[11px] font-bold border-b-2 border-transparent text-slate-400">订单记录</button>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <div class="flex-1 overflow-y-auto hide-scrollbar" id="main-content">
+
+            <!-- ============ 市场浏览视图(默认) ============ -->
+            <div id="view-market" class="pb-6">
+
+                <!-- Featured 推荐 -->
+                <div class="px-4 pt-4">
+                    <div class="rounded-2xl overflow-hidden relative shadow-md active-scale" onclick="openListingDetail('666888')">
+                        <div class="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-5 relative overflow-hidden">
+                            <div class="absolute -right-4 -top-4 text-6xl opacity-20">💎</div>
+                            <div class="relative z-10">
+                                <span class="inline-block px-2 py-0.5 bg-white/20 text-white text-[9px] font-bold rounded-full mb-2">🔥 热门推荐</span>
+                                <p class="text-white text-xl font-black font-display">666888</p>
+                                <p class="text-white/80 text-[10px] mt-1">豹子 ×100 · OBChain · 5位</p>
+                                <div class="flex items-center justify-between mt-3">
+                                    <div>
+                                        <p class="text-white/60 text-[9px]">当前出价</p>
+                                        <p class="text-white text-lg font-black font-display">650 <span class="text-[10px]">USDRs</span></p>
+                                    </div>
+                                    <span class="px-3 py-1.5 bg-white text-indigo-600 text-[10px] font-black rounded-full">参拍 →</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 排序条 -->
+                <div class="px-4 mt-4 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] text-slate-400 font-bold">📦 <span id="result-count">28</span> 个挂单</span>
+                    </div>
+                    <button onclick="openSortDrawer()" class="flex items-center space-x-1 text-[11px] font-bold text-slate-600 active-scale">
+                        <span id="sort-label">最新上架</span>
+                        <span class="text-[9px]">▾</span>
+                    </button>
+                </div>
+
+                <!-- 挂单网格(2列) -->
+                <div class="px-4 mt-3 grid grid-cols-2 gap-3" id="market-grid">
+
+                    <!-- 卡片 1: 靓号短号 · 一口价 -->
+                    <div class="premium-card rounded-2xl overflow-hidden active-scale" data-channel="fixed" data-type="short_premium" onclick="openListingDetail('21008')">
+                        <div class="gradient-premium h-24 flex items-center justify-center text-white text-4xl font-black font-display relative">
+                            21008
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 badge-channel-fixed text-[8px] font-bold rounded">🏷一口价</span>
+                            <span class="absolute top-2 right-2 px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded">豹子×50</span>
+                        </div>
+                        <div class="p-2.5">
+                            <p class="text-[11px] font-bold text-slate-900 truncate">💎 靓号 21008</p>
+                            <p class="text-[9px] text-slate-400 font-mono">OBChain · 5位</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <div>
+                                    <p class="text-[8px] text-slate-400">一口价</p>
+                                    <p class="text-sm font-black text-indigo-600 font-display">250<span class="text-[8px]">U</span></p>
+                                </div>
+                                <span class="px-1.5 py-0.5 channel-tag-fixed text-[8px] font-bold rounded">买</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 2: 靓号拍卖 -->
+                    <div class="premium-card rounded-2xl overflow-hidden active-scale" data-channel="auction" data-type="short_premium" onclick="openListingDetail('7281930')">
+                        <div class="gradient-premium h-24 flex items-center justify-center text-white text-4xl font-black font-display relative">
+                            7281930
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 badge-channel-auction text-[8px] font-bold rounded">🔨拍卖</span>
+                            <span class="absolute top-2 right-2 px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded">吉尾×3</span>
+                        </div>
+                        <div class="p-2.5">
+                            <p class="text-[11px] font-bold text-slate-900 truncate">💎 靓号 7281930</p>
+                            <p class="text-[9px] text-slate-400 font-mono">Ethereum · 7位</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <div>
+                                    <p class="text-[8px] text-slate-400">当前出价</p>
+                                    <p class="text-sm font-black text-pink-600 font-display">180<span class="text-[8px]">U</span></p>
+                                </div>
+                                <span class="px-1.5 py-0.5 channel-tag-auction text-[8px] font-bold rounded">剩2天</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 3: 免费号 · 一口价 -->
+                    <div class="premium-card rounded-2xl overflow-hidden active-scale" data-channel="fixed" data-type="short_free" onclick="openListingDetail('9573326140')">
+                        <div class="gradient-free h-24 flex items-center justify-center text-white text-2xl font-black font-display relative">
+                            9573326140
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 badge-channel-fixed text-[8px] font-bold rounded">🏷一口价</span>
+                            <span class="absolute top-2 right-2 px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded">免费号</span>
+                        </div>
+                        <div class="p-2.5">
+                            <p class="text-[11px] font-bold text-slate-900 truncate">🎁 免费号</p>
+                            <p class="text-[9px] text-slate-400 font-mono">OBChain · 10位</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <div>
+                                    <p class="text-[8px] text-slate-400">一口价</p>
+                                    <p class="text-sm font-black text-indigo-600 font-display">5<span class="text-[8px]">U</span></p>
+                                </div>
+                                <span class="px-1.5 py-0.5 channel-tag-fixed text-[8px] font-bold rounded">买</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 4: 实物商品码 · 一口价 -->
+                    <div class="premium-card rounded-2xl overflow-hidden active-scale" data-channel="fixed" data-type="goods_real" onclick="openListingDetail('R9key')">
+                        <div class="gradient-goods h-24 flex items-center justify-center text-white text-4xl relative">
+                            🛒
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 badge-channel-fixed text-[8px] font-bold rounded">🏷一口价</span>
+                            <span class="absolute top-2 right-2 px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded">实物</span>
+                        </div>
+                        <div class="p-2.5">
+                            <p class="text-[11px] font-bold text-slate-900 truncate">R9 硬件钥匙</p>
+                            <p class="text-[9px] text-slate-400 font-mono">#4f2a... · 限量</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <div>
+                                    <p class="text-[8px] text-slate-400">一口价</p>
+                                    <p class="text-sm font-black text-indigo-600 font-display">199<span class="text-[8px]">U</span></p>
+                                </div>
+                                <span class="px-1.5 py-0.5 channel-tag-fixed text-[8px] font-bold rounded">买</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 5: 虚拟兑换码 · v2.1 改为租赁 -->
+                    <div class="premium-card rounded-2xl overflow-hidden active-scale" data-channel="rental" data-type="goods_virtual" onclick="openListingDetail('VIPcard')">
+                        <div class="gradient-virtual h-24 flex items-center justify-center text-white text-4xl relative">
+                            🎫
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 badge-channel-rental text-[8px] font-bold rounded">🔑租赁</span>
+                            <span class="absolute top-2 right-2 px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded">虚拟</span>
+                        </div>
+                        <div class="p-2.5">
+                            <p class="text-[11px] font-bold text-slate-900 truncate">🎫 VIP 会员季卡</p>
+                            <p class="text-[9px] text-slate-400 font-mono">#8c2d... · 兑换码</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <div>
+                                    <p class="text-[8px] text-slate-400">租金/天</p>
+                                    <p class="text-sm font-black text-amber-600 font-display">5<span class="text-[8px]">U</span></p>
+                                </div>
+                                <span class="px-1.5 py-0.5 channel-tag-rental text-[8px] font-bold rounded">承租</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 6: 服务包 · 一口价 -->
+                    <div class="premium-card rounded-2xl overflow-hidden active-scale" data-channel="fixed" data-type="goods_service" onclick="openListingDetail('Consult')">
+                        <div class="gradient-service h-24 flex items-center justify-center text-white text-4xl relative">
+                            🛎️
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 badge-channel-fixed text-[8px] font-bold rounded">🏷一口价</span>
+                            <span class="absolute top-2 right-2 px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded">服务</span>
+                        </div>
+                        <div class="p-2.5">
+                            <p class="text-[11px] font-bold text-slate-900 truncate">专家咨询 1h</p>
+                            <p class="text-[9px] text-slate-400 font-mono">#5e2f... · 服务包</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <div>
+                                    <p class="text-[8px] text-slate-400">一口价</p>
+                                    <p class="text-sm font-black text-indigo-600 font-display">120<span class="text-[8px]">U</span></p>
+                                </div>
+                                <span class="px-1.5 py-0.5 channel-tag-fixed text-[8px] font-bold rounded">买</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 7: 保密商品(脱敏) · 一口价 -->
+                    <div class="premium-card rounded-2xl overflow-hidden active-scale" data-channel="fixed" data-type="goods_secret" onclick="openListingDetail('Secret')">
+                        <div class="gradient-secret h-24 flex items-center justify-center text-white text-4xl relative">
+                            🔒
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 badge-channel-fixed text-[8px] font-bold rounded">🏷一口价</span>
+                            <span class="absolute top-2 right-2 px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded">保密</span>
+                        </div>
+                        <div class="p-2.5">
+                            <p class="text-[11px] font-bold text-slate-900 truncate">保密商品 · 高级</p>
+                            <p class="text-[9px] text-slate-400 font-mono">#9d1e... · 脱敏</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <div>
+                                    <p class="text-[8px] text-slate-400">一口价</p>
+                                    <p class="text-sm font-black text-indigo-600 font-display">500<span class="text-[8px]">U</span></p>
+                                </div>
+                                <span class="px-1.5 py-0.5 channel-tag-fixed text-[8px] font-bold rounded">买</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 8: 靓号短号 · 一口价 -->
+                    <div class="premium-card rounded-2xl overflow-hidden active-scale" data-channel="fixed" data-type="short_premium" onclick="openListingDetail('88888')">
+                        <div class="gradient-premium h-24 flex items-center justify-center text-white text-4xl font-black font-display relative">
+                            88888
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 badge-channel-fixed text-[8px] font-bold rounded">🏷一口价</span>
+                            <span class="absolute top-2 right-2 px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded">顺子×20</span>
+                        </div>
+                        <div class="p-2.5">
+                            <p class="text-[11px] font-bold text-slate-900 truncate">💎 靓号 88888</p>
+                            <p class="text-[9px] text-slate-400 font-mono">OBChain · 5位</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <div>
+                                    <p class="text-[8px] text-slate-400">一口价</p>
+                                    <p class="text-sm font-black text-indigo-600 font-display">380<span class="text-[8px]">U</span></p>
+                                </div>
+                                <span class="px-1.5 py-0.5 channel-tag-fixed text-[8px] font-bold rounded">买</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 加载更多 -->
+                <div class="text-center py-6">
+                    <button class="text-[11px] text-slate-400 font-bold active-scale">加载更多 ↓</button>
+                </div>
+            </div>
+
+            <!-- ============ 我的视图(个人中心 · 全屏页,右上角入口进入) ============ -->
+            <div id="view-mine" class="hidden pb-6">
+
+                <!-- 我的资产列表 -->
+                <div id="mine-view-assets" class="px-4 pt-4 space-y-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <h2 class="text-xs font-black text-slate-900 font-display">持有资产(可流转)</h2>
+                        <button class="text-[10px] text-indigo-600 font-bold active-scale">按类型分组 ▾</button>
+                    </div>
+
+                    <!-- 短号资产 -->
+                    <div class="premium-card rounded-2xl p-3.5 active-scale" onclick="openAssetDetail('21008')">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-xl gradient-premium flex items-center justify-center text-white text-base font-black font-display flex-shrink-0">21008</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 font-display truncate">21008</p>
+                                    <span class="px-1.5 py-0.5 type-tag-premium text-[8px] font-bold rounded">豹子×50</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono">OBChain · 持有 2026-07-10</p>
+                            </div>
+                            <button onclick="event.stopPropagation(); openListModal('21008')" class="px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg active-scale">挂售</button>
+                        </div>
+                    </div>
+
+                    <div class="premium-card rounded-2xl p-3.5 active-scale" onclick="openAssetDetail('9573326140')">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-xl gradient-free flex items-center justify-center text-white text-base font-black font-display flex-shrink-0">免费</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 font-display truncate">9573326140</p>
+                                    <span class="px-1.5 py-0.5 type-tag-free text-[8px] font-bold rounded">免费号</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono">OBChain · 持有 2026-07-10</p>
+                            </div>
+                            <button onclick="event.stopPropagation(); openListModal('9573326140')" class="px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg active-scale">挂售</button>
+                        </div>
+                    </div>
+
+                    <!-- 实物商品码 -->
+                    <div class="premium-card rounded-2xl p-3.5 active-scale" onclick="openAssetDetail('R9key')">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-xl gradient-goods flex items-center justify-center text-white text-xl flex-shrink-0">🛒</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 font-display truncate">R9 硬件钥匙</p>
+                                    <span class="px-1.5 py-0.5 type-tag-goods text-[8px] font-bold rounded">实物</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono">#4f2a...8d1a · 持有 2026-07-15</p>
+                            </div>
+                            <button onclick="event.stopPropagation(); openListModal('R9key')" class="px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg active-scale">挂售</button>
+                        </div>
+                    </div>
+
+                    <!-- 虚拟兑换码 -->
+                    <div class="premium-card rounded-2xl p-3.5 active-scale" onclick="openAssetDetail('VIPcard')">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-xl gradient-virtual flex items-center justify-center text-white text-xl flex-shrink-0">🎫</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 font-display truncate">VIP 会员季卡</p>
+                                    <span class="px-1.5 py-0.5 type-tag-virtual text-[8px] font-bold rounded">虚拟</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono">#8c2d...4e7f · 持有 2026-07-18</p>
+                            </div>
+                            <button onclick="event.stopPropagation(); openListModal('VIPcard')" class="px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg active-scale">挂售</button>
+                        </div>
+                    </div>
+
+                    <!-- 服务包 -->
+                    <div class="premium-card rounded-2xl p-3.5 active-scale" onclick="openAssetDetail('Consult')">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-xl gradient-service flex items-center justify-center text-white text-xl flex-shrink-0">🛎️</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 font-display truncate">专家咨询 1h</p>
+                                    <span class="px-1.5 py-0.5 type-tag-service text-[8px] font-bold rounded">服务</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono">#5e2f...9c1d · 持有 2026-07-20</p>
+                            </div>
+                            <button onclick="event.stopPropagation(); openListModal('Consult')" class="px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg active-scale">挂售</button>
+                        </div>
+                    </div>
+
+                    <!-- 保密商品 -->
+                    <div class="premium-card rounded-2xl p-3.5 active-scale" onclick="openAssetDetail('Secret')">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-xl gradient-secret flex items-center justify-center text-white text-xl flex-shrink-0">🔒</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 font-display truncate">保密商品 · 高级</p>
+                                    <span class="px-1.5 py-0.5 type-tag-secret text-[8px] font-bold rounded">保密</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono">#9d1e...2c3f · 持有 2026-07-21</p>
+                            </div>
+                            <button onclick="event.stopPropagation(); openListModal('Secret')" class="px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg active-scale">挂售</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 我的挂单列表 · v2.1 卡片加渠道角标 -->
+                <div id="mine-view-listings" class="hidden px-4 pt-4 space-y-3">
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-10 h-10 rounded-xl gradient-premium flex items-center justify-center text-white text-[10px] font-black font-display flex-shrink-0">21008</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 truncate">21008</p>
+                                    <span class="px-1.5 py-0.5 badge-channel-fixed text-[8px] font-bold rounded">🏷一口价</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400">剩 5 天 12 时 · 0x9d1e...</p>
+                            </div>
+                            <span class="text-sm font-black text-indigo-600">250U</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="cancelListing('21008')" class="flex-1 py-1.5 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg active-scale">撤单</button>
+                            <button class="flex-1 py-1.5 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-lg active-scale">详情</button>
+                        </div>
+                    </div>
+
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-10 h-10 rounded-xl gradient-premium flex items-center justify-center text-white text-[9px] font-black font-display flex-shrink-0">7281930</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 truncate">7281930</p>
+                                    <span class="px-1.5 py-0.5 badge-channel-auction text-[8px] font-bold rounded">🔨拍卖</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400">剩 2 天 3 时 · 5 次出价</p>
+                            </div>
+                            <span class="text-sm font-black text-pink-600">180U</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <!-- 已有出价:撤拍禁用,提示用户等结算或联系 miner forceCancel -->
+                            <button onclick="cancelAuction('7281930', true)" disabled class="flex-1 py-1.5 bg-slate-100 text-slate-400 text-[10px] font-bold rounded-lg cursor-not-allowed">撤拍(已有出价)</button>
+                            <button class="flex-1 py-1.5 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-lg active-scale">详情</button>
+                        </div>
+                    </div>
+
+                    <!-- 拍卖挂单:无出价可撤(对齐 AuctionHouse.cancelAuction 仅无出价时可撤) -->
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-10 h-10 rounded-xl gradient-premium flex items-center justify-center text-white text-[10px] font-black font-display flex-shrink-0">666888</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 truncate">666888</p>
+                                    <span class="px-1.5 py-0.5 badge-channel-auction text-[8px] font-bold rounded">🔨拍卖</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400">剩 5 天 · 暂无出价</p>
+                            </div>
+                            <span class="text-sm font-black text-pink-600">650U</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="cancelAuction('666888', false)" class="flex-1 py-1.5 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg active-scale">撤拍</button>
+                            <button class="flex-1 py-1.5 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-lg active-scale">详情</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 我的出租列表(v2.1 新增 · 进行中租赁) -->
+                <div id="mine-view-rentals" class="hidden px-4 pt-4 space-y-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <h2 class="text-xs font-black text-slate-900 font-display">进行中租赁</h2>
+                        <span class="text-[10px] text-amber-600 font-bold">ERC-4907 使用权分离</span>
+                    </div>
+
+                    <!-- 出租卡 1:VIP 季卡(独占模式) -->
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-10 h-10 rounded-xl gradient-virtual flex items-center justify-center text-white text-base flex-shrink-0">🎫</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 truncate">VIP 会员季卡</p>
+                                    <span class="px-1.5 py-0.5 badge-channel-rental text-[8px] font-bold rounded">🔑租赁</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono">租客:0x9d1e...2c3f · 剩 12 天</p>
+                                <p class="text-[10px] text-amber-600 font-bold">独占模式 · 总租金 75 USDRs</p>
+                            </div>
+                            <span class="text-sm font-black text-amber-600">5U/天</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="endRental('VIPcard')" class="flex-1 py-1.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-lg active-scale">结束租赁</button>
+                            <button class="flex-1 py-1.5 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-lg active-scale">详情</button>
+                        </div>
+                    </div>
+
+                    <!-- 出租卡 2:服务包(非独占模式 · v2.1.1 新增 · 展示所有权仍可转移状态) -->
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-10 h-10 rounded-xl gradient-service flex items-center justify-center text-white text-base flex-shrink-0">🛎️</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 truncate">专家咨询 1h</p>
+                                    <span class="px-1.5 py-0.5 badge-channel-rental text-[8px] font-bold rounded">🔑租赁</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono">租客:0x8c2d...4e7f · 剩 3 天</p>
+                                <p class="text-[10px] text-sky-600 font-bold">非独占 · 总租金 12 USDRs · 所有权仍可转移</p>
+                            </div>
+                            <span class="text-sm font-black text-amber-600">4U/天</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="endRental('Consult')" class="flex-1 py-1.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-lg active-scale">结束租赁</button>
+                            <button onclick="showToast('💡 非独占租赁,您仍可转移所有权(但需提示租客)')" class="flex-1 py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-lg active-scale">转移所有权</button>
+                        </div>
+                    </div>
+
+                    <!-- 风险提示 -->
+                    <div class="bg-amber-50 rounded-xl p-3 space-y-1">
+                        <p class="text-[10px] text-amber-700">⚠️ 独占模式下资产被 lockSku 锁定,无法同时挂售</p>
+                        <p class="text-[10px] text-amber-700">⚠️ 非独占模式下所有权仍可转移,但需提示租客</p>
+                        <p class="text-[10px] text-amber-700">⚠️ 租客仅获得使用权(userOf),所有权仍归您</p>
+                        <p class="text-[10px] text-amber-700">⚠️ 租客不可提前退租,仅您或 miner 可调 endRental</p>
+                        <p class="text-[10px] text-amber-700">💡 到期后任何人可调 <code class="font-mono text-[9px] bg-amber-100 px-1 rounded">reclaimExpired</code> 清理使用权</p>
+                    </div>
+                </div>
+
+                <!-- 订单记录 · v2.1 加租赁记录(原 已售/已赠送保留) -->
+                <div id="mine-view-orders" class="hidden px-4 pt-4 space-y-3">
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl gradient-premium flex items-center justify-center text-white text-[10px] font-black font-display flex-shrink-0">21008</div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-slate-900 truncate">已售出 · 21008</p>
+                                <p class="text-[10px] text-slate-400">07-22 15:32 · FixedPrice</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-black text-emerald-600">+250U</p>
+                                <p class="text-[9px] text-slate-400">→ 0x9d1e...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- v2.1 新增:租赁记录 -->
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl gradient-virtual flex items-center justify-center text-white text-base flex-shrink-0">🎫</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 truncate">租出 · VIP 会员季卡</p>
+                                    <span class="px-1.5 py-0.5 badge-channel-rental text-[8px] font-bold rounded">🔑租赁</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400">07-20 10:15 · Rental · 剩 12 天</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-black text-amber-600">+75U</p>
+                                <p class="text-[9px] text-slate-400">租客 0x9d1e...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl gradient-premium flex items-center justify-center text-white text-[10px] font-black font-display flex-shrink-0">88888</div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-slate-900 truncate">已售出 · 88888(拍卖)</p>
+                                <p class="text-[10px] text-slate-400">07-20 10:15 · Auction</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-black text-emerald-600">+500U</p>
+                                <p class="text-[9px] text-slate-400">→ 0x4f2a...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 赠送记录(v2.1 赠送虽移出挂单弹窗,但订单记录仍可见 channelId=1) -->
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl gradient-free flex items-center justify-center text-white text-[9px] font-black font-display flex-shrink-0">免费</div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-slate-900 truncate">已赠送 · 9573326140</p>
+                                <p class="text-[10px] text-slate-400">07-18 09:20 · Gift</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-black text-slate-400">0U</p>
+                                <p class="text-[9px] text-slate-400">→ 0x8c2d...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 流拍记录(v2.1.1 新增 · 对齐 AuctionHouse:无出价或未达底价时流拍) -->
+                    <div class="premium-card rounded-2xl p-3.5">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl gradient-premium flex items-center justify-center text-white text-[10px] font-black font-display flex-shrink-0">67890</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-bold text-slate-900 truncate">流拍 · 67890</p>
+                                    <span class="px-1.5 py-0.5 bg-slate-200 text-slate-500 text-[8px] font-bold rounded">流拍</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400">07-16 20:00 · Auction · 未达底价</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-black text-slate-400">0U</p>
+                                <p class="text-[9px] text-slate-400">SKU 已解锁</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- v2.1:底部 Tab 栏已移除(原 市场/搜索/活动/我的 4 Tab) -->
+        <!-- 「我的」改为右上角入口进入全屏页,「搜索」改为顶部搜索栏,「活动」下沉至订单记录 P2 -->
+
+        <!-- 安全区 -->
+        <div class="h-2 bg-white flex-shrink-0"></div>
+    </div>
+
+    <!-- ============ 筛选抽屉(底部) ============ -->
+    <div id="drawer-filter" class="hidden absolute inset-0 z-[100]">
+        <div class="overlay-blur absolute inset-0" onclick="closeDrawer('drawer-filter')"></div>
+        <div class="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl max-h-[85%] overflow-y-auto hide-scrollbar slide-up">
+            <div class="sticky top-0 bg-white px-5 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-base font-black text-slate-900 font-display">筛选</h3>
+                <button onclick="closeDrawer('drawer-filter')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center active-scale">✕</button>
+            </div>
+            <div class="px-5 py-4 space-y-5 pb-8">
+
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">渠道</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center space-x-2 p-2.5 border-2 border-indigo-600 bg-indigo-50 rounded-xl">
+                            <input type="checkbox" checked class="rounded">
+                            <span class="text-[11px] font-bold text-indigo-600">🏷 一口价(立即购买)</span>
+                        </label>
+                        <label class="flex items-center space-x-2 p-2.5 border-2 border-slate-200 rounded-xl">
+                            <input type="checkbox" class="rounded">
+                            <span class="text-[11px] font-bold text-slate-600">🔨 拍卖中</span>
+                        </label>
+                        <label class="flex items-center space-x-2 p-2.5 border-2 border-slate-200 rounded-xl">
+                            <input type="checkbox" class="rounded">
+                            <span class="text-[11px] font-bold text-slate-600">🔑 租赁中(P1)</span>
+                        </label>
+                        <label class="flex items-center space-x-2 p-2.5 border-2 border-slate-200 rounded-xl opacity-50">
+                            <input type="checkbox" disabled class="rounded">
+                            <span class="text-[11px] font-bold text-slate-400">⏰ 荷兰拍 🔒P3</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">价格区间(USDRs)</p>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" placeholder="最低" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700">
+                        <span class="text-slate-400">—</span>
+                        <input type="number" placeholder="最高" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700">
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">网络</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="px-3 py-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-full">全部</button>
+                        <button class="px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full">OBChain</button>
+                        <button class="px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full">Ethereum</button>
+                        <button class="px-3 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full">Arbitrum</button>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">资产状态</p>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" checked class="rounded">
+                            <span class="text-[11px] font-bold text-slate-700">立即可购买</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" class="rounded">
+                            <span class="text-[11px] font-bold text-slate-700">即将结束(24h内)</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" class="rounded">
+                            <span class="text-[11px] font-bold text-slate-700">有出价记录</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" class="rounded">
+                            <span class="text-[11px] font-bold text-slate-700">可租赁(使用权可获)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex space-x-3 pt-2">
+                    <button class="flex-1 py-3 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl active-scale">重置</button>
+                    <button onclick="closeDrawer('drawer-filter')" class="flex-1 py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl active-scale">应用(28)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 排序抽屉 ============ -->
+    <div id="drawer-sort" class="hidden absolute inset-0 z-[100]">
+        <div class="overlay-blur absolute inset-0" onclick="closeDrawer('drawer-sort')"></div>
+        <div class="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl slide-up">
+            <div class="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-base font-black text-slate-900 font-display">排序方式</h3>
+                <button onclick="closeDrawer('drawer-sort')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center active-scale">✕</button>
+            </div>
+            <div class="px-5 py-3 pb-8 space-y-1">
+                <button onclick="selectSort('最新上架')" class="w-full py-3 flex items-center justify-between active-scale">
+                    <span class="text-sm font-bold text-slate-900">最新上架</span>
+                    <span class="text-indigo-600">✓</span>
+                </button>
+                <button onclick="selectSort('价格从低到高')" class="w-full py-3 flex items-center justify-between active-scale">
+                    <span class="text-sm font-bold text-slate-600">价格从低到高</span>
+                </button>
+                <button onclick="selectSort('价格从高到低')" class="w-full py-3 flex items-center justify-between active-scale">
+                    <span class="text-sm font-bold text-slate-600">价格从高到低</span>
+                </button>
+                <button onclick="selectSort('即将结束')" class="w-full py-3 flex items-center justify-between active-scale">
+                    <span class="text-sm font-bold text-slate-600">即将结束</span>
+                </button>
+                <button onclick="selectSort('出价最多')" class="w-full py-3 flex items-center justify-between active-scale">
+                    <span class="text-sm font-bold text-slate-600">出价最多</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 资产详情页(全屏) ============ -->
+    <div id="page-detail" class="hidden absolute inset-0 z-[90] bg-lightbg flex flex-col">
+        <!-- 详情 Header -->
+        <div class="pt-11 px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+            <button onclick="closeDetail()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale">
+                <span class="text-sm">‹</span>
+            </button>
+            <h1 class="text-sm font-black text-slate-900 font-display">资产详情</h1>
+            <button class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale">
+                <span class="text-xs">↗</span>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto hide-scrollbar">
+            <!-- 资产预览 -->
+            <div class="gradient-premium h-64 flex items-center justify-center text-white text-6xl font-black font-display relative" id="detail-preview">
+                21008
+            </div>
+
+            <!-- 基本信息 -->
+            <div class="bg-white p-4 mb-2">
+                <div class="flex items-start justify-between mb-2">
+                    <div>
+                        <p class="text-xl font-black text-slate-900 font-display" id="detail-name">21008</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5" id="detail-sub">💎 靓号 · 豹子 ×50 · OBChain</p>
+                    </div>
+                    <span class="px-2 py-1 type-tag-premium text-[10px] font-bold rounded" id="detail-type-tag">靓号</span>
+                </div>
+                <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                    <div>
+                        <p class="text-[10px] text-slate-400" id="detail-price-label">一口价</p>
+                        <p class="text-2xl font-black text-indigo-600 font-display" id="detail-price">250 <span class="text-xs">USDRs</span></p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-slate-400">卖家</p>
+                        <p class="text-xs font-mono text-slate-700" id="detail-seller">0x4f2a...8d1a</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 详情 Tab -->
+            <div class="bg-white mb-2">
+                <div class="flex border-b border-slate-100">
+                    <button onclick="switchDetailTab('props')" id="dt-props" class="flex-1 py-3 text-[11px] font-bold border-b-2 border-indigo-600 text-indigo-600">属性</button>
+                    <button onclick="switchDetailTab('history')" id="dt-history" class="flex-1 py-3 text-[11px] font-bold border-b-2 border-transparent text-slate-400">流转历史</button>
+                    <button onclick="switchDetailTab('bids')" id="dt-bids" class="flex-1 py-3 text-[11px] font-bold border-b-2 border-transparent text-slate-400">挂单深度</button>
+                </div>
+
+                <!-- 属性 -->
+                <div id="detail-props" class="p-4 grid grid-cols-2 gap-2">
+                    <div class="bg-slate-50 rounded-xl p-2.5">
+                        <p class="text-[9px] text-slate-400 uppercase">类型</p>
+                        <p class="text-xs font-bold text-slate-900">靓号</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-2.5">
+                        <p class="text-[9px] text-slate-400 uppercase">特征</p>
+                        <p class="text-xs font-bold text-slate-900">豹子</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-2.5">
+                        <p class="text-[9px] text-slate-400 uppercase">倍率</p>
+                        <p class="text-xs font-bold text-slate-900">×50</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-2.5">
+                        <p class="text-[9px] text-slate-400 uppercase">位数</p>
+                        <p class="text-xs font-bold text-slate-900">5 位</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-2.5">
+                        <p class="text-[9px] text-slate-400 uppercase">网络</p>
+                        <p class="text-xs font-bold text-slate-900">OBChain</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-2.5">
+                        <p class="text-[9px] text-slate-400 uppercase">持有起始</p>
+                        <p class="text-xs font-bold text-slate-900">2026-07-10</p>
+                    </div>
+                </div>
+
+                <!-- 流转历史 -->
+                <div id="detail-history" class="hidden p-4 space-y-3">
+                    <div class="flex items-center justify-between text-[10px]">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">🛒</span>
+                            <div>
+                                <p class="font-bold text-slate-900">一口价成交</p>
+                                <p class="text-slate-400 font-mono">0x71C7→0x4f2a · 2026-07-15</p>
+                            </div>
+                        </div>
+                        <span class="font-black text-emerald-600">150 U</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px]">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-7 h-7 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">⚡</span>
+                            <div>
+                                <p class="font-bold text-slate-900">一级购买</p>
+                                <p class="text-slate-400 font-mono">0x0000→0x71C7 · 2026-07-10</p>
+                            </div>
+                        </div>
+                        <span class="font-black text-slate-700">100 U</span>
+                    </div>
+                </div>
+
+                <!-- 挂单深度 -->
+                <div id="detail-bids" class="hidden p-4 space-y-2">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">当前挂单</p>
+                    <div class="flex items-center justify-between text-[11px] py-2 border-b border-slate-100">
+                        <span class="font-mono text-slate-600">0x4f2a...8d1a</span>
+                        <span class="font-black text-indigo-600">250 USDRs</span>
+                        <span class="text-[9px] text-slate-400">剩 5 天</span>
+                    </div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-3 mb-2">出价记录</p>
+                    <p class="text-[11px] text-slate-400 text-center py-3">暂无出价</p>
+                </div>
+            </div>
+
+            <div class="h-20"></div>
+        </div>
+
+        <!-- 底部固定 CTA · v2.1:移除「赠送」按钮(赠送入口移至短号中心/商品详情页) -->
+        <div class="bg-white border-t border-slate-100 p-3 flex space-x-2 flex-shrink-0">
+            <button onclick="openBuyConfirm()" class="flex-1 py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl active-scale" id="detail-cta">立即购买</button>
+        </div>
+    </div>
+
+    <!-- ============ 挂单表单弹窗 ============ -->
+    <div id="modal-list" class="hidden absolute inset-0 z-[100]">
+        <div class="overlay-blur absolute inset-0" onclick="closeModal('modal-list')"></div>
+        <div class="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl max-h-[90%] overflow-y-auto hide-scrollbar slide-up">
+            <div class="sticky top-0 bg-white px-5 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-base font-black text-slate-900 font-display">挂售流转</h3>
+                <button onclick="closeModal('modal-list')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center active-scale">✕</button>
+            </div>
+            <div class="px-5 py-4 space-y-4 pb-8">
+
+                <!-- 渠道选择 · v2.1:3 渠道改为一口价 / 拍卖 / 租赁(移除赠送) -->
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">处置方式</label>
+                    <div class="grid grid-cols-3 gap-2 mt-2">
+                        <button onclick="selectChannel('fixed')" id="ch-btn-fixed" class="py-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-600 text-[11px] font-bold active-scale">
+                            <div class="text-base mb-1">🏷️</div>一口价
+                        </button>
+                        <button onclick="selectChannel('auction')" id="ch-btn-auction" class="py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-[11px] font-bold active-scale">
+                            <div class="text-base mb-1">🔨</div>拍卖
+                        </button>
+                        <button onclick="selectChannel('rental')" id="ch-btn-rental" class="py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-[11px] font-bold active-scale">
+                            <div class="text-base mb-1">🔑</div>租赁
+                        </button>
+                    </div>
+                    <!-- v2.1:赠送已移出本弹窗,仅保留在短号中心/商品详情页入口 -->
+                    <p class="text-[10px] text-slate-400 mt-2">💡 赠送请前往短号中心或资产详情页(走 GiftChannel,即时过户)</p>
+                </div>
+
+                <!-- 资产信息(只读) -->
+                <div class="bg-slate-50 rounded-2xl p-4">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">资产信息</p>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-xl gradient-premium flex items-center justify-center text-white text-base font-black font-display" id="list-asset-icon">💎</div>
+                        <div class="flex-1">
+                            <p class="text-base font-black text-slate-900 font-display" id="list-asset-name">21008</p>
+                            <p class="text-[10px] text-slate-500 font-mono" id="list-asset-meta">豹子 ×50 · OBChain</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 一口价参数 -->
+                <div id="form-fixed" class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">收款币种</label>
+                        <select class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700">
+                            <option>USDRs</option><option>USDT</option><option>USDC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">挂售价格</label>
+                        <div class="relative mt-2">
+                            <input type="number" value="250" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-900 pr-20">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">USDRs</span>
+                        </div>
+                        <p class="text-[10px] text-indigo-600 font-bold mt-1.5">💡 建议价:200-500 U(基于历史成交均价)</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">过期时间</label>
+                        <select class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700">
+                            <option>7 天</option><option>30 天</option><option>永久(0)</option>
+                        </select>
+                    </div>
+                    <div class="bg-indigo-50 rounded-2xl p-4 space-y-2">
+                        <div class="flex justify-between text-[11px]"><span class="text-slate-600">挂售价格</span><span class="font-bold text-slate-900">250.00 USDRs</span></div>
+                        <div class="flex justify-between text-[11px]"><span class="text-slate-600">手续费(0%)</span><span class="font-bold text-slate-900">0.00 USDRs</span></div>
+                        <div class="border-t border-indigo-200 pt-2 flex justify-between"><span class="text-xs font-bold text-slate-700">预计到账</span><span class="text-base font-black text-emerald-600 font-display">250.00 USDRs</span></div>
+                    </div>
+                </div>
+
+                <!-- 拍卖参数 -->
+                <div id="form-auction" class="hidden space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">起拍价(必填)</label>
+                        <div class="relative mt-2">
+                            <input type="number" value="100" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-900 pr-20">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">USDRs</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">底价(可选)</label>
+                        <div class="relative mt-2">
+                            <input type="number" value="150" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-900 pr-20">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">USDRs</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1.5">⚠️ 未达底价将流拍,资产保留给您</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">拍卖时长</label>
+                        <select class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700">
+                            <option>1 天</option><option selected>3 天</option><option>7 天</option>
+                        </select>
+                    </div>
+                    <div class="bg-pink-50 rounded-2xl p-4 space-y-2">
+                        <div class="flex justify-between text-[11px]"><span class="text-slate-600">手续费率</span><span class="font-bold text-slate-900">2.5%</span></div>
+                        <div class="flex justify-between text-[11px]"><span class="text-slate-600">示例:成交 250U</span><span class="font-bold text-red-500">-6.25 USDRs</span></div>
+                    </div>
+                </div>
+
+                <!-- 租赁参数 · v2.1 新增(form-rental · ERC-4907 使用权分离) -->
+                <div id="form-rental" class="hidden space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">租客地址(tenant)</label>
+                        <div class="relative mt-2">
+                            <input type="text" placeholder="0x..." class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono text-slate-900 pr-12">
+                            <button class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 active-scale">📷</button>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1.5">定向出租模式,需预先知道租客地址(可扫码)</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">收款币种</label>
+                        <select class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700">
+                            <option>USDRs</option><option>USDT</option><option>USDC</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">每周期租金</label>
+                            <div class="relative mt-2">
+                                <input type="number" value="5" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-base font-black text-slate-900 pr-12">
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">USDRs</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">周期长度</label>
+                            <select class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-3 py-3 text-sm font-bold text-slate-700">
+                                <option>1 小时</option><option selected>1 天</option><option>7 天</option><option>30 天</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">购买周期数(units)</label>
+                        <div class="relative mt-2">
+                            <input type="number" value="30" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-base font-black text-slate-900 pr-16">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">个周期</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                            <p class="text-[11px] font-bold text-slate-700">独占模式</p>
+                            <p class="text-[10px] text-slate-400">是 = lockSku 防止转移 / 否 = 出租方仍可转移所有权</p>
+                        </div>
+                        <!-- 简化版开关:默认「是」 -->
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked class="sr-only peer">
+                            <div class="w-10 h-5 bg-slate-300 peer-checked:bg-amber-500 rounded-full transition"></div>
+                            <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+                        </label>
+                    </div>
+                    <div class="bg-amber-50 rounded-2xl p-4 space-y-2">
+                        <div class="flex justify-between text-[11px]"><span class="text-slate-600">总租金(5 × 30)</span><span class="font-bold text-slate-900">150.00 USDRs</span></div>
+                        <div class="flex justify-between text-[11px]"><span class="text-slate-600">手续费(无)</span><span class="font-bold text-slate-900">0.00 USDRs</span></div>
+                        <div class="border-t border-amber-200 pt-2 flex justify-between"><span class="text-xs font-bold text-slate-700">预计到账</span><span class="text-base font-black text-emerald-600 font-display">150.00 USDRs</span></div>
+                        <p class="text-[9px] text-slate-400 mt-1">RentalChannel 合约无 feeBps,租金全付出租方</p>
+                    </div>
+                    <div class="bg-red-50 rounded-xl p-3 space-y-1">
+                        <p class="text-[10px] text-red-700">⚠️ 独占模式下资产将被 lockSku 锁定,endRental 后解锁</p>
+                        <p class="text-[10px] text-red-700">⚠️ 租客仅获得使用权(userOf),所有权仍归您</p>
+                        <p class="text-[10px] text-red-700">⚠️ 租客不可提前退租,仅到期后或出租方/miner 调 endRental</p>
+                    </div>
+                </div>
+
+                <!-- 通用风险提示 -->
+                <div id="risk-common" class="bg-amber-50 rounded-xl p-3 space-y-1">
+                    <p class="text-[10px] text-amber-700">⚠️ 挂单后资产将被锁定,撤单后解锁</p>
+                    <p class="text-[10px] text-amber-700">⚠️ 二级流转不触发代理奖励分润</p>
+                </div>
+
+                <!-- PIN -->
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">PIN 码签名</label>
+                    <div class="relative mt-2">
+                        <input type="password" placeholder="请输入 PIN 码" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 pr-12">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">🔒</span>
+                    </div>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button onclick="closeModal('modal-list')" class="flex-1 py-3.5 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl active-scale">取消</button>
+                    <button onclick="confirmList()" class="flex-1 py-3.5 bg-indigo-600 text-white text-sm font-bold rounded-xl active-scale" id="list-confirm-btn">确认挂售</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 购买确认弹窗 ============ -->
+    <div id="modal-buy" class="hidden absolute inset-0 z-[100]">
+        <div class="overlay-blur absolute inset-0" onclick="closeModal('modal-buy')"></div>
+        <div class="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl slide-up">
+            <div class="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-base font-black text-slate-900 font-display">确认购买</h3>
+                <button onclick="closeModal('modal-buy')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center active-scale">✕</button>
+            </div>
+            <div class="px-5 py-4 space-y-4 pb-8">
+                <div class="bg-slate-50 rounded-2xl p-4">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-12 h-12 rounded-xl gradient-premium flex items-center justify-center text-white text-base font-black font-display" id="buy-icon">💎</div>
+                        <div class="flex-1">
+                            <p class="text-base font-black text-slate-900 font-display" id="buy-name">21008</p>
+                            <p class="text-[10px] text-slate-500 font-mono" id="buy-meta">豹子 ×50 · OBChain</p>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5 text-[11px]">
+                        <div class="flex justify-between"><span class="text-slate-500">卖家</span><span class="font-mono text-slate-700">0x4f2a...8d1a</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">渠道</span><span class="font-bold text-indigo-600">FixedPriceMarket</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">剩余有效期</span><span class="font-bold text-amber-600">5 天 12 时</span></div>
+                    </div>
+                </div>
+                <div class="bg-indigo-50 rounded-2xl p-4 space-y-2">
+                    <div class="flex justify-between text-sm"><span class="text-slate-600">支付金额</span><span class="font-black text-slate-900" id="buy-price">250.00 USDRs</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-slate-500">手续费</span><span class="font-bold text-slate-700">0.00 USDRs</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-slate-500">Gas 费</span><span class="font-bold text-slate-700">~0.002 USDRs</span></div>
+                    <div class="border-t border-indigo-200 pt-2 flex justify-between"><span class="text-sm font-bold text-slate-700">合计支付</span><span class="text-base font-black text-indigo-600 font-display" id="buy-total">250.002 USDRs</span></div>
+                </div>
+                <div class="bg-amber-50 rounded-xl p-3 space-y-1">
+                    <p class="text-[10px] text-amber-700">⚠️ 购买后资产将过户至您的地址</p>
+                    <p class="text-[10px] text-amber-700">⚠️ 此交易不触发上下级关系绑定</p>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">PIN 码签名</label>
+                    <div class="relative mt-2">
+                        <input type="password" placeholder="请输入 PIN 码" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 pr-12">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">🔒</span>
+                    </div>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="closeModal('modal-buy')" class="flex-1 py-3.5 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl active-scale">取消</button>
+                    <button onclick="confirmBuy()" class="flex-1 py-3.5 bg-emerald-600 text-white text-sm font-bold rounded-xl active-scale">确认购买</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 出价弹窗 ============ -->
+    <div id="modal-bid" class="hidden absolute inset-0 z-[100]">
+        <div class="overlay-blur absolute inset-0" onclick="closeModal('modal-bid')"></div>
+        <div class="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl max-h-[90%] overflow-y-auto hide-scrollbar slide-up">
+            <div class="sticky top-0 bg-white px-5 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-base font-black text-slate-900 font-display">出价竞拍</h3>
+                <button onclick="closeModal('modal-bid')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center active-scale">✕</button>
+            </div>
+            <div class="px-5 py-4 space-y-4 pb-8">
+                <div class="bg-slate-50 rounded-2xl p-4">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-12 h-12 rounded-xl gradient-premium flex items-center justify-center text-white text-base font-black font-display" id="bid-icon">💎</div>
+                        <div class="flex-1">
+                            <p class="text-base font-black text-slate-900 font-display" id="bid-name">7281930</p>
+                            <p class="text-[10px] text-slate-500 font-mono" id="bid-meta">吉尾号 ×3 · Ethereum</p>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5 text-[11px]">
+                        <div class="flex justify-between"><span class="text-slate-500">起拍价</span><span class="font-bold text-slate-700">100 USDRs</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">当前最高价</span><span class="font-black text-emerald-600" id="bid-current">180 USDRs</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">最高出价者</span><span class="font-mono text-slate-700">0x9d1e...2c3f</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">剩余时间</span><span class="font-bold text-red-500">2 天 3 时 15 分</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">出价次数</span><span class="font-bold text-slate-700">5 次</span></div>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">出价历史</p>
+                    <div class="bg-slate-50 rounded-xl p-3 space-y-2 text-[10px] font-mono">
+                        <div class="flex justify-between"><span class="text-slate-500">15:32</span><span class="text-slate-700">0x9d1e...</span><span class="font-bold text-emerald-600">180 U</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">14:20</span><span class="text-slate-700">0x8c2d...</span><span class="font-bold text-slate-700">170 U</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">13:05</span><span class="text-slate-700">0x9d1e...</span><span class="font-bold text-slate-700">160 U</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">12:40</span><span class="text-slate-700">0x8c2d...</span><span class="font-bold text-slate-700">150 U</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">11:15</span><span class="text-slate-700">0x9d1e...</span><span class="font-bold text-slate-700">100 U</span></div>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">我的出价(必须 > 180 U)</label>
+                    <div class="relative mt-2">
+                        <input type="number" value="190" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-900 pr-20">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">USDRs</span>
+                    </div>
+                    <p class="text-[10px] text-indigo-600 font-bold mt-1.5">💡 当前需出价 ≥ 181 USDRs</p>
+                    <p class="text-[10px] text-slate-400 mt-1">💡 出价金额将托管至合约,被超越后自动退回</p>
+                </div>
+                <div class="bg-amber-50 rounded-xl p-3 space-y-1">
+                    <p class="text-[10px] text-amber-700">⚠️ 出价后金额立即托管至合约</p>
+                    <p class="text-[10px] text-amber-700">⚠️ 被超越自动退回,失败可主动取回</p>
+                    <!-- v2.1 补强:forceSettle/forceCancel/withdrawRefund 归属 -->
+                    <p class="text-[10px] text-amber-700">💡 若结算失败可调 <code class="font-mono text-[9px] bg-amber-100 px-1 rounded">withdrawRefund</code> 主动取回退款(挂起 pendingRefunds)</p>
+                    <p class="text-[10px] text-slate-500">📝 拍卖到期后任何人可调 <code class="font-mono text-[9px] bg-slate-100 px-1 rounded">settle</code> 结算,miner 可 <code class="font-mono text-[9px] bg-slate-100 px-1 rounded">forceSettle</code> / <code class="font-mono text-[9px] bg-slate-100 px-1 rounded">forceCancel</code></p>
+                </div>
+                <!-- v2.1 新增:结算按钮(任何人可调 settle,拍卖到期后高亮) -->
+                <div class="bg-slate-50 rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-bold text-slate-700">拍卖结算</p>
+                        <p class="text-[10px] text-slate-400">拍卖到期后,任何人可点击结算(无需卖家在线)</p>
+                    </div>
+                    <button onclick="settleAuction('7281930')" class="px-3 py-2 bg-slate-200 text-slate-600 text-[11px] font-bold rounded-lg active-scale" id="bid-settle-btn">⏰ 结算</button>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">PIN 码签名</label>
+                    <div class="relative mt-2">
+                        <input type="password" placeholder="请输入 PIN 码" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 pr-12">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">🔒</span>
+                    </div>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="closeModal('modal-bid')" class="flex-1 py-3.5 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl active-scale">取消</button>
+                    <button onclick="confirmBid()" class="flex-1 py-3.5 bg-pink-600 text-white text-sm font-bold rounded-xl active-scale">确认出价</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 承租确认弹窗(v2.1.1 新增 · 对齐 RentalChannel.rent) ============ -->
+    <div id="modal-rent" class="hidden absolute inset-0 z-[100]">
+        <div class="overlay-blur absolute inset-0" onclick="closeModal('modal-rent')"></div>
+        <div class="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl max-h-[90%] overflow-y-auto hide-scrollbar slide-up">
+            <div class="sticky top-0 bg-white px-5 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-base font-black text-slate-900 font-display">确认承租</h3>
+                <button onclick="closeModal('modal-rent')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center active-scale">✕</button>
+            </div>
+            <div class="px-5 py-4 space-y-4 pb-8">
+                <!-- 资产信息 -->
+                <div class="bg-slate-50 rounded-2xl p-4">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-12 h-12 rounded-xl gradient-virtual flex items-center justify-center text-white text-xl" id="rent-icon">🎫</div>
+                        <div class="flex-1">
+                            <p class="text-base font-black text-slate-900 font-display" id="rent-name">VIP 会员季卡</p>
+                            <p class="text-[10px] text-slate-500 font-mono" id="rent-meta">虚拟兑换码 · OBChain</p>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5 text-[11px]">
+                        <div class="flex justify-between"><span class="text-slate-500">出租方</span><span class="font-mono text-slate-700">0x4f2a...8d1a</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">渠道</span><span class="font-bold text-amber-600">RentalChannel · ERC-4907</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">独占模式</span><span class="font-bold text-amber-600">是(lockSku 锁定)</span></div>
+                    </div>
+                </div>
+                <!-- 承租参数(只读展示,实际由出租方挂租时设定,租客仅确认支付) -->
+                <div class="bg-amber-50 rounded-2xl p-4 space-y-2">
+                    <div class="flex justify-between text-sm"><span class="text-slate-600">每周期租金</span><span class="font-black text-slate-900">5 USDRs / 天</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-slate-500">承租周期数</span><span class="font-bold text-slate-700">30 个</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-slate-500">使用权到期</span><span class="font-bold text-slate-700">2026-08-22 23:59</span></div>
+                    <div class="border-t border-amber-200 pt-2 flex justify-between"><span class="text-sm font-bold text-slate-700">总租金</span><span class="text-base font-black text-amber-600 font-display">150.00 USDRs</span></div>
+                    <p class="text-[9px] text-slate-400 mt-1">货款直付出租方,合约不托管;无手续费</p>
+                </div>
+                <!-- 风险提示(对齐合约边界) -->
+                <div class="bg-red-50 rounded-xl p-3 space-y-1">
+                    <p class="text-[10px] text-red-700">⚠️ 您仅获得使用权(<code class="font-mono text-[9px] bg-red-100 px-1 rounded">userOf</code>),所有权仍归出租方</p>
+                    <p class="text-[10px] text-red-700">⚠️ 使用权到期前不可提前退租(仅出租方/miner 可调 <code class="font-mono text-[9px] bg-red-100 px-1 rounded">endRental</code>)</p>
+                    <p class="text-[10px] text-red-700">⚠️ 独占模式下出租方资产被锁定,无法同时挂售</p>
+                    <p class="text-[10px] text-amber-700">💡 到期后任何人可调 <code class="font-mono text-[9px] bg-amber-100 px-1 rounded">reclaimExpired</code> 清理使用权</p>
+                </div>
+                <!-- PIN -->
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">PIN 码签名</label>
+                    <div class="relative mt-2">
+                        <input type="password" placeholder="请输入 PIN 码" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 pr-12">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">🔒</span>
+                    </div>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="closeModal('modal-rent')" class="flex-1 py-3.5 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl active-scale">取消</button>
+                    <button onclick="confirmRent()" class="flex-1 py-3.5 bg-amber-600 text-white text-sm font-bold rounded-xl active-scale">确认承租</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ Toast ============ -->
+    <div id="toast" class="hidden absolute top-14 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-full shadow-lg animate-fade-in"></div>
+
+</div>
+
+<script>
+    // ===== 视图切换(v2.1:无底部 Tab,市场为单视图,「我的」从右上角入口进入) =====
+    // 进入「我的资产」全屏页
+    function enterMine() {
+        document.getElementById('view-market').classList.add('hidden');
+        document.getElementById('view-mine').classList.remove('hidden');
+        document.getElementById('header-market').classList.add('hidden');
+        document.getElementById('header-mine').classList.remove('hidden');
+        document.getElementById('main-content').scrollTop = 0;
+        // 默认进入「我的资产」子 Tab
+        switchMineTab('assets');
+    }
+
+    // 退出「我的资产」返回市场浏览
+    function exitMine() {
+        document.getElementById('view-mine').classList.add('hidden');
+        document.getElementById('view-market').classList.remove('hidden');
+        document.getElementById('header-mine').classList.add('hidden');
+        document.getElementById('header-market').classList.remove('hidden');
+        document.getElementById('main-content').scrollTop = 0;
+    }
+
+    // ===== 渠道分类快捷切换(v2.1 新增 · 全部/一口价/拍卖/租赁) =====
+    // 按 data-channel 过滤 #market-grid 下的卡片,并更新 chip 选中态
+    function switchChannel(channel) {
+        // 更新 chip 选中态(4 项单选)
+        ['all', 'fixed', 'auction', 'rental'].forEach(c => {
+            const btn = document.getElementById('ch-' + c);
+            if (!btn) return;
+            if (c === channel) {
+                btn.classList.add('bg-indigo-600', 'text-white');
+                btn.classList.remove('bg-slate-100', 'text-slate-600');
+            } else {
+                btn.classList.remove('bg-indigo-600', 'text-white');
+                btn.classList.add('bg-slate-100', 'text-slate-600');
+            }
+        });
+        // 过滤卡片
+        const cards = document.querySelectorAll('#market-grid [data-channel]');
+        let visible = 0;
+        cards.forEach(card => {
+            if (channel === 'all' || card.getAttribute('data-channel') === channel) {
+                card.classList.remove('hidden');
+                visible++;
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+        // 更新排序条挂单数(可选)
+        const countEl = document.getElementById('result-count');
+        if (countEl) countEl.textContent = visible + (channel === 'all' ? 0 : 0);
+    }
+
+    // ===== 我的子 Tab 切换(v2.1:扩展为 4 项,新增「我的出租」rentals) =====
+    function switchMineTab(tab) {
+        ['assets', 'listings', 'rentals', 'orders'].forEach(t => {
+            const view = document.getElementById('mine-view-' + t);
+            if (view) view.classList.add('hidden');
+            const btn = document.getElementById('mine-' + t);
+            if (btn) {
+                btn.classList.remove('border-indigo-600', 'text-indigo-600');
+                btn.classList.add('border-transparent', 'text-slate-400');
+            }
+        });
+        const activeView = document.getElementById('mine-view-' + tab);
+        if (activeView) activeView.classList.remove('hidden');
+        const activeBtn = document.getElementById('mine-' + tab);
+        if (activeBtn) {
+            activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
+            activeBtn.classList.remove('border-transparent', 'text-slate-400');
+        }
+    }
+
+    // ===== 资产类型切换(chip) =====
+    function switchType(type) {
+        document.querySelectorAll('[id^="type-"]').forEach(el => {
+            el.classList.remove('bg-indigo-600', 'text-white');
+            el.classList.add('bg-slate-100', 'text-slate-600');
+        });
+        const btn = document.getElementById('type-' + type);
+        btn.classList.add('bg-indigo-600', 'text-white');
+        btn.classList.remove('bg-slate-100', 'text-slate-600');
+        // 模拟结果数变化
+        const counts = { all: 28, short_premium: 8, short_free: 5, goods_real: 4, goods_virtual: 6, goods_service: 3, goods_secret: 2 };
+        document.getElementById('result-count').textContent = counts[type] || 28;
+    }
+
+    // ===== 抽屉控制 =====
+    function openFilterDrawer() { document.getElementById('drawer-filter').classList.remove('hidden'); }
+    function openSortDrawer() { document.getElementById('drawer-sort').classList.remove('hidden'); }
+    function closeDrawer(id) { document.getElementById(id).classList.add('hidden'); }
+    function selectSort(label) {
+        document.getElementById('sort-label').textContent = label;
+        closeDrawer('drawer-sort');
+        showToast('已按「' + label + '」排序');
+    }
+
+    // ===== 资产详情页 =====
+    // v2.1.1:CTA 根据渠道区分(立即购买 / 参拍出价 / 确认承租)
+    let detailContext = { isOwner: false, channel: 'fixed', price: 0, id: '' };
+
+    // 资产 id → 渠道映射(对齐卡片 data-channel)
+    const ASSET_CHANNEL_MAP = {
+        '21008': 'fixed', '88888': 'fixed', '9573326140': 'fixed',
+        'R9key': 'fixed', 'Consult': 'fixed', 'Secret': 'fixed',
+        '7281930': 'auction',
+        'VIPcard': 'rental',
+        '666888': 'auction'
+    };
+
+    function openListingDetail(id) {
+        const name = document.getElementById('detail-name');
+        const sub = document.getElementById('detail-sub');
+        const typeTag = document.getElementById('detail-type-tag');
+        const priceLabel = document.getElementById('detail-price-label');
+        const price = document.getElementById('detail-price');
+        const seller = document.getElementById('detail-seller');
+        const cta = document.getElementById('detail-cta');
+
+        detailContext.isOwner = false;
+        detailContext.id = id;
+        detailContext.channel = ASSET_CHANNEL_MAP[id] || 'fixed';
+
+        // 按 id 简化渲染(实际由 Indexer 注入)
+        const metaMap = {
+            '21008':    { name: '21008',    sub: '💎 靓号 · 豹子 ×50 · OBChain', tag: '靓号', priceLabel: '一口价', price: '250 <span class="text-xs">USDRs</span>', seller: '0x4f2a...8d1a' },
+            '88888':    { name: '88888',    sub: '💎 靓号 · 顺子 ×20 · OBChain', tag: '靓号', priceLabel: '一口价', price: '380 <span class="text-xs">USDRs</span>', seller: '0x4f2a...8d1a' },
+            '9573326140':{ name: '9573326140', sub: '🎁 免费号 · OBChain · 10位', tag: '免费号', priceLabel: '一口价', price: '5 <span class="text-xs">USDRs</span>', seller: '0x8c2d...4e7f' },
+            'R9key':    { name: 'R9 硬件钥匙', sub: '🛒 实物 · 限量 · OBChain', tag: '实物', priceLabel: '一口价', price: '199 <span class="text-xs">USDRs</span>', seller: '0x4f2a...8d1a' },
+            'Consult':  { name: '专家咨询 1h', sub: '🛎️ 服务包 · OBChain', tag: '服务', priceLabel: '一口价', price: '120 <span class="text-xs">USDRs</span>', seller: '0x5e2f...9c1d' },
+            'Secret':   { name: '保密商品 · 高级', sub: '🔒 脱敏 #9d1e... · OBChain', tag: '保密', priceLabel: '一口价', price: '500 <span class="text-xs">USDRs</span>', seller: '0x9d1e...2c3f' },
+            '7281930':  { name: '7281930',  sub: '💎 靓号 · 吉尾 ×3 · Ethereum', tag: '靓号', priceLabel: '当前出价', price: '180 <span class="text-xs">USDRs</span>', seller: '0x4f2a...8d1a' },
+            '666888':   { name: '666888',   sub: '💎 靓号 · 豹子 ×100 · OBChain', tag: '靓号', priceLabel: '当前出价', price: '650 <span class="text-xs">USDRs</span>', seller: '0x4f2a...8d1a' },
+            'VIPcard':  { name: '🎫 VIP 会员季卡', sub: '虚拟兑换码 · OBChain', tag: '虚拟', priceLabel: '租金/天', price: '5 <span class="text-xs">USDRs</span>', seller: '0x4f2a...8d1a' }
+        };
+        const m = metaMap[id] || metaMap['21008'];
+        name.textContent = m.name;
+        sub.textContent = m.sub;
+        typeTag.textContent = m.tag;
+        priceLabel.textContent = m.priceLabel;
+        price.innerHTML = m.price;
+        seller.textContent = m.seller;
+
+        // CTA 按渠道区分(对齐合约:fixed→buyListed / auction→bid / rental→rent)
+        if (detailContext.channel === 'auction') {
+            cta.textContent = '参拍出价';
+            cta.className = 'flex-1 py-3 bg-pink-600 text-white text-sm font-bold rounded-xl active-scale';
+            cta.onclick = openBidModal;
+        } else if (detailContext.channel === 'rental') {
+            cta.textContent = '确认承租';
+            cta.className = 'flex-1 py-3 bg-amber-600 text-white text-sm font-bold rounded-xl active-scale';
+            cta.onclick = openRentConfirm;
+        } else {
+            cta.textContent = '立即购买';
+            cta.className = 'flex-1 py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl active-scale';
+            cta.onclick = openBuyConfirm;
+        }
+
+        document.getElementById('page-detail').classList.remove('hidden');
+    }
+
+    function openAssetDetail(id) {
+        // 我的资产详情:显示挂售 CTA
+        const cta = document.getElementById('detail-cta');
+        detailContext.isOwner = true;
+        cta.textContent = '挂售流转';
+        cta.className = 'flex-1 py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl active-scale';
+        cta.onclick = function() { openListModal(id); };
+        document.getElementById('page-detail').classList.remove('hidden');
+    }
+
+    function closeDetail() { document.getElementById('page-detail').classList.add('hidden'); }
+
+    function switchDetailTab(tab) {
+        ['props', 'history', 'bids'].forEach(t => {
+            document.getElementById('detail-' + t).classList.add('hidden');
+            const btn = document.getElementById('dt-' + t);
+            btn.classList.remove('border-indigo-600', 'text-indigo-600');
+            btn.classList.add('border-transparent', 'text-slate-400');
+        });
+        document.getElementById('detail-' + tab).classList.remove('hidden');
+        const activeBtn = document.getElementById('dt-' + tab);
+        activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
+        activeBtn.classList.remove('border-transparent', 'text-slate-400');
+    }
+
+    // ===== 弹窗控制 =====
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function showToast(msg, duration = 2000) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), duration);
+    }
+
+    function goBack() { showToast('返回身份 Tab'); }
+
+    // ===== 挂单表单 =====
+    function openListModal(id) {
+        selectChannel('fixed');
+        document.getElementById('modal-list').classList.remove('hidden');
+    }
+
+    function selectChannel(ch) {
+        // v2.1:3 渠道(一口价/拍卖/租赁),赠送已移出挂单弹窗
+        const map = { fixed: 'fixed', auction: 'auction', rental: 'rental' };
+        Object.keys(map).forEach(k => {
+            const btn = document.getElementById('ch-btn-' + k);
+            const form = document.getElementById('form-' + k);
+            if (!btn || !form) return;
+            if (k === ch) {
+                btn.classList.add('border-indigo-600', 'bg-indigo-50', 'text-indigo-600');
+                btn.classList.remove('border-slate-200', 'text-slate-500');
+                form.classList.remove('hidden');
+            } else {
+                btn.classList.remove('border-indigo-600', 'bg-indigo-50', 'text-indigo-600');
+                btn.classList.add('border-slate-200', 'text-slate-500');
+                form.classList.add('hidden');
+            }
+        });
+        // 切换确认按钮文案与风险提示
+        const confirmBtn = document.getElementById('list-confirm-btn');
+        const riskCommon = document.getElementById('risk-common');
+        if (ch === 'rental') {
+            // 租赁(ERC-4907 使用权分离):amber-600 色,与赠送色系接近但语义不同
+            confirmBtn.textContent = '确认挂租';
+            confirmBtn.className = 'flex-1 py-3.5 bg-amber-600 text-white text-sm font-bold rounded-xl active-scale';
+            riskCommon.classList.remove('hidden');
+        } else if (ch === 'auction') {
+            confirmBtn.textContent = '确认挂拍';
+            confirmBtn.className = 'flex-1 py-3.5 bg-pink-600 text-white text-sm font-bold rounded-xl active-scale';
+            riskCommon.classList.remove('hidden');
+        } else {
+            // 一口价:indigo-600(天生 0% 手续费)
+            confirmBtn.textContent = '确认挂售';
+            confirmBtn.className = 'flex-1 py-3.5 bg-indigo-600 text-white text-sm font-bold rounded-xl active-scale';
+            riskCommon.classList.remove('hidden');
+        }
+    }
+
+    function confirmList() {
+        closeModal('modal-list');
+        showToast('⏳ 交易确认中...');
+        setTimeout(() => showToast('✅ 操作成功'), 1500);
+    }
+
+    // ===== 购买 =====
+    function openBuyConfirm() {
+        document.getElementById('modal-buy').classList.remove('hidden');
+    }
+    function confirmBuy() {
+        closeModal('modal-buy');
+        closeDetail();
+        showToast('⏳ 交易确认中...');
+        setTimeout(() => showToast('✅ 购买成功,资产已过户'), 1500);
+    }
+
+    // ===== 出价 =====
+    function openBidModal() {
+        document.getElementById('modal-bid').classList.remove('hidden');
+    }
+    function confirmBid() {
+        closeModal('modal-bid');
+        showToast('⏳ 出价确认中...');
+        setTimeout(() => showToast('✅ 出价成功,金额已托管'), 1500);
+    }
+
+    // ===== 撤单 =====
+    function cancelListing(name) {
+        if (confirm('确认撤销挂单 ' + name + ' 吗?\n撤单后资产将解锁回到持有列表。')) {
+            showToast('⏳ 撤单中...');
+            setTimeout(() => showToast('✅ 撤单成功'), 1500);
+        }
+    }
+
+    // ===== 拍卖结算(v2.1 新增 · 对齐 AuctionHouse.settleAuction) =====
+    // 任何人可在拍卖结束后点击结算,合约自动完成:最高出价者获资产 / 卖家收款 / 出价被超的失败者调 withdrawRefund
+    function settleAuction(id) {
+        if (confirm('确认结算拍卖 #' + id + ' 吗?\n结算后:最高出价者获得资产,卖家收到货款,失败出价者可取回退款。')) {
+            showToast('⏳ 结算中...');
+            setTimeout(() => showToast('✅ 拍卖结算成功,资产已过户'), 1500);
+        }
+    }
+
+    // ===== 退款取回(v2.1 新增 · 对齐 AuctionHouse.withdrawRefund) =====
+    // 出价被超的失败者主动调取回退款(也可由 forceSettle 自动触发)
+    function withdrawRefund(id) {
+        showToast('⏳ 退款取回中...');
+        setTimeout(() => showToast('✅ 退款已到账'), 1500);
+    }
+
+    // ===== 结束租赁(v2.1 新增 · 对齐 RentalChannel.endRental) =====
+    // 仅出租方或 miner 可提前终止;租客只能到期后自动调,合约层校验 msg.sender 权限
+    function endRental(id) {
+        if (confirm('确认结束租赁 #' + id + ' 吗?\n独占租赁结束后,资产将解锁回到持有列表;非独占租赁不影响资产所有权。')) {
+            showToast('⏳ 结束租赁中...');
+            setTimeout(() => showToast('✅ 租赁已结束,资产已解锁'), 1500);
+        }
+    }
+
+    // ===== 承租确认(v2.1.1 新增 · 对齐 RentalChannel.rent) =====
+    function openRentConfirm() {
+        document.getElementById('modal-rent').classList.remove('hidden');
+    }
+    function confirmRent() {
+        closeModal('modal-rent');
+        closeDetail();
+        showToast('⏳ 承租确认中...');
+        setTimeout(() => showToast('✅ 承租成功,使用权已生效'), 1500);
+    }
+
+    // ===== 拍卖撤拍(v2.1.1 新增 · 对齐 AuctionHouse.cancelAuction) =====
+    // 仅在无出价时卖家可撤;有出价后只能等结算或 miner forceCancel
+    function cancelAuction(id, hasBids) {
+        if (hasBids) {
+            showToast('⚠️ 已有出价,无法撤拍;请等待结算或联系 miner forceCancel');
+            return;
+        }
+        if (confirm('确认撤拍 #' + id + ' 吗?\n撤拍后资产将解锁回到持有列表。')) {
+            showToast('⏳ 撤拍中...');
+            setTimeout(() => showToast('✅ 撤拍成功,资产已解锁'), 1500);
+        }
+    }
+
+    // ===== 到期清理(v2.1.1 新增 · 对齐 RentalChannel.reclaimExpired) =====
+    // 任何人可调,链下 keeper 定时清理过期使用权
+    function reclaimExpired(skuId) {
+        if (confirm('确认清理过期使用权 #' + skuId + ' 吗?\n任何人可调用,清理后该 SKU 的 userOf/userExpires 将归零。')) {
+            showToast('⏳ 清理中...');
+            setTimeout(() => showToast('✅ 过期使用权已清理'), 1500);
+        }
+    }
+
+    function openHistoryDrawer() { showToast('📋 操作记录(待实现)'); }
+</script>
+
+</body>
+</html>

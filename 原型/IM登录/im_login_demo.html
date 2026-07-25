@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IM 开放生态 - 连接 Node 授权登录交互原型</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Premium Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        im: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6', // Teal color matching the registration link
+                            600: '#0d9488',
+                            700: '#0f766e',
+                        },
+                        node: {
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            950: '#0c0a09',
+                        }
+                    },
+                    fontFamily: {
+                        display: ['Outfit', 'Space Grotesk', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .font-display { font-family: 'Outfit', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .active-scale { transition: transform 0.1s; }
+        .active-scale:active { transform: scale(0.96); }
+        .shake { animation: shake 0.3s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between overflow-x-hidden relative">
+
+    <!-- Background decorative glows -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute top-[-10%] left-[-20%] w-[60%] h-[50%] rounded-full bg-slate-200/50 blur-[120px]"></div>
+        <div class="absolute bottom-[-10%] right-[-20%] w-[60%] h-[50%] rounded-full bg-slate-200/50 blur-[120px]"></div>
+    </div>
+
+    <!-- ========== Top Bar ========== -->
+    <header class="w-full px-8 py-4 bg-white border-b border-slate-200/80 backdrop-blur flex justify-between items-center z-50">
+        <div class="flex items-center space-x-3">
+            <div class="w-7 h-7 rounded-lg bg-im-500 flex items-center justify-center text-white font-black text-sm">IM</div>
+            <div>
+                <h1 class="text-sm font-extrabold font-display leading-tight text-slate-800">IM 聊天开放生态</h1>
+                <p class="text-[9px] text-slate-400">去中心化解耦架构：IM App (浅色界面) $\leftrightarrow$ Node 签名登录鉴权</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 text-[10px] text-slate-400 font-mono">
+            <span class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-500">外部第三方 App</span>
+        </div>
+    </header>
+
+    <!-- ========== Main Workspace ========== -->
+    <main class="flex-grow flex items-center justify-center p-6 z-10">
+        
+        <!-- Center Phone Simulator Layout -->
+        <div class="relative bg-slate-100 rounded-[54px] p-3.5 border-4 border-slate-300 shadow-xl" style="width:390px; height:800px;">
+            
+            <!-- Speaker notch -->
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-5 bg-slate-100 rounded-b-xl z-50 flex items-center justify-center">
+                <div class="w-8 h-1 bg-slate-300 rounded-full mb-1"></div>
+            </div>
+
+            <!-- Inside Phone Screen -->
+            <div id="phone-screen" class="relative w-full h-full bg-white rounded-[42px] overflow-hidden flex flex-col justify-between border border-slate-200">
+                
+                <!-- Status Bar -->
+                <div class="h-10 flex items-center justify-between px-6 text-[10px] font-bold text-slate-900 z-40 flex-shrink-0 select-none">
+                    <span class="font-mono">2:22</span>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-[8px]">📶</span>
+                        <span class="text-[8px]">5G</span>
+                        <span class="text-[8px]">🔋</span>
+                    </div>
+                </div>
+
+                <!-- Language Dropdown at the top right -->
+                <div id="lang-dropdown-container" class="flex justify-end px-6 py-1 flex-shrink-0 z-40">
+                    <button class="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-[10px] font-semibold rounded-full flex items-center space-x-1 active-scale transition">
+                        <span>简体中文</span>
+                        <span class="text-[8px] text-slate-400">▼</span>
+                    </button>
+                </div>
+
+                <!-- Main dynamic view container -->
+                <div class="flex-grow flex flex-col justify-between p-6 pt-2">
+                    
+                    <!-- ==================== VIEW A: Login View ==================== -->
+                    <div id="view-login" class="flex-grow flex flex-col justify-between animate-fadeIn">
+                        
+                        <!-- Top Header (Left-aligned, screenshot layout) -->
+                        <div class="text-left pt-3">
+                            <h2 class="text-2xl font-black text-slate-900 tracking-tight leading-tight">登录Web3 IM</h2>
+                            <p class="text-xs text-slate-400 mt-2 font-medium">
+                                还没有账号？<span onclick="showPhoneToast('本地注册需要创建自管冷钱包','🔑')" class="text-im-500 font-bold hover:underline cursor-pointer">立即注册</span>
+                            </p>
+                        </div>
+
+                        <!-- Login Form Elements -->
+                        <div class="space-y-4 py-6">
+                            
+                            <!-- Username Input (rounded-2xl, background light gray) -->
+                            <div class="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 flex items-center space-x-3 transition focus-within:border-slate-300 focus-within:bg-white">
+                                <span class="text-sm text-slate-400">👤</span>
+                                <input type="text" id="username-input" oninput="validateForm()" placeholder="输入用户名" class="bg-transparent text-xs text-slate-800 w-full focus:outline-none placeholder-slate-400">
+                            </div>
+
+                            <!-- Password Input -->
+                            <div class="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 flex items-center justify-between space-x-3 transition focus-within:border-slate-300 focus-within:bg-white">
+                                <div class="flex items-center space-x-3 flex-1">
+                                    <span class="text-sm text-slate-400">🔒</span>
+                                    <input type="password" id="password-input" oninput="validateForm()" placeholder="输入密码" class="bg-transparent text-xs text-slate-800 w-full focus:outline-none placeholder-slate-400">
+                                </div>
+                                <button onclick="togglePasswordVisibility()" class="text-slate-400 text-xs active-scale">👁️</button>
+                            </div>
+
+                            <!-- Standard Login Button -->
+                            <button id="btn-standard-login" onclick="showPhoneToast('常规登录已禁用，请使用Node登录','⚠️')" disabled class="w-full py-3 bg-slate-100 text-slate-400 font-bold rounded-2xl text-xs cursor-not-allowed transition">
+                                登录
+                            </button>
+
+                            <div class="relative flex py-1 items-center">
+                                <div class="flex-grow border-t border-slate-100"></div>
+                                <span class="flex-shrink mx-3 text-[9px] text-slate-400 font-bold uppercase tracking-widest">推荐登录方式</span>
+                                <div class="flex-grow border-t border-slate-100"></div>
+                            </div>
+
+                            <!-- Core Node Login Button -->
+                            <button id="btn-node-login" onclick="triggerNodeLogin()" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active-scale text-white font-bold rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/10 border border-indigo-500/20 transition">
+                                <div class="w-4 h-4 rounded bg-white/10 flex items-center justify-center text-[8px] font-black">N</div>
+                                <span class="text-xs">使用 Node 自管签名登录</span>
+                            </button>
+                        </div>
+
+                        <!-- Agreement Checkbox -->
+                        <div class="flex items-start space-x-2 text-[10px] text-slate-400 leading-snug pb-2">
+                            <input type="checkbox" id="agree-checkbox" onchange="validateForm()" class="mt-0.5 w-3.5 h-3.5 border-slate-350 rounded text-im-500 focus:ring-im-500">
+                            <label for="agree-checkbox" class="cursor-pointer select-none">登录即表示你同意《服务协议》《隐私协议》</label>
+                        </div>
+
+                    </div>
+
+                    <!-- ==================== VIEW B: Loading Verification View ==================== -->
+                    <div id="view-loading" class="flex-grow flex flex-col items-center justify-center space-y-4 hidden animate-fadeIn">
+                        <div class="relative w-14 h-14">
+                            <div class="absolute inset-0 rounded-full border-4 border-slate-100"></div>
+                            <div class="absolute inset-0 rounded-full border-4 border-t-im-500 animate-spin"></div>
+                        </div>
+                        <div class="text-center">
+                            <h4 id="loading-state-text" class="text-sm font-bold text-slate-800">拉起 Node 授权中...</h4>
+                            <p class="text-[10px] text-slate-400 mt-1">EIP-712 挑战验签防伪中</p>
+                        </div>
+                    </div>
+
+                    <!-- ==================== VIEW C: Dashboard / Logged In ==================== -->
+                    <div id="view-dashboard" class="flex-grow flex flex-col justify-between pt-4 hidden animate-fadeIn">
+                        
+                        <!-- Logged In Header -->
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div class="relative">
+                                    <div id="user-avatar" class="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-lg font-bold text-white">👤</div>
+                                    <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center space-x-1.5">
+                                        <h3 id="user-display-name" class="text-xs font-bold text-slate-800 truncate">用户昵称</h3>
+                                        <span id="user-member-badge" class="px-1.5 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-[4px] text-[7px] font-bold">👑 会员</span>
+                                    </div>
+                                    <p id="user-identifier" class="text-[9px] text-slate-400 font-mono truncate mt-0.5">0x71C7...98A5</p>
+                                </div>
+                            </div>
+
+                            <!-- Success Banner -->
+                            <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl text-[10px] flex items-start space-x-2">
+                                <span>🛡️</span>
+                                <div>
+                                    <strong>Node 自管签名认证成功</strong>
+                                    <p class="text-[8px] text-emerald-500 mt-0.5 font-mono">Proof: EIP-712 Signature verified</p>
+                                </div>
+                            </div>
+
+                            <!-- IM Chat Simulation List -->
+                            <div class="space-y-2">
+                                <span class="text-[9px] font-bold text-slate-450 uppercase tracking-wider block px-1">最近联系人</span>
+                                
+                                <div class="space-y-2" id="chat-list">
+                                    <div class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-7 h-7 rounded-full bg-im-50 text-im-600 flex items-center justify-center font-bold text-xs">💬</div>
+                                            <div>
+                                                <p class="text-xs font-bold text-slate-700">城市代理商客服舱</p>
+                                                <p class="text-[9px] text-slate-400 truncate">系统通知: 您的账户已就绪</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-[8px] text-slate-400 font-mono">14:20</span>
+                                    </div>
+                                    <div class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-xs">🤖</div>
+                                            <div>
+                                                <p class="text-xs font-bold text-slate-700">Node Airdrop Relayer</p>
+                                                <p class="text-[9px] text-slate-455 font-mono">测试币领取完成，查看交易记录</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-[8px] text-slate-400 font-mono">昨天</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Logout Button -->
+                        <div class="space-y-2 pb-2">
+                            <button onclick="logout()" class="w-full py-2.5 bg-slate-50 hover:bg-slate-100 active-scale text-xs font-bold rounded-xl text-slate-500 transition border border-slate-200">
+                                退出当前登录
+                            </button>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- Bottom Capsule Safe Line -->
+                <div class="h-5 flex items-center justify-center pb-2 flex-shrink-0">
+                    <div class="w-20 h-1 bg-slate-200 rounded-full"></div>
+                </div>
+
+                <!-- ==================== NODE APP AUTHENTICATION MODAL (Tabs-based & Passwordless) ==================== -->
+                <div id="node-auth-modal" class="absolute inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 flex flex-col justify-end hidden">
+                    <div class="bg-white text-slate-800 rounded-t-[36px] p-5 space-y-4 max-h-[94%] overflow-y-auto border-t border-slate-200 shadow-2xl flex flex-col justify-between">
+                        
+                        <!-- Header -->
+                        <div class="flex justify-between items-center pb-1 flex-shrink-0">
+                            <div class="flex items-center space-x-1.5">
+                                <div class="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center text-white text-[9px] font-black">N</div>
+                                <span class="text-xs font-black font-display text-slate-900">Node 自管签名中心</span>
+                            </div>
+                            <span class="px-2 py-0.5 bg-slate-100 text-slate-450 text-[8px] border border-slate-200 rounded font-mono">v1.0 (本地沙盒)</span>
+                        </div>
+
+                        <!-- App Connect Info -->
+                        <div class="text-center p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1 flex-shrink-0">
+                            <h4 class="text-xs font-bold text-slate-800"><span class="text-im-600">IM Chat App</span> 申请连接登录</h4>
+                            <p class="text-[9px] text-slate-450">该应用将使用您的签名凭证建立本地安全对话</p>
+                        </div>
+
+                        <!-- Segmented Tab Switcher (Web3 vs Web2) -->
+                        <div class="flex p-1 bg-slate-100 rounded-xl select-none flex-shrink-0">
+                            <button id="modal-tab-web3" onclick="switchModalTab('web3')" class="flex-1 py-1.5 text-center text-xs font-bold rounded-lg bg-white text-slate-850 shadow transition-all active-scale">
+                                💳 Web3 钱包
+                            </button>
+                            <button id="modal-tab-web2" onclick="switchModalTab('web2')" class="flex-1 py-1.5 text-center text-xs font-bold rounded-lg text-slate-500 hover:text-slate-700 transition-all active-scale">
+                                📱 Web2 账号
+                            </button>
+                        </div>
+
+                        <!-- Scrollable Lists Container -->
+                        <div class="space-y-3 max-h-[220px] overflow-y-auto pr-1 hide-scrollbar">
+                            
+                            <!-- Tab Content 1: Web3 Wallets list (Expanded Mock) -->
+                            <div id="modal-list-web3" class="space-y-1.5">
+                                <!-- Option 1: Web3 Wallet 1 -->
+                                <div onclick="selectIdentity('web3-1')" id="id-web3-1" class="p-2.5 bg-indigo-55/50 border border-indigo-200 rounded-xl cursor-pointer flex justify-between items-center transition text-xs">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-500 border border-indigo-100 flex items-center justify-center text-xs">💳</div>
+                                        <div class="text-left">
+                                            <div class="flex items-center space-x-1">
+                                                <p class="font-bold text-slate-900">Wallet 1 (首选钱包)</p>
+                                                <span class="px-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded text-[7px] font-bold">👑 会员</span>
+                                            </div>
+                                            <p class="text-[8px] text-slate-400 font-mono mt-0.5">0x71C7656EC7ab88...98A5</p>
+                                        </div>
+                                    </div>
+                                    <span id="check-web3-1" class="text-xs text-indigo-600 font-bold">✓</span>
+                                </div>
+
+                                <!-- Option 2: Web3 Wallet 2 -->
+                                <div onclick="selectIdentity('web3-2')" id="id-web3-2" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer flex justify-between items-center transition text-xs">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-450 border border-slate-200 flex items-center justify-center text-xs">💳</div>
+                                        <div class="text-left">
+                                            <div class="flex items-center space-x-1">
+                                                <p class="font-bold text-slate-700">Wallet 2 (日常备用)</p>
+                                            </div>
+                                            <p class="text-[8px] text-slate-450 font-mono mt-0.5">0x2F6A15aF87Ea4B...0A2C</p>
+                                        </div>
+                                    </div>
+                                    <span id="check-web3-2" class="text-xs text-indigo-500 font-bold hidden">✓</span>
+                                </div>
+
+                                <!-- Option 3: Aeon R9 Cold Wallet (Mock) -->
+                                <div onclick="selectIdentity('web3-aeon')" id="id-web3-aeon" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer flex justify-between items-center transition text-xs">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center text-xs">❄️</div>
+                                        <div class="text-left">
+                                            <div class="flex items-center space-x-1">
+                                                <p class="font-bold text-slate-700">Aeon R9 (冷钱包)</p>
+                                                <span class="px-1 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded text-[7px] font-bold">❄️ 硬件</span>
+                                            </div>
+                                            <p class="text-[8px] text-slate-450 font-mono mt-0.5">0x9c3d7023cE88d...a0e1</p>
+                                        </div>
+                                    </div>
+                                    <span id="check-web3-aeon" class="text-xs text-indigo-500 font-bold hidden">✓</span>
+                                </div>
+
+                                <!-- Option 4: DeFi Core -->
+                                <div onclick="selectIdentity('web3-defi')" id="id-web3-defi" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer flex justify-between items-center transition text-xs">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-450 border border-slate-200 flex items-center justify-center text-xs">🎮</div>
+                                        <div class="text-left">
+                                            <div class="flex items-center space-x-1">
+                                                <p class="font-bold text-slate-700">DeFi Core (游戏资产)</p>
+                                            </div>
+                                            <p class="text-[8px] text-slate-450 font-mono mt-0.5">0x15f2065EC7bc...cd3a</p>
+                                        </div>
+                                    </div>
+                                    <span id="check-web3-defi" class="text-xs text-indigo-500 font-bold hidden">✓</span>
+                                </div>
+                            </div>
+
+                            <!-- Tab Content 2: Web2 Credentials list (Expanded Mock) -->
+                            <div id="modal-list-web2" class="space-y-1.5 hidden">
+                                <!-- Option 1: Phone Credential -->
+                                <div onclick="selectIdentity('web2-phone')" id="id-web2-phone" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer flex justify-between items-center transition text-xs">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center text-xs">📱</div>
+                                        <div class="text-left">
+                                            <p class="font-bold text-slate-700">手机号凭证 (本地绑定)</p>
+                                            <p class="text-[8px] text-slate-400 font-mono mt-0.5">138 **** 5678 (Keychain 安全隔离)</p>
+                                        </div>
+                                    </div>
+                                    <span id="check-web2-phone" class="text-xs text-indigo-600 font-bold hidden">✓</span>
+                                </div>
+
+                                <!-- Option 2: Email Credential (Mock) -->
+                                <div onclick="selectIdentity('web2-email')" id="id-web2-email" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer flex justify-between items-center transition text-xs">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-450 border border-slate-200 flex items-center justify-center text-xs">✉️</div>
+                                        <div class="text-left">
+                                            <p class="font-bold text-slate-700">电子邮箱凭证 (Keychain 托管)</p>
+                                            <p class="text-[8px] text-slate-400 font-mono mt-0.5">user****@gmail.com (加密代签)</p>
+                                        </div>
+                                    </div>
+                                    <span id="check-web2-email" class="text-xs text-indigo-500 font-bold hidden">✓</span>
+                                </div>
+
+                                <!-- Option 3: WeChat auth (Mock) -->
+                                <div onclick="selectIdentity('web2-wechat')" id="id-web2-wechat" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer flex justify-between items-center transition text-xs">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center text-xs">💬</div>
+                                        <div class="text-left">
+                                            <div class="flex items-center space-x-1">
+                                                <p class="font-bold text-slate-700">微信快捷授权 (本地指纹关联)</p>
+                                                <span class="px-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded text-[7px] font-bold">已信赖</span>
+                                            </div>
+                                            <p class="text-[8px] text-slate-450 font-mono mt-0.5">wechat_xxxxxx (信任指纹代管)</p>
+                                        </div>
+                                    </div>
+                                    <span id="check-web2-wechat" class="text-xs text-indigo-500 font-bold hidden">✓</span>
+                                </div>
+                            </div>
+                            
+                        </div>
+
+                        <!-- User Friendly Permission Checklist & Tech parameters switcher -->
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-150 text-[10px] text-slate-500 space-y-2 flex-shrink-0">
+                            <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">🛡️ 安全授权说明</span>
+                                <button onclick="toggleTechDetails()" class="text-[8px] text-indigo-600 hover:underline">查看技术参数</button>
+                            </div>
+                            
+                            <!-- User-friendly view (Checklist) -->
+                            <div id="auth-friendly-view" class="space-y-1.5 text-[9px] text-slate-500">
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="text-emerald-500 font-bold text-[10px]">✓</span>
+                                    <span>允许 IM App 读取公开的账户名称与标识</span>
+                                </div>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="text-emerald-500 font-bold text-[10px]">✓</span>
+                                    <span>授权本地通过私钥进行加密签名，核验身份所有权</span>
+                                </div>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="text-rose-500 font-bold text-[10px]">✗</span>
+                                    <span class="font-bold text-rose-600/80">不授予：该操作完全无法触碰或转移您的任何资产</span>
+                                </div>
+                            </div>
+
+                            <!-- Hidden developer/tech view -->
+                            <div id="auth-tech-view" class="hidden text-[8px] font-mono text-slate-450 pt-1.5 space-y-0.5">
+                                <div class="text-slate-700">Message: Login request to IM App</div>
+                                <div>VerifyContract: 0xForwarderAddress...</div>
+                                <div>Nonce: <span id="auth-nonce">2026070914</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Direct Sign Action Button -->
+                        <div class="pt-1.5 flex-shrink-0">
+                            <button onclick="executeNodeAuthSign()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 active-scale text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-indigo-600/10 border border-indigo-500/20">
+                                确认授权并签名
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ==================== RIGHT SIDE: Architectural & Decoupling Guide ==================== -->
+        <div class="max-w-md hidden xl:block space-y-6">
+            
+            <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-lg space-y-4">
+                <h3 class="text-sm font-extrabold font-display text-im-600 uppercase tracking-wider">📖 Node-IM 签名登录架构解析</h3>
+                
+                <div class="space-y-3 text-xs leading-relaxed text-slate-500">
+                    <p>
+                        <strong>1. 彻底去中心化解耦</strong>：原 IM 登录需要云端账号密码，而拆分后的 IM 登录完全免云端托管。用户只需通过 Node App 生成的私钥完成一次离线签名（EIP-712）即可登录。
+                    </p>
+                    <p>
+                        <strong>2. Web2 / Web3 标签页分类</strong>：
+                        使用顶部的 **Segmented Tabs** 进行模块切换（Web3 钱包 vs Web2 本地账号），支持滑动滚动，轻松容纳多账户。
+                    </p>
+                    <p>
+                        <strong>3. 用户级安全提示</strong>：
+                        摒弃偏开发者的 JSON/合约参数显示，代以“🛡️ 安全授权说明”白话清单，向用户声明“不触碰任何资产，仅完成登录所有权验证”。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Real-time Event Logger -->
+            <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-lg space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-extrabold font-display text-im-600 uppercase tracking-wider">🌐 IM ↔ Node 本地端口通信日志</h3>
+                    <button onclick="clearLogs()" class="text-[10px] text-slate-400 hover:text-slate-600">清除</button>
+                </div>
+                <div id="logs-container" class="h-44 overflow-y-auto font-mono text-[10px] text-slate-700 bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-1.5 hide-scrollbar">
+                    <!-- Logs here -->
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ========== Footer ========== -->
+    <footer class="w-full py-5 bg-white border-t border-slate-200 text-center text-xs text-slate-450 z-10 flex-shrink-0">
+        <p>© 2026 Node App & IM Ecosystem Decoupling. Powered by Google DeepMind Antigravity.</p>
+    </footer>
+
+    <!-- ========== Simulation Javascript Code ========== -->
+    <script>
+        // ==================== STATE MANAGEMENT ====================
+        
+        let selectedIdType = "web3-1"; // Currently selected ID key
+        let activeModalTab = "web3"; // 'web3' or 'web2'
+
+        const identityDatabase = {
+            'web3-1': {
+                name: 'Wallet 1 (首选钱包)',
+                address: '0x71C7656EC7ab88b098defB751B7401B5f6d898A5',
+                avatar: '👑',
+                isMember: true,
+                memberBadge: '👑 尊享会员',
+                identifierText: '0x71C7656EC7ab88b098defB751B7401B5f6d898A5',
+                displayName: 'Web3 极客先锋'
+            },
+            'web3-2': {
+                name: 'Wallet 2 (日常备用)',
+                address: '0x2F6A15aF87Ea4B6D805c8253E21b72e5914E01C',
+                avatar: '💳',
+                isMember: false,
+                memberBadge: '普通用户',
+                identifierText: '0x2F6A15aF87Ea4B6D805c8253E21b72e5914E01C',
+                displayName: '以太坊探索者'
+            },
+            'web3-aeon': {
+                name: 'Aeon R9 (冷钱包)',
+                address: '0x9c3d7023cE88d9273cEb153A2610A5f6d928a0e1',
+                avatar: '❄️',
+                isMember: true,
+                memberBadge: '❄️ 硬件保险箱',
+                identifierText: '0x9c3d7023cE88d9273cEb153A2610A5f6d928a0e1',
+                displayName: 'Aeon R9 硬件持有人'
+            },
+            'web3-defi': {
+                name: 'DeFi Core (游戏资产)',
+                address: '0x15f2065EC7bc77a06defB751B7401B5f6d898cd3a',
+                avatar: '🎮',
+                isMember: false,
+                memberBadge: '普通用户',
+                identifierText: '0x15f2065EC7bc77a06defB751B7401B5f6d898cd3a',
+                displayName: 'GameFi 核心玩家'
+            },
+            'web2-phone': {
+                name: '本地凭证 (手机号绑定)',
+                address: '138****5678',
+                avatar: '📱',
+                isMember: false,
+                memberBadge: '本地凭证',
+                identifierText: '已绑定本地 Keychain 存储',
+                displayName: '云端无状态用户'
+            },
+            'web2-email': {
+                name: '电子邮箱凭证 (Keychain 托管)',
+                address: 'user****@gmail.com',
+                avatar: '✉️',
+                isMember: false,
+                memberBadge: '本地凭证',
+                identifierText: '已绑定本地 Keychain 存储',
+                displayName: '邮件匿名客'
+            },
+            'web2-wechat': {
+                name: '微信快捷授权 (本地指纹关联)',
+                address: 'wechat_xxxxxx',
+                avatar: '💬',
+                isMember: true,
+                memberBadge: '微信快捷',
+                identifierText: '微信指纹信任级联成功',
+                displayName: '指纹免签常客'
+            }
+        };
+
+        // ==================== FORM VALIDATION ====================
+        function validateForm() {
+            const username = document.getElementById("username-input").value.trim();
+            const password = document.getElementById("password-input").value.trim();
+            const agree = document.getElementById("agree-checkbox").checked;
+            const loginBtn = document.getElementById("btn-standard-login");
+
+            if (username.length > 0 && password.length > 0 && agree) {
+                loginBtn.disabled = false;
+                loginBtn.classList.remove("bg-slate-100", "text-slate-400", "cursor-not-allowed");
+                loginBtn.classList.add("bg-teal-500", "text-white", "hover:bg-teal-600", "active-scale");
+            } else {
+                loginBtn.disabled = true;
+                loginBtn.classList.add("bg-slate-100", "text-slate-400", "cursor-not-allowed");
+                loginBtn.classList.remove("bg-teal-500", "text-white", "hover:bg-teal-600", "active-scale");
+            }
+        }
+
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById("password-input");
+            if (pwdInput.type === "password") {
+                pwdInput.type = "text";
+            } else {
+                pwdInput.type = "password";
+            }
+            showPhoneToast("切换密码可见性", "👁️");
+        }
+
+        // ==================== TABS CONTROLLER (MODAL) ====================
+        function switchModalTab(tab) {
+            activeModalTab = tab;
+            const tabWeb3 = document.getElementById("modal-tab-web3");
+            const tabWeb2 = document.getElementById("modal-tab-web2");
+            const listWeb3 = document.getElementById("modal-list-web3");
+            const listWeb2 = document.getElementById("modal-list-web2");
+
+            if (tab === "web3") {
+                tabWeb3.className = "flex-1 py-1.5 text-center text-xs font-bold rounded-lg bg-white text-slate-850 shadow transition-all active-scale";
+                tabWeb2.className = "flex-1 py-1.5 text-center text-xs font-bold rounded-lg text-slate-500 hover:text-slate-700 transition-all active-scale";
+                
+                listWeb3.classList.remove("hidden");
+                listWeb2.classList.add("hidden");
+                
+                selectIdentity("web3-1");
+            } else {
+                tabWeb2.className = "flex-1 py-1.5 text-center text-xs font-bold rounded-lg bg-white text-slate-850 shadow transition-all active-scale";
+                tabWeb3.className = "flex-1 py-1.5 text-center text-xs font-bold rounded-lg text-slate-500 hover:text-slate-700 transition-all active-scale";
+                
+                listWeb2.classList.remove("hidden");
+                listWeb3.classList.add("hidden");
+                
+                selectIdentity("web2-phone");
+            }
+        }
+
+        // Toggle technical parameters view
+        function toggleTechDetails() {
+            const friendlyView = document.getElementById("auth-friendly-view");
+            const techView = document.getElementById("auth-tech-view");
+            
+            if (techView.classList.contains("hidden")) {
+                techView.classList.remove("hidden");
+                friendlyView.classList.add("hidden");
+                logMsg("Node: User enabled EIP-712 raw technical parameter viewing.", "node");
+            } else {
+                techView.classList.add("hidden");
+                friendlyView.classList.remove("hidden");
+            }
+        }
+
+        // ==================== LOGGING ====================
+        function logMsg(message, type = "info") {
+            const container = document.getElementById("logs-container");
+            if (!container) return; // For smaller layouts where console is hidden
+            
+            const entry = document.createElement("div");
+            entry.className = "flex space-x-1";
+            
+            let color = "text-sky-600";
+            let prefix = "[IM]";
+            
+            if (type === "node") { color = "text-indigo-600"; prefix = "[NODE]"; }
+            else if (type === "system") { color = "text-slate-455"; prefix = "[SYS]"; }
+            else if (type === "error") { color = "text-rose-600"; prefix = "[ERR]"; }
+            else if (type === "success") { color = "text-emerald-600"; prefix = "[AUTH]"; }
+
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="text-slate-400 font-mono">[${time}]</span><span class="${color} font-bold">${prefix}</span><span class="text-slate-700 font-sans">${message}</span>`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById("logs-container").innerHTML = "";
+            logMsg("Logs cleared", "system");
+        }
+
+        // ==================== FLOW CONTROLLER ====================
+        
+        function switchView(viewName) {
+            document.getElementById("view-login").classList.add("hidden");
+            document.getElementById("view-loading").classList.add("hidden");
+            document.getElementById("view-dashboard").classList.add("hidden");
+            
+            // Hide lang selector except on login page
+            const langDropdown = document.getElementById("lang-dropdown-container");
+
+            if (viewName === "login") {
+                document.getElementById("view-login").classList.remove("hidden");
+                langDropdown.classList.remove("hidden");
+            } else if (viewName === "loading") {
+                document.getElementById("view-loading").classList.remove("hidden");
+                langDropdown.classList.add("hidden");
+            } else if (viewName === "dashboard") {
+                document.getElementById("view-dashboard").classList.remove("hidden");
+                langDropdown.classList.add("hidden");
+            }
+        }
+
+        // Action: Click Login Button on IM App
+        function triggerNodeLogin() {
+            logMsg("User clicked 'Login through Node' button.", "im");
+            
+            // Check agreement first
+            const agree = document.getElementById("agree-checkbox").checked;
+            if (!agree) {
+                showPhoneToast("请先同意服务协议与隐私协议", "⚠️");
+                const cbContainer = document.getElementById("agree-checkbox").parentNode;
+                cbContainer.classList.add("shake");
+                setTimeout(() => cbContainer.classList.remove("shake"), 300);
+                return;
+            }
+
+            switchView("loading");
+            document.getElementById("loading-state-text").textContent = "拉起 Node 授权中...";
+
+            // Simulate local URL Scheme 拉起 Node App 授权面板
+            setTimeout(() => {
+                logMsg("IM App requested connect Challenge to local Node API.", "im");
+                logMsg("Node client received Scheme: node://auth?client_id=im_chat_app&challenge=AUTH_CHALLENGE_0091", "node");
+                
+                // Show Node Auth Modal inside Phone
+                document.getElementById("node-auth-modal").classList.remove("hidden");
+                // Default to Web3 Tab
+                switchModalTab("web3");
+                
+                // Reset views
+                document.getElementById("auth-tech-view").classList.add("hidden");
+                document.getElementById("auth-friendly-view").classList.remove("hidden");
+                
+                // Generate a random Nonce
+                document.getElementById("auth-nonce").textContent = Math.floor(Math.random() * 10000000000);
+            }, 800);
+        }
+
+        // Node modal: Select Identity
+        function selectIdentity(idType) {
+            // Uncheck previous
+            const prevCheck = document.getElementById(`check-${selectedIdType}`);
+            const prevIdCard = document.getElementById(`id-${selectedIdType}`);
+            if (prevCheck) prevCheck.classList.add("hidden");
+            if (prevIdCard) {
+                prevIdCard.classList.remove("bg-indigo-50/50", "border-indigo-200");
+                prevIdCard.classList.add("bg-slate-50", "border-slate-100");
+            }
+
+            // Check new
+            selectedIdType = idType;
+            const newCheck = document.getElementById(`check-${idType}`);
+            const newIdCard = document.getElementById(`id-${idType}`);
+            if (newCheck) newCheck.classList.remove("hidden");
+            if (newIdCard) {
+                newIdCard.classList.remove("bg-slate-50", "border-slate-100");
+                newIdCard.classList.add("bg-indigo-55/50", "border-indigo-200");
+            }
+
+            logMsg(`Node: User selected ${idType.startsWith('web3') ? 'Web3 链上' : 'Web2 本地'} 账号: ${identityDatabase[idType].name}`, "node");
+        }
+
+        // Node modal: Executing cryptographic signature (No password needed!)
+        function executeNodeAuthSign() {
+            document.getElementById("node-auth-modal").classList.add("hidden");
+            switchView("loading");
+            document.getElementById("loading-state-text").textContent = "正在验签及解析关系...";
+            
+            const selectedIdentity = identityDatabase[selectedIdType];
+            
+            logMsg("Node: User clicked confirm. Retrieving private key to sign Challenge...", "node");
+            logMsg(`Node: Returned Proof signature 0x8a92f80c... for ${selectedIdType.startsWith('web3') ? 'Web3' : 'Web2'} user ${selectedIdentity.name}`, "node");
+
+            // Back to IM side processing verification
+            setTimeout(() => {
+                logMsg("IM Backend Relayer: verifying returned Proof signature...", "im");
+                logMsg("IM Backend: Verification Success! Session token dispatched.", "success");
+                
+                // Populate Dashboard info
+                document.getElementById("user-avatar").textContent = selectedIdentity.avatar;
+                document.getElementById("user-display-name").textContent = selectedIdentity.displayName;
+                document.getElementById("user-identifier").textContent = selectedIdentity.identifierText;
+                
+                const mBadge = document.getElementById("user-member-badge");
+                if (selectedIdentity.isMember) {
+                    mBadge.classList.remove("hidden");
+                    mBadge.textContent = selectedIdentity.memberBadge;
+                } else {
+                    mBadge.classList.add("hidden");
+                }
+
+                switchView("dashboard");
+            }, 1200);
+        }
+
+        // Action: Logout
+        function logout() {
+            logMsg("User clicked Logout.", "im");
+            switchView("loading");
+            document.getElementById("loading-state-text").textContent = "正在断开本地连接...";
+            
+            setTimeout(() => {
+                logMsg("IM App: Session cleared successfully. All credentials removed from local memory.", "im");
+                switchView("login");
+            }, 800);
+        }
+
+        // Phone Toast
+        function showPhoneToast(message, icon = "✨") {
+            const toast = document.getElementById("phone-toast");
+            document.getElementById("phone-toast-icon").textContent = icon;
+            document.getElementById("phone-toast-msg").textContent = message;
+            
+            toast.className = "absolute top-20 inset-x-4 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full flex items-center space-x-2 text-xs text-white shadow-lg pointer-events-none transform translate-y-0 opacity-100 transition-all duration-300 z-50";
+            setTimeout(() => {
+                toast.className = "absolute top-20 inset-x-4 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-full flex items-center space-x-2 text-xs text-white shadow-lg pointer-events-none transform -translate-y-4 opacity-0 transition-all duration-300 z-50";
+            }, 2000);
+        }
+
+        // ==================== INITIALIZATION ====================
+        logMsg("IM Login Decoupling sandbox environment initialized.", "system");
+        switchView("login");
+
+    </script>
+
+</body>
+</html>

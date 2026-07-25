@@ -1,0 +1,2614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IM冷钱包 - 生态矩阵原型</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --text-secondary: #8e8e93;
+            --border-color: #efeff4;
+            --card-bg: #f2f2f7;
+            --primary-orange: #f05a28;
+            --primary-green: #34c759;
+            --primary-blue: #007aff;
+            --dark-gray: #1c1c1e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #f0f0f2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+        }
+
+        /* 模拟手机容器 */
+        .phone-container {
+            width: 100%;
+            max-width: 412px;
+            height: 892px;
+            background-color: var(--bg-color);
+            border-radius: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 8px solid #000000;
+        }
+
+        /* 手机状态栏 */
+        .status-bar {
+            height: 44px;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+            background-color: var(--bg-color);
+            z-index: 10;
+        }
+
+        .status-bar .right-icons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .status-bar .icon {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        /* 页面视口 */
+        .view-port {
+            flex: 1;
+            position: relative;
+            overflow-y: auto;
+            padding-bottom: 90px; /* 避开底部导航 */
+        }
+
+        /* 隐藏滚动条 */
+        .view-port::-webkit-scrollbar {
+            display: none;
+        }
+
+        .view {
+            display: none;
+            padding: 16px 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- 钱包主页 (Home View) --- */
+        .home-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .wallet-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .wallet-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #a8ff78, #78ffd6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #1c1c1e;
+        }
+
+        .wallet-name-address {
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .wallet-name-address svg {
+            width: 14px;
+            height: 14px;
+            fill: var(--text-secondary);
+        }
+
+        .header-right {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 资产总览卡片 */
+        .balance-card {
+            background-color: var(--bg-color);
+            padding: 8px 0;
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .balance-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 4px;
+        }
+
+        .balance-amount {
+            font-size: 38px;
+            font-weight: 750;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+
+        .balance-chart-mini {
+            width: 100px;
+            height: 36px;
+        }
+
+        .balance-change {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .card-fold-btn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 12px;
+            cursor: pointer;
+        }
+
+        .card-fold-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-secondary);
+            transition: transform 0.3s;
+        }
+
+        /* 新增：功能快捷入口区 */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .feature-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .feature-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: var(--card-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .feature-icon-wrapper:active {
+            transform: scale(0.95);
+            background-color: #e5e5ea;
+        }
+
+        .feature-icon-wrapper svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .feature-item span {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        /* 搜索和币种管理 */
+        .search-manage-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .search-bar {
+            flex: 1;
+            height: 38px;
+            background-color: #f2f2f7;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 8px;
+        }
+
+        .search-bar svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--text-secondary);
+        }
+
+        .search-bar input {
+            border: none;
+            background: transparent;
+            font-size: 15px;
+            width: 100%;
+            outline: none;
+        }
+
+        .manage-tokens-btn {
+            height: 38px;
+            padding: 0 16px;
+            background-color: #000000;
+            color: #ffffff;
+            border-radius: 19px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+        }
+
+        .manage-tokens-btn:active {
+            opacity: 0.8;
+        }
+
+        /* 代币列表 */
+        .token-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .token-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .token-row:active {
+            opacity: 0.7;
+        }
+
+        .token-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .token-logo-wrapper {
+            position: relative;
+        }
+
+        .token-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #ffffff;
+            font-size: 15px;
+        }
+
+        .logo-rc { background: linear-gradient(135deg, #ff7e5f, #feb47b); }
+        .logo-usdr { background: linear-gradient(135deg, #11998e, #38ef7d); }
+        .logo-hrc { background: linear-gradient(135deg, #eb3941, #f15e64); }
+        .logo-rst { background: linear-gradient(135deg, #373b44, #4286f4); }
+
+        .logo-badge {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background-color: var(--primary-orange);
+            border: 1.5px solid #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 7px;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .token-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .token-symbol {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .token-price-change {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 6px;
+        }
+
+        .token-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .token-balance {
+            font-size: 16px;
+            font-weight: 750;
+        }
+
+        .token-value {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* --- 币种详情页 (Detail View) --- */
+        .nav-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            height: 44px;
+        }
+
+        .back-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .back-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .nav-title {
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-title .logo-mini {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .detail-amount-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .detail-amount {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        .detail-ops {
+            display: flex;
+            justify-content: center;
+            gap: 28px;
+            margin-bottom: 32px;
+        }
+
+        .op-btn-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .op-btn-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background-color: var(--card-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .op-btn-icon:active {
+            transform: scale(0.95);
+        }
+
+        .op-btn-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .op-btn-item span {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .address-card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 32px;
+        }
+
+        .address-card-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .address-card-title svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .address-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
+        .history-section-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+
+        .history-date {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .history-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .history-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .history-icon.receive { background-color: rgba(52, 199, 89, 0.1); color: var(--primary-green); }
+        .history-icon.swap { background-color: rgba(0, 122, 255, 0.1); color: var(--primary-blue); }
+
+        .history-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .history-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .history-type {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .history-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .history-amount {
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .history-amount.positive { color: var(--primary-green); }
+        .history-amount.negative { color: var(--text-color); }
+
+        /* --- Swap 页面 (Swap View) --- */
+        .swap-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .swap-input-card {
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            padding: 16px;
+            position: relative;
+        }
+
+        .swap-label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .swap-input-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .swap-num-input {
+            border: none;
+            background: transparent;
+            font-size: 28px;
+            font-weight: 800;
+            width: 60%;
+            outline: none;
+        }
+
+        .swap-coin-select {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .swap-coin-select .coin-logo {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+            font-size: 8px;
+            font-weight: bold;
+        }
+
+        .swap-coin-select svg {
+            width: 12px;
+            height: 12px;
+            fill: var(--text-color);
+        }
+
+        .swap-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .swap-max-btn {
+            color: var(--primary-blue);
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* 切换按钮 */
+        .swap-divider {
+            height: 12px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+            margin: -22px 0;
+        }
+
+        .swap-switch-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #ffffff;
+            border: 3px solid var(--bg-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .swap-switch-btn:active {
+            transform: rotate(180deg);
+        }
+
+        .swap-switch-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* 滑点设置 */
+        .slippage-section {
+            background-color: var(--bg-color);
+            padding: 4px 0;
+        }
+
+        .slippage-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .slippage-options {
+            display: flex;
+            gap: 8px;
+        }
+
+        .slippage-opt {
+            flex: 1;
+            height: 36px;
+            border-radius: 10px;
+            background-color: var(--card-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .slippage-opt.active {
+            background-color: rgba(0, 122, 255, 0.1);
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+
+        .slippage-opt.custom input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-size: 13px;
+            font-weight: bold;
+            outline: none;
+            color: inherit;
+        }
+
+        /* 兑换详细信息 */
+        .swap-info-box {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .swap-info-row {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-secondary);
+        }
+
+        .swap-info-value {
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        .swap-submit-btn {
+            height: 50px;
+            background-color: var(--primary-blue);
+            color: #ffffff;
+            border-radius: 25px;
+            border: none;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);
+        }
+
+        .swap-submit-btn:disabled {
+            background-color: #c7c7cc;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* --- Faucet 页面 (Faucet View) --- */
+        .faucet-top-card {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            border-radius: 24px;
+            padding: 24px;
+            color: #ffffff;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 20px rgba(56, 239, 125, 0.2);
+        }
+
+        .faucet-card-label {
+            font-size: 13px;
+            font-weight: 600;
+            opacity: 0.8;
+            margin-bottom: 6px;
+        }
+
+        .faucet-card-amount {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+
+        .faucet-pool-wrapper {
+            background-color: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .faucet-pool-title {
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        .faucet-progress-bar {
+            height: 6px;
+            border-radius: 3px;
+            background-color: rgba(255,255,255,0.2);
+            overflow: hidden;
+        }
+
+        .faucet-progress-fill {
+            height: 100%;
+            background-color: #ffffff;
+            width: 90.4%; /* 45230/50000 */
+            transition: width 0.5s ease;
+        }
+
+        .faucet-status-card {
+            background-color: var(--card-bg);
+            border-radius: 18px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .faucet-status-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .faucet-status-title {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .faucet-status-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .faucet-status-badge {
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .faucet-status-badge.available {
+            background-color: rgba(52, 199, 89, 0.1);
+            color: var(--primary-green);
+        }
+
+        .faucet-status-badge.cooldown {
+            background-color: rgba(142, 142, 147, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .gas-badge {
+            background-color: rgba(0, 122, 255, 0.1);
+            color: var(--primary-blue);
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .gas-badge svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .faucet-claim-btn {
+            height: 50px;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: #ffffff;
+            border-radius: 25px;
+            border: none;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(56, 239, 125, 0.3);
+            width: 100%;
+            margin-bottom: 24px;
+        }
+
+        .faucet-claim-btn:disabled {
+            background: #c7c7cc;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .faucet-rules-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .faucet-rules-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding-left: 18px;
+            line-height: 1.6;
+        }
+
+        /* --- 悬浮底部导航栏 --- */
+        .bottom-nav {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 48px);
+            height: 64px;
+            background-color: var(--dark-gray);
+            border-radius: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .nav-item {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .nav-icon-wrapper {
+            width: 100%;
+            height: 48px;
+            border-radius: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .nav-item.active .nav-icon-wrapper {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .nav-item:not(.active) {
+            color: #ffffff;
+            opacity: 0.6;
+        }
+
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* --- 弹窗与遮罩层 (Sheets & Popups) --- */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            z-index: 20;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .bottom-sheet {
+            position: absolute;
+            bottom: -100%;
+            left: 0;
+            width: 100%;
+            background-color: var(--bg-color);
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            z-index: 21;
+            transition: bottom 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            max-height: 80%;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.15);
+        }
+
+        .sheet-drag-handle {
+            width: 36px;
+            height: 5px;
+            background-color: var(--border-color);
+            border-radius: 3px;
+            align-self: center;
+            margin-bottom: 20px;
+        }
+
+        .sheet-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        /* 币种选择器列表 */
+        .coin-picker-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .coin-picker-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 8px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .coin-picker-item:hover {
+            background-color: var(--card-bg);
+        }
+
+        /* 密码与流程弹窗 */
+        .loading-step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .loading-step-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-secondary);
+        }
+
+        .loading-step-item.active {
+            color: var(--text-color);
+        }
+
+        .loading-step-item.success {
+            color: var(--primary-green);
+        }
+
+        .step-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--primary-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        .loading-step-item.active .step-spinner {
+            display: block;
+        }
+
+        .step-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: var(--border-color);
+            display: block;
+        }
+
+        .loading-step-item.success .step-dot {
+            background-color: var(--primary-green);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-step-item.success .step-dot::after {
+            content: "✓";
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 密码输入区 */
+        .password-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .password-input-group label {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--text-secondary);
+        }
+
+        .password-input-group input {
+            height: 48px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            padding: 0 16px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        /* Toast 提示 */
+        .toast {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0,0,0,0.8);
+            color: #ffffff;
+            padding: 12px 24px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 30;
+            display: none;
+            text-align: center;
+        }
+
+        /* --- 多链优化新增样式 --- */
+        .home-network-tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            padding-bottom: 4px;
+        }
+        .home-network-tabs::-webkit-scrollbar {
+            display: none;
+        }
+        .home-network-tab-item {
+            padding: 6px 14px;
+            background-color: var(--card-bg);
+            border-radius: 14px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            color: var(--text-secondary);
+        }
+        .home-network-tab-item.active {
+            background-color: var(--text-color);
+            color: #ffffff;
+        }
+        .logo-badge {
+            position: absolute;
+            bottom: -3px;
+            right: -3px;
+            padding: 1px 3px;
+            border-radius: 6px;
+            border: 1.5px solid #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 7px;
+            color: #ffffff;
+            font-weight: bold;
+            line-height: 1;
+            min-width: 14px;
+            height: 14px;
+        }
+        .coin-select-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.15;
+            margin: 0 4px;
+        }
+        .coin-select-network {
+            font-size: 8px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .coin-select-symbol {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        .swap-type-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background-color: var(--card-bg);
+            border-radius: 14px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .swap-type-badge {
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        .swap-type-badge.same-chain {
+            background-color: rgba(0, 122, 255, 0.1);
+            color: var(--primary-blue);
+        }
+        .swap-type-badge.cross-chain {
+            background: linear-gradient(135deg, #a855f7, #6366f1);
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2);
+        }
+        .swap-type-desc {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 11px;
+            text-align: right;
+            flex: 1;
+            margin-left: 8px;
+        }
+        .network-tabs-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+        }
+        .network-tabs-container::-webkit-scrollbar {
+            display: none;
+        }
+        .network-tabs-scroll {
+            display: flex;
+            gap: 8px;
+            white-space: nowrap;
+            width: max-content;
+            padding: 2px 4px;
+        }
+        .network-tab-item {
+            padding: 6px 12px;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+        }
+        .network-tab-item.active {
+            background-color: var(--text-color);
+            color: #ffffff;
+        }
+        .network-tab-item:active {
+            transform: scale(0.95);
+        }
+        .network-tab-icon {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        /* 多链代币 LOGO 渐变样式 */
+        .logo-eth { background: linear-gradient(135deg, #8c8c8c, #3c3c3d); }
+        .logo-usdt { background: linear-gradient(135deg, #26a17b, #009393); }
+        .logo-usdc { background: linear-gradient(135deg, #2775ca, #0052a3); }
+        .logo-bnb { background: linear-gradient(135deg, #f3ba2f, #e5a900); }
+        .logo-cake { background: linear-gradient(135deg, #d1884f, #b0622b); }
+        .logo-arb { background: linear-gradient(135deg, #28a0f0, #0078d4); }
+        .logo-eth-arb { background: linear-gradient(135deg, #28a0f0, #3c3c3d); }
+        .logo-usdt-arb { background: linear-gradient(135deg, #28a0f0, #26a17b); }
+    </style>
+</head>
+<body>
+
+    <div class="phone-container">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+            <span>3:20</span>
+            <div class="right-icons">
+                <!-- 5G 信号 SVG -->
+                <svg class="icon" viewBox="0 0 24 24"><path d="M4 18h2v-2H4v2zm4 0h2v-4H8v4zm4 0h2v-6h-2v6zm4 0h2v-8h-2v8zm4 0h2v-10h-2v10z"/></svg>
+                <!-- 电池 SVG -->
+                <svg class="icon" viewBox="0 0 24 24"><path d="M17 5H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm1 9h-2v-4h2v4z"/></svg>
+                <span>45</span>
+            </div>
+        </div>
+
+        <!-- 页面视口 -->
+        <div class="view-port">
+            
+            <!-- 1. 钱包首页 -->
+            <div id="view-home" class="view active">
+                <div class="home-header">
+                    <div class="wallet-selector">
+                        <div class="wallet-avatar">w</div>
+                        <div class="wallet-name-address">
+                            <span>钱包2 · 0x705B...D45B</span>
+                            <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <!-- RC 图标 -->
+                        <div class="token-logo logo-rc" style="width: 26px; height: 26px; font-size: 9px;">R</div>
+                    </div>
+                </div>
+
+                <div class="balance-card">
+                    <div class="balance-title-row">
+                        <span class="balance-amount" id="home-total-balance">$0.0001</span>
+                        <!-- 青色极简折线图 -->
+                        <svg class="balance-chart-mini" viewBox="0 0 100 30">
+                            <path d="M 0 25 Q 25 15 50 18 T 100 5" fill="none" stroke="#00c7be" stroke-width="2.5" />
+                        </svg>
+                    </div>
+                    <span class="balance-change">$0.00(0.00%) One Day</span>
+                    <div class="card-fold-btn">
+                        <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                    </div>
+                </div>
+
+                <!-- 快捷功能按钮 -->
+                <div class="features-grid">
+                    <div class="feature-item" onclick="switchView('view-swap')">
+                        <div class="feature-icon-wrapper" style="color: var(--primary-blue);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.656 48.656 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7C4.547 9.547 4.5 10.768 4.5 12s.047 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.092-1.209.138-2.43.138-3.662z" /><path stroke-linecap="round" stroke-linejoin="round" d="M9 10.5l3-3 3 3M9 13.5l3 3 3-3" /></svg>
+                        </div>
+                        <span>Swap兑换</span>
+                    </div>
+                    <div class="feature-item" onclick="switchView('view-faucet')">
+                        <div class="feature-icon-wrapper" style="color: var(--primary-green);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                        </div>
+                        <span>Faucet领币</span>
+                    </div>
+                    <div class="feature-item" onclick="showToast('发送功能正在开发中...')">
+                        <div class="feature-icon-wrapper" style="color: var(--text-secondary);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                        </div>
+                        <span>发送</span>
+                    </div>
+                    <div class="feature-item" onclick="showToast('接收功能正在开发中...')">
+                        <div class="feature-icon-wrapper" style="color: var(--text-secondary);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 3.75H6A2.25 2.25 0 003.75 6v1.5M16.5 3.75H18A2.25 2.25 0 0120.25 6v1.5m0 9V18a2.25 2.25 0 01-2.25 2.25h-1.5m-9 0H5A2.25 2.25 0 012.75 18v-1.5M10.5 11.25h3v3h-3v-3zm-3.75 3.75h.008v.008H6.75V15zm0-3.75h.008v.008H6.75V11.25zm0-3.75h.008v.008H6.75V7.5zm3.75 0h.008v.008h-.008V7.5zm3.75 0h.008v.008h-.008V7.5zm3.75 0h.008v.008h-.008V7.5zm0 3.75h.008v.008h-.008V11.25zm0 3.75h.008v.008h-.008V15z" /></svg>
+                        </div>
+                        <span>接收</span>
+                    </div>
+                </div>
+
+                <!-- 首页网络过滤选项卡 -->
+                <div class="home-network-tabs" id="home-network-tabs"></div>
+
+                <!-- 搜索与管理 -->
+                <div class="search-manage-row">
+                    <div class="search-bar">
+                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input type="text" placeholder="Search" id="token-search">
+                    </div>
+                    <button class="manage-tokens-btn" onclick="showToast('币种管理开发中...')">币种管理</button>
+                </div>
+
+                <!-- 代币列表 -->
+                <div class="token-list" id="home-token-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+
+            <!-- 2. 币种详情页 -->
+            <div id="view-detail" class="view">
+                <div class="nav-header">
+                    <div class="back-btn" onclick="switchView('view-home')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                    </div>
+                    <div class="nav-title" id="detail-title">
+                        <div class="logo-mini logo-rc">R</div>
+                        <span>RC</span>
+                    </div>
+                    <div style="width:32px;"></div>
+                </div>
+
+                <div class="detail-amount-card">
+                    <span class="detail-amount" id="detail-balance">0.05 RC</span>
+                    <span class="detail-value" id="detail-value">$0.00005</span>
+                </div>
+
+                <div class="detail-ops">
+                    <div class="op-btn-item" id="detail-op-swap">
+                        <div class="op-btn-icon" style="color: var(--primary-blue);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                        </div>
+                        <span>Swap</span>
+                    </div>
+                    <div class="op-btn-item" onclick="showToast('发送功能正在开发中...')">
+                        <div class="op-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" /></svg>
+                        </div>
+                        <span>Send</span>
+                    </div>
+                    <div class="op-btn-item" onclick="showToast('接收功能正在开发中...')">
+                        <div class="op-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" /></svg>
+                        </div>
+                        <span>Receive</span>
+                    </div>
+                </div>
+
+                <div class="address-card">
+                    <div class="address-card-title">
+                        <span>Receiving Address</span>
+                        <svg viewBox="0 0 24 24" onclick="copyAddress()"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    </div>
+                    <div class="address-text" id="wallet-address">0x705BCd59307a95F577C429732F432D135130D45B</div>
+                </div>
+
+                <div class="history-section-title">History</div>
+                <div class="history-date">2026/06/29</div>
+                <div class="history-list" id="detail-history-list">
+                    <!-- 动态记录 -->
+                </div>
+            </div>
+
+            <!-- 3. Swap 兑换页面 -->
+            <div id="view-swap" class="view">
+                <div class="nav-header">
+                    <div class="back-btn" onclick="switchView('view-home')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                    </div>
+                    <div class="nav-title">Swap 兑换</div>
+                    <div style="width:32px;"></div>
+                </div>
+
+                <div class="swap-container">
+                    <!-- 新增：兑换类型 Banner -->
+                    <div class="swap-type-banner" id="swap-type-banner">
+                        <span class="swap-type-badge same-chain" id="swap-type-badge">同链兑换</span>
+                        <span class="swap-type-desc" id="swap-type-desc">使用本地网络执行快速置换</span>
+                    </div>
+
+                    <!-- 支付卡片 -->
+                    <div class="swap-input-card">
+                        <div class="swap-label-row">
+                            <span>支付</span>
+                            <span>余额: <span id="swap-from-balance">0.05</span></span>
+                        </div>
+                        <div class="swap-input-row">
+                            <input type="number" class="swap-num-input" id="swap-from-input" placeholder="0.0">
+                            <div class="swap-coin-select" id="swap-from-select-btn">
+                                <div class="coin-logo logo-rc" id="swap-from-logo">R</div>
+                                <div class="coin-select-text">
+                                    <span class="coin-select-network" id="swap-from-network">自主链</span>
+                                    <span class="coin-select-symbol" id="swap-from-symbol">RC</span>
+                                </div>
+                                <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+                            </div>
+                        </div>
+                        <div class="swap-card-footer">
+                            <span>~$0.00</span>
+                            <span class="swap-max-btn" id="swap-max-btn">MAX</span>
+                        </div>
+                    </div>
+
+                    <!-- 切换方向按钮 -->
+                    <div class="swap-divider">
+                        <div class="swap-switch-btn" id="swap-switch-direction-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" /></svg>
+                        </div>
+                    </div>
+
+                    <!-- 接收卡片 -->
+                    <div class="swap-input-card" style="margin-top: 10px;">
+                        <div class="swap-label-row">
+                            <span>接收</span>
+                            <span>余额: <span id="swap-to-balance">0</span></span>
+                        </div>
+                        <div class="swap-input-row">
+                            <input type="number" class="swap-num-input" id="swap-to-input" placeholder="0.0" readonly>
+                            <div class="swap-coin-select" id="swap-to-select-btn">
+                                <div class="coin-logo logo-usdr" id="swap-to-logo">U</div>
+                                <div class="coin-select-text">
+                                    <span class="coin-select-network" id="swap-to-network">自主链</span>
+                                    <span class="coin-select-symbol" id="swap-to-symbol">USDRs</span>
+                                </div>
+                                <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+                            </div>
+                        </div>
+                        <div class="swap-card-footer">
+                            <span>~$0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- 滑点选项 -->
+                    <div class="slippage-section">
+                        <div class="slippage-title">滑点容忍度</div>
+                        <div class="slippage-options">
+                            <div class="slippage-opt" data-value="0.1">0.1%</div>
+                            <div class="slippage-opt active" data-value="0.5">0.5%</div>
+                            <div class="slippage-opt" data-value="1.0">1.0%</div>
+                            <div class="slippage-opt custom" id="slippage-custom">
+                                <input type="text" placeholder="自定义">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 兑换信息箱 -->
+                    <div class="swap-info-box">
+                        <div class="swap-info-row">
+                            <span>实时汇率</span>
+                            <span class="swap-info-value" id="swap-rate-text">1 RC = 0.004 USDRs</span>
+                        </div>
+                        <div class="swap-info-row">
+                            <span>滑点限制下限 (Min Receive)</span>
+                            <span class="swap-info-value" id="swap-min-receive-text">0.000000 USDRs</span>
+                        </div>
+                        <div class="swap-info-row">
+                            <span>兑换路径</span>
+                            <span class="swap-info-value" id="swap-route-text">RC → USDRs</span>
+                        </div>
+                        <div class="swap-info-row" id="swap-gas-row">
+                            <span>预估 Gas 费</span>
+                            <span class="swap-info-value" id="swap-gas-value">0.0012 RC</span>
+                        </div>
+                        <!-- 新增：跨链桥费用 -->
+                        <div class="swap-info-row" id="swap-bridge-fee-row" style="display: none;">
+                            <span>跨链中继费 (Bridge Fee)</span>
+                            <span class="swap-info-value" id="swap-bridge-fee-value">0.002 ETH (~$6.90)</span>
+                        </div>
+                    </div>
+
+                    <button class="swap-submit-btn" id="swap-submit-btn" disabled>确认兑换</button>
+                </div>
+            </div>
+
+            <!-- 4. Faucet 领用页面 -->
+            <div id="view-faucet" class="view">
+                <div class="nav-header">
+                    <div class="back-btn" onclick="switchView('view-home')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                    </div>
+                    <div class="nav-title">Faucet 代币领用</div>
+                    <div style="width:32px;"></div>
+                </div>
+
+                <div class="faucet-top-card">
+                    <div class="faucet-card-label">单次领取额度</div>
+                    <div class="faucet-card-amount">5.00 RC</div>
+                    
+                    <div class="faucet-pool-wrapper">
+                        <div class="faucet-pool-title">
+                            <span>资金池剩余</span>
+                            <span id="faucet-pool-text">45,230.00 / 50,000.00 RC</span>
+                        </div>
+                        <div class="faucet-progress-bar">
+                            <div class="faucet-progress-fill" id="faucet-progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faucet-status-card">
+                    <div class="faucet-status-left">
+                        <span class="faucet-status-title">领用状态</span>
+                        <span class="faucet-status-desc" id="faucet-status-desc">已满24小时，可立即领用</span>
+                    </div>
+                    <span class="faucet-status-badge available" id="faucet-status-badge">可领用</span>
+                </div>
+
+                <div class="gas-badge">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    <span>免 Gas 代发已启用 (安全保险库已校验)</span>
+                </div>
+
+                <button class="faucet-claim-btn" id="faucet-claim-btn">领取 5.00 RC</button>
+
+                <div class="faucet-rules-title">领用规则</div>
+                <ul class="faucet-rules-list">
+                    <li>每个地址每 24 小时可领取一次测试代币。</li>
+                    <li>单次领取固定数量为 5.00 RC。</li>
+                    <li>平台提供元交易代发，领用无需支付任何链上 Gas 费。</li>
+                    <li>地址必须事先在【安全保险库】绑定设备指纹，未绑定的设备将无法代发。</li>
+                    <li>严禁使用脚本或模拟器多账号套取，违规将拉黑物理设备指纹。</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <!-- 底部导航小药丸 -->
+        <div class="bottom-nav">
+            <div class="nav-item" onclick="showToast('消息功能开发中...')">
+                <div class="nav-icon-wrapper">
+                    <!-- 消息图标 SVG -->
+                    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+                </div>
+            </div>
+            <div class="nav-item active" onclick="switchView('view-home')">
+                <div class="nav-icon-wrapper">
+                    <!-- 钱包图标 SVG -->
+                    <svg viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                </div>
+            </div>
+            <div class="nav-item" onclick="showToast('个人中心开发中...')">
+                <div class="nav-icon-wrapper">
+                    <!-- 我的图标 SVG -->
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- 遮罩与弹窗 -->
+        <div class="overlay" id="overlay"></div>
+
+        <!-- 币种选择弹窗 -->
+        <div class="bottom-sheet" id="coin-picker-sheet">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-title">选择代币</div>
+            
+            <!-- 新增：网络切换选项卡 -->
+            <div class="network-tabs-container">
+                <div class="network-tabs-scroll" id="network-tabs-scroll">
+                    <!-- 动态生成网络选项 -->
+                </div>
+            </div>
+            
+            <!-- 搜索框 -->
+            <div class="search-bar" style="margin: 0 0 12px 0; height: 36px; background-color: var(--card-bg); border-radius: 10px; display: flex; align-items: center; padding: 0 12px; gap: 8px;">
+                <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: var(--text-secondary);"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="text" placeholder="搜索代币名称或符号" id="coin-search-input" style="border: none; background: transparent; font-size: 13px; width: 100%; outline: none;">
+            </div>
+
+            <div class="coin-picker-list" id="coin-picker-list">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+
+        <!-- 签名与加载进度弹窗 -->
+        <div class="bottom-sheet" id="tx-loading-sheet">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-title" id="tx-sheet-title">交易处理中</div>
+            
+            <!-- 密码输入阶段 -->
+            <div id="tx-password-stage">
+                <div class="password-input-group">
+                    <label for="wallet-pwd">请输入钱包安全密码</label>
+                    <input type="password" id="wallet-pwd" placeholder="默认密码: 123456">
+                </div>
+                <button class="swap-submit-btn" id="tx-password-submit-btn" style="width: 100%; margin-top: 0;">确认签名</button>
+            </div>
+
+            <!-- 进度显示阶段 -->
+            <div id="tx-progress-stage" style="display: none;">
+                <div class="loading-step-list" id="tx-loading-steps">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast 提示 -->
+        <div class="toast" id="toast-msg">已复制地址</div>
+    </div>
+
+    <!-- JS 逻辑 -->
+    <script>
+        // 数据模型与状态
+        const networks = [
+            { id: "self", name: "自主链", iconColor: "var(--primary-orange)", shortName: "Self" },
+            { id: "ethereum", name: "Ethereum", iconColor: "#627EEA", shortName: "ETH" },
+            { id: "bsc", name: "BNB Chain", iconColor: "#F3BA2F", shortName: "BSC" },
+            { id: "arbitrum", name: "Arbitrum", iconColor: "#28A0F0", shortName: "ARB" }
+        ];
+
+        const state = {
+            walletAddress: "0x705BCd59307a95F577C429732F432D135130D45B",
+            tokens: [
+                // 自主链
+                { symbol: "RC", name: "RC Token", balance: 0.05, price: 0.004, change: "+0.00%", class: "logo-rc", network: "self" },
+                { symbol: "USDRs", name: "USDR Stable", balance: 0.0, price: 1.00, change: "+0.00%", class: "logo-usdr", network: "self" },
+                { symbol: "HRCs", name: "HRC Token", balance: 0.0, price: 0.02, change: "+0.00%", class: "logo-hrc", network: "self" },
+                { symbol: "RSTs", name: "RST Token", balance: 0.0, price: 0.002, change: "+0.00%", class: "logo-rst", network: "self" },
+                // Ethereum
+                { symbol: "ETH", name: "Ethereum", balance: 0.125, price: 3450.00, change: "+1.24%", class: "logo-eth", network: "ethereum" },
+                { symbol: "USDT", name: "Tether USD", balance: 250.0, price: 1.00, change: "-0.02%", class: "logo-usdt", network: "ethereum" },
+                { symbol: "USDC", name: "USD Coin", balance: 120.0, price: 1.00, change: "+0.01%", class: "logo-usdc", network: "ethereum" },
+                // BNB Chain
+                { symbol: "BNB", name: "BNB", balance: 1.84, price: 580.00, change: "+2.31%", class: "logo-bnb", network: "bsc" },
+                { symbol: "USDT", name: "Tether USD", balance: 500.0, price: 1.00, change: "-0.02%", class: "logo-usdt", network: "bsc" },
+                { symbol: "CAKE", name: "PancakeSwap", balance: 25.0, price: 2.40, change: "-1.15%", class: "logo-cake", network: "bsc" },
+                // Arbitrum
+                { symbol: "ETH", name: "Ethereum", balance: 0.45, price: 3450.00, change: "+1.24%", class: "logo-eth-arb", network: "arbitrum" },
+                { symbol: "USDT", name: "Tether USD", balance: 100.0, price: 1.00, change: "-0.02%", class: "logo-usdt-arb", network: "arbitrum" },
+                { symbol: "ARB", name: "Arbitrum Token", balance: 150.0, price: 0.95, change: "+4.20%", class: "logo-arb", network: "arbitrum" }
+            ],
+            // 兑换汇率矩阵
+            rates: {
+                RC: { USDRs: 0.004, HRCs: 0.2, RSTs: 2 },
+                USDRs: { RC: 250, HRCs: 50, RSTs: 5000 },
+                HRCs: { RC: 5, USDRs: 0.02, RSTs: 10 },
+                RSTs: { RC: 0.5, USDRs: 0.0002, HRCs: 0.01 }
+            },
+            history: [
+                { type: "receive", desc: "From - 0xBd0e...5c28", amount: "+0.05 RC", date: "2026/06/29", rawAmount: 0.05, symbol: "RC", network: "self", positive: true }
+            ],
+            faucet: {
+                claimable: true,
+                cooldownSeconds: 0,
+                poolBalance: 45230,
+                poolTotal: 50000
+            },
+            currentDetailToken: "RC",
+            currentDetailNetwork: "self",
+            // Swap 临时配置
+            swap: {
+                fromToken: null,
+                toToken: null,
+                slippage: 0.5
+            },
+            homeSelectedNetwork: 'all',
+            pickerSelectedNetwork: 'all'
+        };
+
+        // 获取网络名称
+        function getNetworkName(networkId) {
+            const net = networks.find(n => n.id === networkId);
+            return net ? net.name : "未知网络";
+        }
+
+        // 计算汇率
+        function getRate(fromToken, toToken) {
+            // 如果都是自主链代币，使用原汇率矩阵
+            if (fromToken.network === 'self' && toToken.network === 'self') {
+                return state.rates[fromToken.symbol][toToken.symbol] || (fromToken.price / toToken.price);
+            }
+            // 否则，通过 USD 价格比例计算
+            return fromToken.price / toToken.price;
+        }
+
+        // 导航控制
+        function switchView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            
+            // 特殊初始化
+            if (viewId === 'view-home') {
+                renderHome();
+            } else if (viewId === 'view-detail') {
+                renderDetail();
+            } else if (viewId === 'view-swap') {
+                initSwapPage();
+            } else if (viewId === 'view-faucet') {
+                initFaucetPage();
+            }
+        }
+
+        // 全局 Toast 提示
+        let toastTimeout;
+        function showToast(text) {
+            const toast = document.getElementById('toast-msg');
+            toast.innerText = text;
+            toast.style.display = 'block';
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.style.display = 'none';
+            }, 2000);
+        }
+
+        function copyAddress() {
+            navigator.clipboard.writeText(state.walletAddress).then(() => {
+                showToast("已复制地址");
+            }).catch(() => {
+                showToast("复制失败");
+            });
+        }
+
+        // 资产计算与格式化
+        function updateBalances() {
+            let total = 0;
+            state.tokens.forEach(t => {
+                total += t.balance * t.price;
+            });
+            
+            // 四舍五入保留4位小数，完美对应 $0.0001
+            let formattedTotal = total === 0 ? "$0.0000" : "$" + total.toFixed(4);
+            if (total === 0.00005) {
+                formattedTotal = "$0.0001"; // 精确显示截图数值
+            }
+            
+            document.getElementById('home-total-balance').innerText = formattedTotal;
+            return formattedTotal;
+        }
+
+        // 1. 首页渲染
+        function renderHomeNetworkTabs() {
+            const tabsDiv = document.getElementById('home-network-tabs');
+            if (!tabsDiv) return;
+            
+            tabsDiv.innerHTML = '';
+            
+            // "全部" 选项
+            const allTab = document.createElement('div');
+            allTab.className = `home-network-tab-item ${(!state.homeSelectedNetwork || state.homeSelectedNetwork === 'all') ? 'active' : ''}`;
+            allTab.innerText = '全部';
+            allTab.onclick = () => {
+                state.homeSelectedNetwork = 'all';
+                renderHome();
+            };
+            tabsDiv.appendChild(allTab);
+            
+            // 各个网络选项
+            networks.forEach(net => {
+                const tab = document.createElement('div');
+                tab.className = `home-network-tab-item ${state.homeSelectedNetwork === net.id ? 'active' : ''}`;
+                tab.innerHTML = `<span class="network-tab-icon" style="background-color: ${net.iconColor}; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px;"></span>${net.name}`;
+                tab.onclick = () => {
+                    state.homeSelectedNetwork = net.id;
+                    renderHome();
+                };
+                tabsDiv.appendChild(tab);
+            });
+        }
+
+        function renderHome() {
+            updateBalances();
+            renderHomeNetworkTabs();
+            
+            const list = document.getElementById('home-token-list');
+            list.innerHTML = '';
+            
+            const searchQuery = document.getElementById('token-search').value.toLowerCase().trim();
+            const selectedNet = state.homeSelectedNetwork || 'all';
+            
+            state.tokens.forEach(t => {
+                // 过滤网络
+                if (selectedNet !== 'all' && t.network !== selectedNet) {
+                    return;
+                }
+                // 过滤搜索
+                if (searchQuery && !t.symbol.toLowerCase().includes(searchQuery) && !t.name.toLowerCase().includes(searchQuery)) {
+                    return;
+                }
+                
+                const value = t.balance * t.price;
+                const formattedVal = value === 0 ? "$0.00" : "$" + value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 5});
+                const net = networks.find(n => n.id === t.network);
+                
+                const row = document.createElement('div');
+                row.className = 'token-row';
+                row.onclick = () => {
+                    state.currentDetailToken = t.symbol;
+                    state.currentDetailNetwork = t.network;
+                    switchView('view-detail');
+                };
+                
+                row.innerHTML = `
+                    <div class="token-left">
+                        <div class="token-logo-wrapper">
+                            <div class="token-logo ${t.class}">${t.symbol[0]}</div>
+                            <div class="logo-badge" style="background-color: ${net.iconColor};">${net.shortName}</div>
+                        </div>
+                        <div class="token-info">
+                            <span class="token-symbol">${t.symbol}</span>
+                            <span class="token-price-change">$${t.price >= 1 ? t.price.toLocaleString(undefined, {minimumFractionDigits: 2}) : t.price.toFixed(4)} <span style="color: ${t.change.startsWith('+') ? 'var(--primary-green)' : 'var(--primary-orange)'}">${t.change}</span></span>
+                        </div>
+                    </div>
+                    <div class="token-right">
+                        <span class="token-balance">${t.balance}</span>
+                        <span class="token-value">${formattedVal}</span>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        // 2. 详情页渲染
+        function renderDetail() {
+            const token = state.tokens.find(t => t.symbol === state.currentDetailToken && t.network === (state.currentDetailNetwork || 'self'));
+            if (!token) return;
+
+            // 标题
+            const titleDiv = document.getElementById('detail-title');
+            titleDiv.innerHTML = `
+                <div class="logo-mini ${token.class}">${token.symbol[0]}</div>
+                <span>${token.symbol}</span>
+            `;
+            
+            // 余额与估值
+            document.getElementById('detail-balance').innerText = `${token.balance} ${token.symbol}`;
+            const value = token.balance * token.price;
+            document.getElementById('detail-value').innerText = value === 0 ? "$0.00" : "$" + value.toFixed(5).replace(/\.?0+$/, "");
+            
+            // 绑定 Swap 跳转，并将当前币种设为 Swap 支付币种
+            document.getElementById('detail-op-swap').onclick = () => {
+                state.swap.fromToken = token;
+                // 默认接收代币
+                const otherToken = state.tokens.find(t => t.symbol !== token.symbol && t.network === token.network) || 
+                                   state.tokens.find(t => t.symbol !== token.symbol);
+                state.swap.toToken = otherToken;
+                switchView('view-swap');
+            };
+
+            // 历史记录
+            const hList = document.getElementById('detail-history-list');
+            hList.innerHTML = '';
+            
+            const filteredHistory = state.history.filter(h => h.symbol === token.symbol && h.network === token.network);
+            if (filteredHistory.length === 0) {
+                hList.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:13px; padding:20px 0;">暂无交易历史</div>';
+                return;
+            }
+
+            filteredHistory.forEach(h => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <div class="history-left">
+                        <div class="history-icon ${h.type}">
+                            ${h.type === 'receive' ? 
+                              `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" /></svg>` : 
+                              `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>`}
+                        </div>
+                        <div class="history-info">
+                            <span class="history-type">${h.type === 'receive' ? 'Receive' : 'Swap 兑换'}</span>
+                            <span class="history-desc">${h.desc}</span>
+                        </div>
+                    </div>
+                    <span class="history-amount ${h.positive ? 'positive' : 'negative'}">${h.amount}</span>
+                `;
+                hList.appendChild(item);
+            });
+        }
+
+        // 3. Swap 逻辑
+        function initSwapPage() {
+            if (!state.swap.fromToken) {
+                state.swap.fromToken = state.tokens.find(t => t.symbol === 'RC' && t.network === 'self') || state.tokens[0];
+            }
+            if (!state.swap.toToken) {
+                state.swap.toToken = state.tokens.find(t => t.symbol === 'USDRs' && t.network === 'self') || state.tokens[1];
+            }
+
+            const fromToken = state.swap.fromToken;
+            const toToken = state.swap.toToken;
+            
+            // 填充余额
+            document.getElementById('swap-from-balance').innerText = fromToken.balance;
+            document.getElementById('swap-to-balance').innerText = toToken.balance;
+            
+            // 币种选择器UI
+            document.getElementById('swap-from-symbol').innerText = fromToken.symbol;
+            document.getElementById('swap-from-network').innerText = getNetworkName(fromToken.network);
+            document.getElementById('swap-from-logo').className = `coin-logo ${fromToken.class}`;
+            document.getElementById('swap-from-logo').innerText = fromToken.symbol[0];
+            
+            document.getElementById('swap-to-symbol').innerText = toToken.symbol;
+            document.getElementById('swap-to-network').innerText = getNetworkName(toToken.network);
+            document.getElementById('swap-to-logo').className = `coin-logo ${toToken.class}`;
+            document.getElementById('swap-to-logo').innerText = toToken.symbol[0];
+
+            // 输入框清空
+            document.getElementById('swap-from-input').value = '';
+            document.getElementById('swap-to-input').value = '';
+            document.getElementById('swap-submit-btn').disabled = true;
+
+            updateSwapDetails();
+        }
+
+        function updateSwapDetails() {
+            const fromToken = state.swap.fromToken;
+            const toToken = state.swap.toToken;
+            
+            // Calculate rate
+            const rate = getRate(fromToken, toToken);
+            
+            // Check if same network or cross chain
+            const isCrossChain = fromToken.network !== toToken.network;
+            
+            // Update Swap type banner
+            const badge = document.getElementById('swap-type-badge');
+            const desc = document.getElementById('swap-type-desc');
+            
+            if (isCrossChain) {
+                badge.className = 'swap-type-badge cross-chain';
+                badge.innerText = '跨链兑换';
+                desc.innerText = `使用 Bridge 跨链中继 (${getNetworkName(fromToken.network)} → ${getNetworkName(toToken.network)})`;
+            } else {
+                badge.className = 'swap-type-badge same-chain';
+                badge.innerText = '同链兑换';
+                desc.innerText = `在 ${getNetworkName(fromToken.network)} 本地网络执行快速置换`;
+            }
+            
+            document.getElementById('swap-rate-text').innerText = `1 ${fromToken.symbol} = ${rate >= 1 ? rate.toFixed(4) : rate.toFixed(6)} ${toToken.symbol}`;
+            
+            // Update routing path
+            if (isCrossChain) {
+                document.getElementById('swap-route-text').innerText = `${fromToken.symbol} (${getNetworkName(fromToken.network)}) → Bridge → ${toToken.symbol} (${getNetworkName(toToken.network)})`;
+            } else {
+                document.getElementById('swap-route-text').innerText = `${fromToken.symbol} → ${toToken.symbol}`;
+            }
+
+            // Update gas fee display
+            const gasValue = document.getElementById('swap-gas-value');
+            if (fromToken.network === 'self') {
+                gasValue.innerText = '0.0012 RC';
+            } else if (fromToken.network === 'ethereum') {
+                gasValue.innerText = '0.0035 ETH (~$12)';
+            } else if (fromToken.network === 'bsc') {
+                gasValue.innerText = '0.0005 BNB (~$0.29)';
+            } else if (fromToken.network === 'arbitrum') {
+                gasValue.innerText = '0.00015 ETH (~$0.51)';
+            } else {
+                gasValue.innerText = '0.001 ETH';
+            }
+
+            // Update bridge fee display
+            const bridgeRow = document.getElementById('swap-bridge-fee-row');
+            if (isCrossChain) {
+                bridgeRow.style.display = 'flex';
+                if (fromToken.network === 'ethereum') {
+                    document.getElementById('swap-bridge-fee-value').innerText = '0.002 ETH (~$6.90)';
+                } else {
+                    document.getElementById('swap-bridge-fee-value').innerText = '0.0005 ETH (~$1.70)';
+                }
+            } else {
+                bridgeRow.style.display = 'none';
+            }
+
+            // 计算滑点下限
+            const fromVal = parseFloat(document.getElementById('swap-from-input').value) || 0;
+            if (fromVal > 0) {
+                const dy = fromVal * rate;
+                const minReceive = dy * (1 - state.swap.slippage / 100);
+                document.getElementById('swap-to-input').value = dy.toFixed(6);
+                document.getElementById('swap-min-receive-text').innerText = `${minReceive.toFixed(6)} ${toToken.symbol}`;
+                
+                // 检查余额
+                if (fromVal <= fromToken.balance) {
+                    document.getElementById('swap-submit-btn').disabled = false;
+                    document.getElementById('swap-submit-btn').innerText = isCrossChain ? "确认跨链兑换" : "确认兑换";
+                } else {
+                    document.getElementById('swap-submit-btn').disabled = true;
+                    document.getElementById('swap-submit-btn').innerText = "余额不足";
+                }
+            } else {
+                document.getElementById('swap-to-input').value = '';
+                document.getElementById('swap-min-receive-text').innerText = `0.000000 ${toToken.symbol}`;
+                document.getElementById('swap-submit-btn').disabled = true;
+                document.getElementById('swap-submit-btn').innerText = "输入数量";
+            }
+        }
+
+        // 监听 Swap 输入事件
+        document.getElementById('swap-from-input').addEventListener('input', updateSwapDetails);
+
+        // MAX 按钮
+        document.getElementById('swap-max-btn').onclick = () => {
+            const fromToken = state.swap.fromToken;
+            document.getElementById('swap-from-input').value = fromToken.balance;
+            updateSwapDetails();
+        };
+
+        // 切换 Swap 方向
+        document.getElementById('swap-switch-direction-btn').onclick = () => {
+            const temp = state.swap.fromToken;
+            state.swap.fromToken = state.swap.toToken;
+            state.swap.toToken = temp;
+            initSwapPage();
+        };
+
+        // 滑点切换
+        document.querySelectorAll('.slippage-opt').forEach(opt => {
+            opt.onclick = () => {
+                if (opt.id === 'slippage-custom') return;
+                
+                document.querySelectorAll('.slippage-opt').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                state.swap.slippage = parseFloat(opt.dataset.value);
+                updateSwapDetails();
+            };
+        });
+
+        // 自定义滑点
+        document.querySelector('#slippage-custom input').addEventListener('input', (e) => {
+            document.querySelectorAll('.slippage-opt').forEach(o => o.classList.remove('active'));
+            document.getElementById('slippage-custom').classList.add('active');
+            let val = parseFloat(e.target.value) || 0.5;
+            state.swap.slippage = val;
+            updateSwapDetails();
+        });
+
+        // 4. Faucet 逻辑
+        function initFaucetPage() {
+            // 渲染资金池进度条
+            const fill = document.getElementById('faucet-progress-fill');
+            const percent = (state.faucet.poolBalance / state.faucet.poolTotal) * 100;
+            fill.style.width = `${percent}%`;
+            document.getElementById('faucet-pool-text').innerText = `${state.faucet.poolBalance.toLocaleString()}.00 / ${state.faucet.poolTotal.toLocaleString()}.00 RC`;
+
+            const btn = document.getElementById('faucet-claim-btn');
+            const badge = document.getElementById('faucet-status-badge');
+            const desc = document.getElementById('faucet-status-desc');
+
+            if (state.faucet.claimable) {
+                btn.disabled = false;
+                btn.innerText = "领取 5.00 RC";
+                badge.className = "faucet-status-badge available";
+                badge.innerText = "可领用";
+                desc.innerText = "已满24小时，可立即领用";
+            } else {
+                btn.disabled = true;
+                badge.className = "faucet-status-badge cooldown";
+                badge.innerText = "冷却中";
+                updateCooldownText();
+            }
+        }
+
+        let cooldownInterval;
+        function startCooldown(seconds) {
+            state.faucet.claimable = false;
+            state.faucet.cooldownSeconds = seconds;
+            initFaucetPage();
+
+            clearInterval(cooldownInterval);
+            cooldownInterval = setInterval(() => {
+                state.faucet.cooldownSeconds--;
+                if (state.faucet.cooldownSeconds <= 0) {
+                    state.faucet.claimable = true;
+                    clearInterval(cooldownInterval);
+                    initFaucetPage();
+                } else {
+                    updateCooldownText();
+                }
+            }, 1000);
+        }
+
+        function updateCooldownText() {
+            const h = Math.floor(state.faucet.cooldownSeconds / 3600).toString().padStart(2, '0');
+            const m = Math.floor((state.faucet.cooldownSeconds % 3600) / 60).toString().padStart(2, '0');
+            const s = (state.faucet.cooldownSeconds % 60).toString().padStart(2, '0');
+            const timeStr = `${h}:${m}:${s}`;
+            
+            document.getElementById('faucet-claim-btn').innerText = `冷却中 (${timeStr})`;
+            document.getElementById('faucet-status-desc').innerText = `下一次领用倒计时：${timeStr}`;
+        }
+
+        // --- 底部弹窗 Sheet 逻辑 ---
+        const overlay = document.getElementById('overlay');
+        const coinPicker = document.getElementById('coin-picker-sheet');
+        const txLoading = document.getElementById('tx-loading-sheet');
+
+        function openSheet(sheet) {
+            overlay.style.display = 'block';
+            setTimeout(() => {
+                overlay.style.opacity = '1';
+                sheet.style.bottom = '0';
+            }, 50);
+        }
+
+        function closeAllSheets() {
+            overlay.style.opacity = '0';
+            document.querySelectorAll('.bottom-sheet').forEach(sheet => {
+                sheet.style.bottom = '-100%';
+            });
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+        }
+
+        overlay.onclick = closeAllSheets;
+
+        // 币种选择器弹窗绑定
+        let activeSelectBtn = '';
+        document.getElementById('swap-from-select-btn').onclick = () => {
+            activeSelectBtn = 'from';
+            openCoinPicker();
+        };
+        document.getElementById('swap-to-select-btn').onclick = () => {
+            activeSelectBtn = 'to';
+            openCoinPicker();
+        };
+
+        function openCoinPicker() {
+            const pickerList = document.getElementById('coin-picker-list');
+            const searchInput = document.getElementById('coin-search-input');
+            
+            // Clean search input
+            searchInput.value = '';
+            
+            // Initialize selected network inside picker to 'all' if not set
+            if (!state.pickerSelectedNetwork) {
+                state.pickerSelectedNetwork = 'all';
+            }
+            
+            // Function to render the token list based on network and search text
+            function updatePickerList() {
+                pickerList.innerHTML = '';
+                const query = searchInput.value.toLowerCase().trim();
+                const selNet = state.pickerSelectedNetwork;
+                
+                state.tokens.forEach(t => {
+                    // Filter by network
+                    if (selNet !== 'all' && t.network !== selNet) {
+                        return;
+                    }
+                    // Filter by search query
+                    if (query && !t.symbol.toLowerCase().includes(query) && !t.name.toLowerCase().includes(query)) {
+                        return;
+                    }
+                    
+                    const row = document.createElement('div');
+                    row.className = 'coin-picker-item';
+                    row.onclick = () => {
+                        if (activeSelectBtn === 'from') {
+                            // If selected token is the same as the 'to' token, swap them
+                            if (state.swap.toToken && t.symbol === state.swap.toToken.symbol && t.network === state.swap.toToken.network) {
+                                state.swap.toToken = state.swap.fromToken;
+                            }
+                            state.swap.fromToken = t;
+                        } else {
+                            if (state.swap.fromToken && t.symbol === state.swap.fromToken.symbol && t.network === state.swap.fromToken.network) {
+                                state.swap.fromToken = state.swap.toToken;
+                            }
+                            state.swap.toToken = t;
+                        }
+                        closeAllSheets();
+                        initSwapPage();
+                    };
+                    
+                    const net = networks.find(n => n.id === t.network);
+                    row.innerHTML = `
+                        <div class="token-left">
+                            <div class="token-logo-wrapper">
+                                <div class="token-logo ${t.class}" style="width:32px; height:32px; font-size:12px;">${t.symbol[0]}</div>
+                                <div class="logo-badge" style="background-color: ${net.iconColor};">${net.shortName}</div>
+                            </div>
+                            <div class="token-info" style="margin-left: 8px;">
+                                <span class="token-symbol" style="font-size:14px;">${t.symbol}</span>
+                                <span class="token-price-change" style="font-size:10px;">${net.name} · $${t.price >= 1 ? t.price.toLocaleString() : t.price.toFixed(4)}</span>
+                            </div>
+                        </div>
+                        <span class="token-value" style="font-weight:bold;">${t.balance}</span>
+                    `;
+                    pickerList.appendChild(row);
+                });
+                
+                if (pickerList.children.length === 0) {
+                    pickerList.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:13px; padding:20px 0;">未找到相关代币</div>';
+                }
+            }
+            
+            // Function to render network tab bar inside picker
+            function renderPickerNetworkTabs() {
+                const scrollDiv = document.getElementById('network-tabs-scroll');
+                scrollDiv.innerHTML = '';
+                
+                // "全部" Tab
+                const allTab = document.createElement('div');
+                allTab.className = `network-tab-item ${state.pickerSelectedNetwork === 'all' ? 'active' : ''}`;
+                allTab.innerText = '全部';
+                allTab.onclick = () => {
+                    state.pickerSelectedNetwork = 'all';
+                    renderPickerNetworkTabs();
+                    updatePickerList();
+                };
+                scrollDiv.appendChild(allTab);
+                
+                // Networks Tabs
+                networks.forEach(net => {
+                    const tab = document.createElement('div');
+                    tab.className = `network-tab-item ${state.pickerSelectedNetwork === net.id ? 'active' : ''}`;
+                    tab.innerHTML = `<span class="network-tab-icon" style="background-color: ${net.iconColor};"></span>${net.name}`;
+                    tab.onclick = () => {
+                        state.pickerSelectedNetwork = net.id;
+                        renderPickerNetworkTabs();
+                        updatePickerList();
+                    };
+                    scrollDiv.appendChild(tab);
+                });
+            }
+            
+            // Setup listeners
+            searchInput.oninput = updatePickerList;
+            
+            // Initial render
+            renderPickerNetworkTabs();
+            updatePickerList();
+            
+            // Open sheet
+            openSheet(coinPicker);
+        }
+
+        // --- 交易与密码流程模拟 ---
+        let currentTxType = ''; // 'swap' or 'faucet'
+
+        // Faucet 领取按钮点击
+        document.getElementById('faucet-claim-btn').onclick = () => {
+            currentTxType = 'faucet';
+            document.getElementById('tx-sheet-title').innerText = "元交易免 Gas 签名";
+            document.getElementById('tx-password-stage').style.display = 'block';
+            document.getElementById('tx-progress-stage').style.display = 'none';
+            document.getElementById('wallet-pwd').value = '';
+            openSheet(txLoading);
+        };
+
+        // Swap 确认兑换按钮点击
+        document.getElementById('swap-submit-btn').onclick = () => {
+            currentTxType = 'swap';
+            document.getElementById('tx-sheet-title').innerText = "Swap 授权签名";
+            document.getElementById('tx-password-stage').style.display = 'block';
+            document.getElementById('tx-progress-stage').style.display = 'none';
+            document.getElementById('wallet-pwd').value = '';
+            openSheet(txLoading);
+        };
+
+        // 密码提交
+        document.getElementById('tx-password-submit-btn').onclick = () => {
+            const pwd = document.getElementById('wallet-pwd').value;
+            if (pwd !== '123456' && pwd !== '') {
+                showToast("密码错误 (默认密码为空或123456)");
+                return;
+            }
+
+            document.getElementById('tx-password-stage').style.display = 'none';
+            document.getElementById('tx-progress-stage').style.display = 'block';
+            
+            if (currentTxType === 'swap') {
+                runSwapProcess();
+            } else {
+                runFaucetProcess();
+            }
+        };
+
+        // 执行 Swap 过程
+        function runSwapProcess() {
+            const stepsDiv = document.getElementById('tx-loading-steps');
+            const fromToken = state.swap.fromToken;
+            const toToken = state.swap.toToken;
+            const isCrossChain = fromToken.network !== toToken.network;
+            
+            const fromVal = parseFloat(document.getElementById('swap-from-input').value);
+            const rate = getRate(fromToken, toToken);
+            const toVal = fromVal * rate;
+
+            if (isCrossChain) {
+                stepsDiv.innerHTML = `
+                    <div class="loading-step-item active" id="step1">
+                        <div class="step-spinner"></div>
+                        <div class="step-dot"></div>
+                        <span>1. 签名授权：使用私钥签名跨链桥合约调用</span>
+                    </div>
+                    <div class="loading-step-item" id="step2">
+                        <div class="step-spinner"></div>
+                        <div class="step-dot"></div>
+                        <span>2. 源链扣除：扣除 ${fromVal} ${fromToken.symbol} 并锁定</span>
+                    </div>
+                    <div class="loading-step-item" id="step3">
+                        <div class="step-spinner"></div>
+                        <div class="step-dot"></div>
+                        <span>3. 中继验证：跨链中继器进行多签共识校验</span>
+                    </div>
+                    <div class="loading-step-item" id="step4">
+                        <div class="step-spinner"></div>
+                        <div class="step-dot"></div>
+                        <span>4. 目标释放：在 ${getNetworkName(toToken.network)} 释放 ${toVal.toFixed(4)} ${toToken.symbol}</span>
+                    </div>
+                `;
+
+                // Step 1
+                setTimeout(() => {
+                    document.getElementById('step1').className = 'loading-step-item success';
+                    document.getElementById('step2').className = 'loading-step-item active';
+                    
+                    // Step 2
+                    setTimeout(() => {
+                        document.getElementById('step2').className = 'loading-step-item success';
+                        document.getElementById('step3').className = 'loading-step-item active';
+                        
+                        // Deduct balance
+                        fromToken.balance = parseFloat((fromToken.balance - fromVal).toFixed(6));
+
+                        // Step 3
+                        setTimeout(() => {
+                            document.getElementById('step3').className = 'loading-step-item success';
+                            document.getElementById('step4').className = 'loading-step-item active';
+                            
+                            // Add balance
+                            toToken.balance = parseFloat((toToken.balance + toVal).toFixed(6));
+
+                            // Add to history
+                            state.history.unshift({
+                                type: "swap",
+                                desc: `跨链 ${fromVal} ${fromToken.symbol} (${getNetworkName(fromToken.network)}) → ${toVal.toFixed(4)} ${toToken.symbol} (${getNetworkName(toToken.network)})`,
+                                amount: `-${fromVal} ${fromToken.symbol}`,
+                                date: "2026/07/08",
+                                symbol: fromToken.symbol,
+                                network: fromToken.network,
+                                positive: false
+                            });
+                            state.history.unshift({
+                                type: "swap",
+                                desc: `跨链 ${fromVal} ${fromToken.symbol} (${getNetworkName(fromToken.network)}) → ${toVal.toFixed(4)} ${toToken.symbol} (${getNetworkName(toToken.network)})`,
+                                amount: `+${toVal.toFixed(4)} ${toToken.symbol}`,
+                                date: "2026/07/08",
+                                symbol: toToken.symbol,
+                                network: toToken.network,
+                                positive: true
+                            });
+
+                            // Step 4
+                            setTimeout(() => {
+                                document.getElementById('step4').className = 'loading-step-item success';
+                                setTimeout(() => {
+                                    closeAllSheets();
+                                    showToast("跨链兑换成功！已跨链传输");
+                                    switchView('view-home');
+                                }, 500);
+                            }, 1000);
+                        }, 1200);
+                    }, 1000);
+                }, 1000);
+            } else {
+                // Same chain swap
+                stepsDiv.innerHTML = `
+                    <div class="loading-step-item active" id="step1">
+                        <div class="step-spinner"></div>
+                        <div class="step-dot"></div>
+                        <span>1. 客户端发起私钥签名授权</span>
+                    </div>
+                    <div class="loading-step-item" id="step2">
+                        <div class="step-spinner"></div>
+                        <div class="step-dot"></div>
+                        <span>2. 合约扣除支付代币并执行汇率置换</span>
+                    </div>
+                    <div class="loading-step-item" id="step3">
+                        <div class="step-spinner"></div>
+                        <div class="step-dot"></div>
+                        <span>3. 交易广播上链确认 (TxHash 生成)</span>
+                    </div>
+                `;
+
+                // Step 1
+                setTimeout(() => {
+                    document.getElementById('step1').className = 'loading-step-item success';
+                    document.getElementById('step2').className = 'loading-step-item active';
+                    
+                    // Step 2
+                    setTimeout(() => {
+                        document.getElementById('step2').className = 'loading-step-item success';
+                        document.getElementById('step3').className = 'loading-step-item active';
+                        
+                        // Deduct balance and add balance
+                        fromToken.balance = parseFloat((fromToken.balance - fromVal).toFixed(6));
+                        toToken.balance = parseFloat((toToken.balance + toVal).toFixed(6));
+
+                        // Add to history
+                        state.history.unshift({
+                            type: "swap",
+                            desc: `Swap ${fromVal} ${fromToken.symbol} → ${toVal.toFixed(4)} ${toToken.symbol}`,
+                            amount: `-${fromVal} ${fromToken.symbol} / +${toVal.toFixed(4)} ${toToken.symbol}`,
+                            date: "2026/07/08",
+                            symbol: fromToken.symbol,
+                            network: fromToken.network,
+                            positive: false
+                        });
+                        state.history.unshift({
+                            type: "swap",
+                            desc: `Swap ${fromVal} ${fromToken.symbol} → ${toVal.toFixed(4)} ${toToken.symbol}`,
+                            amount: `+${toVal.toFixed(4)} ${toToken.symbol}`,
+                            date: "2026/07/08",
+                            symbol: toToken.symbol,
+                            network: toToken.network,
+                            positive: true
+                        });
+
+                        // Step 3
+                        setTimeout(() => {
+                            document.getElementById('step3').className = 'loading-step-item success';
+                            setTimeout(() => {
+                                closeAllSheets();
+                                showToast("兑换成功！");
+                                switchView('view-home');
+                            }, 500);
+                        }, 1000);
+                    }, 1000);
+                }, 1000);
+            }
+        }
+
+        // 执行 Faucet 过程
+        function runFaucetProcess() {
+            const stepsDiv = document.getElementById('tx-loading-steps');
+            stepsDiv.innerHTML = `
+                <div class="loading-step-item active" id="step1">
+                    <div class="step-spinner"></div>
+                    <div class="step-dot"></div>
+                    <span>1. 向 Relayer 预检资格与获取 nonce</span>
+                </div>
+                <div class="loading-step-item" id="step2">
+                    <div class="step-spinner"></div>
+                    <div class="step-dot"></div>
+                    <span>2. 客户端元交易免 Gas 私钥签名授权</span>
+                </div>
+                <div class="loading-step-item" id="step3">
+                    <div class="step-spinner"></div>
+                    <div class="step-dot"></div>
+                    <span>3. Relayer 代付打包广播并执行 Claim</span>
+                </div>
+            `;
+
+            // Step 1
+            setTimeout(() => {
+                document.getElementById('step1').className = 'loading-step-item success';
+                document.getElementById('step2').className = 'loading-step-item active';
+                
+                // Step 2
+                setTimeout(() => {
+                    document.getElementById('step2').className = 'loading-step-item success';
+                    document.getElementById('step3').className = 'loading-step-item active';
+                    
+                    // 扣池子加钱包
+                    state.faucet.poolBalance -= 5;
+                    const rcToken = state.tokens.find(t => t.symbol === 'RC');
+                    rcToken.balance = parseFloat((rcToken.balance + 5).toFixed(6));
+
+                    // 写入交易历史
+                    state.history.unshift({
+                        type: "receive",
+                        desc: "Faucet Gasless Claim",
+                        amount: "+5.00 RC",
+                        date: "2026/07/02",
+                        symbol: "RC",
+                        positive: true
+                    });
+
+                    // Step 3
+                    setTimeout(() => {
+                        document.getElementById('step3').className = 'loading-step-item success';
+                        setTimeout(() => {
+                            closeAllSheets();
+                            showToast("测试币领取成功！已免 Gas 垫付");
+                            startCooldown(30); // 冷却 30 秒演示
+                            switchView('view-home');
+                        }, 500);
+                    }, 1000);
+                }, 1000);
+            }, 1000);
+        }
+
+        // 初始化运行
+        renderHome();
+    </script>
+</body>
+</html>

@@ -1,0 +1,3884 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Node 商城 v4.2 - 短号中心迁移+交易模块优化</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lightbg: '#f5f6f8',
+                        'slate-955': '#0f172a',
+                        'slate-655': '#475569',
+                        'indigo-55': '#6366f1',
+                        'indigo-650': '#4f46e5',
+                        brand: '#6d5efc',
+                        'brand-dark': '#5b4ed6',
+                        'brand-light': '#8b7fff',
+                        'warn': '#f59e0b',
+                        'danger': '#dc2626',
+                        'success': '#10b981',
+                    },
+                    fontFamily: {
+                        display: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Space Grotesk', sans-serif; background: #e9eaf0; margin: 0; padding: 0; }
+        .font-display { font-family: 'Outfit', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', 'monospace'; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .overlay-blur { background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(10px); }
+        .active-scale { transition: transform 0.12s ease; }
+        .active-scale:active { transform: scale(0.96); }
+        .card-shadow { box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04); }
+        .card-shadow-lg { box-shadow: 0 4px 24px rgba(109,94,252,0.12), 0 1px 3px rgba(15,23,42,0.06); }
+        .card-shadow-warn { box-shadow: 0 4px 24px rgba(245,158,11,0.18), 0 1px 3px rgba(15,23,42,0.06); }
+        .card-shadow-danger { box-shadow: 0 4px 24px rgba(220,38,38,0.18), 0 1px 3px rgba(15,23,42,0.06); }
+        .fade-in { animation: fadeIn 0.25s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .scale-in { animation: scaleIn 0.2s ease-out; }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .gradient-brand { background: linear-gradient(135deg, #6d5efc 0%, #8b7fff 100%); }
+        .gradient-dark { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
+        .gradient-gold { background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); }
+        .gradient-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .gradient-danger { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); }
+        .gradient-warn { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .pill-active { background: white; color: #0f172a; border-radius: 9999px; }
+        .pill-inactive { color: rgba(255,255,255,0.7); background: transparent; padding-left: 0.5rem !important; padding-right: 0.5rem !important; justify-content: center !important; }
+        .pill-inactive .tab-label { display: none; }
+        .product-img-fade { background: linear-gradient(135deg, #f8f9ff 0%, #eef0ff 100%); }
+        .tag-stockout { background: #fee2e2; color: #dc2626; }
+        .img-dot { width: 6px; height: 6px; border-radius: 50%; background: #cbd5e1; }
+        .img-dot.active { background: #6d5efc; width: 18px; border-radius: 3px; }
+        .rank-pill { background: linear-gradient(135deg, #f59e0b, #f97316); color: white; }
+        .role-float { font-family: 'Space Grotesk', sans-serif; }
+        .role-btn { transition: all 0.15s ease; cursor: pointer; }
+        .role-btn:hover { transform: translateX(2px); }
+        .role-btn.active { background: #6d5efc !important; color: white !important; border-color: #6d5efc !important; }
+        .alert-p0 { border-left: 4px solid #dc2626; background: #fef2f2; }
+        .alert-p1 { border-left: 4px solid #f59e0b; background: #fffbeb; }
+        .alert-info { border-left: 4px solid #6d5efc; background: #f5f3ff; }
+        .badge-p0 { background: #dc2626; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+        .badge-p1 { background: #f59e0b; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+        .badge-info { background: #6d5efc; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+        .badge-success { background: #10b981; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+        /* 状态徽章对齐《交易订单状态设计方案》§6.2 */
+        .badge-pending { background: #fef3c7; color: #b45309; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }   /* 待发货/待领取 橙 */
+        .badge-shipped { background: #dbeafe; color: #1d4ed8; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }    /* 已发货 蓝 */
+        .badge-completed { background: #d1fae5; color: #047857; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }  /* 已完成 绿 */
+        .badge-returning { background: #fed7aa; color: #c2410c; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }/* 退货申请中 琥珀 */
+        .badge-returned { background: #f1f5f9; color: #64748b; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }    /* 已退货 灰 */
+        .badge-rejected { background: #fee2e2; color: #b91c1c; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }  /* 退货被拒 红 */
+        .check-passed { color: #10b981; }
+        .check-failed { color: #dc2626; }
+        .check-pending { color: #f59e0b; }
+        .view { display: none; }
+        .view.active { display: block; }
+        .tab-btn { transition: all 0.15s ease; }
+        .tab-btn.active { color: #6d5efc; border-bottom: 2px solid #6d5efc; }
+        .input-field { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.15s; }
+        .input-field:focus { border-color: #6d5efc; }
+        .btn-primary { background: #6d5efc; color: white; padding: 12px; border-radius: 10px; font-weight: 600; text-align: center; transition: all 0.15s; }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: #f1f5f9; color: #475569; padding: 12px; border-radius: 10px; font-weight: 600; text-align: center; }
+        .btn-danger { background: #dc2626; color: white; padding: 12px; border-radius: 10px; font-weight: 600; }
+        .btn-success { background: #10b981; color: white; padding: 12px; border-radius: 10px; font-weight: 600; }
+        .pin-dot { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 50%; transition: all 0.15s; }
+        .pin-dot.filled { background: #6d5efc; border-color: #6d5efc; }
+        .pin-input { width: 40px; height: 50px; text-align: center; font-size: 24px; border: 2px solid #e2e8f0; border-radius: 8px; outline: none; }
+        .pin-input:focus { border-color: #6d5efc; }
+        .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #6d5efc, #8b7fff); border-radius: 3px; transition: width 0.3s; }
+        .progress-fill.warn { background: linear-gradient(90deg, #f59e0b, #f97316); }
+        .progress-fill.danger { background: linear-gradient(90deg, #dc2626, #b91c1c); }
+        .slider-track { height: 6px; background: #e2e8f0; border-radius: 3px; position: relative; }
+        .slider-fill { height: 100%; background: linear-gradient(90deg, #f59e0b, #f97316); border-radius: 3px; }
+        .slider-thumb { width: 20px; height: 20px; background: white; border: 3px solid #f59e0b; border-radius: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+        .code-block { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #475569; overflow-x: auto; }
+        .copy-btn { cursor: pointer; color: #6d5efc; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<!-- ========================================================== -->
+<!-- v4.0 角色切换浮层（4档·双视角·对齐 v1.5 方案） -->
+<!-- ========================================================== -->
+<div id="role-float" class="role-float" style="position:fixed; top:12px; left:12px; z-index:9999; background:white; border:1px solid #e2e8f0; border-radius:14px; padding:10px; box-shadow:0 8px 24px rgba(0,0,0,0.12); width:360px; max-height:92vh; overflow-y:auto;">
+    <div class="flex items-center justify-between mb-2.5">
+        <div class="text-[11px] font-black text-slate-700 flex items-center space-x-1">
+            <span>👤</span><span>角色预览切换 v4（3档·双视角）</span>
+        </div>
+        <button onclick="toggleRoleFloat()" class="text-slate-400 hover:text-slate-700 text-[10px] font-bold w-5 h-5 rounded bg-slate-100">−</button>
+    </div>
+    <div class="grid grid-cols-3 gap-1.5 mb-2.5">
+        <button onclick="switchRole('guest')" id="role-btn-guest" class="role-btn text-[10px] font-bold px-2 py-2 rounded-md border border-slate-200 bg-white text-slate-600 flex items-center justify-center space-x-1">
+            <span>🚶</span><span>游客</span>
+        </button>
+        <button onclick="switchRole('buyer')" id="role-btn-buyer" class="role-btn text-[10px] font-bold px-2 py-2 rounded-md border border-slate-200 bg-white text-slate-600 flex items-center justify-center space-x-1">
+            <span>🛒</span><span>买家</span>
+        </button>
+        <button onclick="switchRole('agent')" id="role-btn-agent" class="role-btn active text-[10px] font-bold px-2 py-2 rounded-md border border-slate-200 bg-white text-slate-600 flex items-center justify-center space-x-1">
+            <span>🏅</span><span>代理</span>
+        </button>
+    </div>
+    <div id="role-detail" class="min-w-0"></div>
+</div>
+
+<div id="role-float-mini" style="position:fixed; top:12px; left:12px; z-index:9999; display:none; width:36px; height:36px; border-radius:50%; background:#6d5efc; color:white; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(109,94,252,0.4);" onclick="toggleRoleFloat()">
+    <span class="text-sm">👤</span>
+</div>
+
+<!-- ========================================================== -->
+<!-- 手机模拟容器 390×844 -->
+<!-- ========================================================== -->
+<div id="phone-frame" style="width:390px; height:844px; margin:12px auto; background:#f5f6f8; border-radius:40px; overflow:hidden; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.15), 0 0 0 12px #1e293b;">
+
+    <!-- iOS 状态栏 -->
+    <div style="position:absolute; top:0; left:0; right:0; height:44px; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:0 24px; font-size:14px; font-weight:600; color:#0f172a; background:white;">
+        <span>9:41</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:10px;">📶</span>
+            <span style="font-size:10px;">🔋</span>
+        </div>
+    </div>
+
+    <!-- ========== view-mall 商城首页 ========== -->
+    <div id="view-mall" class="view active" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:10;">
+        <!-- Banner -->
+        <div class="gradient-brand text-white px-4 pt-3 pb-5 rounded-b-3xl">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <div class="text-[11px] opacity-80 font-medium">R9 商城 · v4.2</div>
+                    <div class="text-lg font-display font-bold">官方统一商品池</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openSearch()" class="w-9 h-9 rounded-full bg-white bg-opacity-20 flex items-center justify-center">🔍</button>
+                </div>
+            </div>
+            <div class="text-[11px] opacity-80">级差返利自动分润 · 等级驱动收益</div>
+        </div>
+
+        <!-- 4 大功能入口 -->
+        <div class="px-4 mt-3">
+            <div class="bg-white rounded-2xl p-3 card-shadow">
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="switchTab('orders')" class="flex flex-col items-center gap-1 py-1.5 active-scale">
+                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg">📋</div>
+                        <span class="text-[10px] font-bold text-slate-700">订单</span>
+                    </button>
+                    <button onclick="openShortCenter()" id="entry-short" class="flex flex-col items-center gap-1 py-1.5 active-scale">
+                        <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-lg">📱</div>
+                        <span class="text-[10px] font-bold text-slate-700">短号</span>
+                    </button>
+                    <button onclick="switchTab('codes')" class="flex flex-col items-center gap-1 py-1.5 active-scale">
+                        <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-lg">🎫</div>
+                        <span class="text-[10px] font-bold text-slate-700">持有码</span>
+                    </button>
+                    <button onclick="switchTab('resale')" id="entry-resale" class="flex flex-col items-center gap-1 py-1.5 active-scale">
+                        <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-lg">🛒</div>
+                        <span class="text-[10px] font-bold text-slate-700">流转市场</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 热门商品 -->
+        <div class="px-4 mt-4">
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-sm font-bold text-slate-900">🔥 热门商品</div>
+            </div>
+            <div id="hot-products" class="flex gap-2 overflow-x-auto hide-scrollbar pb-2"></div>
+        </div>
+
+        <!-- 分类切换 -->
+        <div class="px-4 mt-4">
+            <div class="flex gap-2 mb-3">
+                <button onclick="switchCategory('all')" id="cat-all" class="tab-btn active text-xs font-bold text-slate-600 px-3 py-1.5">全部</button>
+                <button onclick="switchCategory('physical')" id="cat-physical" class="tab-btn text-xs font-bold text-slate-600 px-3 py-1.5">实物</button>
+                <button onclick="switchCategory('virtual')" id="cat-virtual" class="tab-btn text-xs font-bold text-slate-600 px-3 py-1.5">虚拟</button>
+                <button onclick="switchCategory('service')" id="cat-service" class="tab-btn text-xs font-bold text-slate-600 px-3 py-1.5">服务</button>
+            </div>
+            <div id="product-grid" class="grid grid-cols-2 gap-2"></div>
+        </div>
+
+        <div class="h-6"></div>
+    </div>
+
+    <!-- ========== view-detail 商品详情 ========== -->
+    <div id="view-detail" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:20; background:white;"></div>
+
+    <!-- ========== view-search 搜索 ========== -->
+    <div id="view-search" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; z-index:20; background:white;"></div>
+
+    <!-- ========== view-checkout 结算 ========== -->
+    <div id="view-checkout" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:30; background:#f5f6f8;"></div>
+
+    <!-- ========== view-pin PIN 验签 ========== -->
+    <div id="view-pin" class="view" style="position:absolute; top:0; left:0; right:0; bottom:0; z-index:55; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); display:none; align-items:center; justify-content:center;">
+        <div class="bg-white rounded-2xl p-6 mx-6 w-full">
+            <div class="text-center mb-4">
+                <div class="text-2xl mb-2">🔐</div>
+                <div class="text-base font-bold text-slate-900">输入 PIN 码</div>
+                <div class="text-[11px] text-slate-500 mt-1">确认下单并触发链上交易</div>
+            </div>
+            <div class="flex gap-2 justify-center mb-4">
+                <input id="pin-1" class="pin-input" maxlength="1" oninput="movePin(this, 1)" />
+                <input id="pin-2" class="pin-input" maxlength="1" oninput="movePin(this, 2)" />
+                <input id="pin-3" class="pin-input" maxlength="1" oninput="movePin(this, 3)" />
+                <input id="pin-4" class="pin-input" maxlength="1" oninput="movePin(this, 4)" />
+                <input id="pin-5" class="pin-input" maxlength="1" oninput="movePin(this, 5)" />
+                <input id="pin-6" class="pin-input" maxlength="1" oninput="movePin(this, 6)" />
+            </div>
+            <button onclick="confirmPin()" class="btn-primary w-full">确认下单</button>
+            <button onclick="closePinModal()" class="btn-secondary w-full mt-2">取消</button>
+        </div>
+    </div>
+
+    <!-- ========== view-result 下单结果 ========== -->
+    <div id="view-result" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:50; background:white;"></div>
+
+    <!-- ========== view-orders 订单管理 ========== -->
+    <div id="view-orders" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:40; background:#f5f6f8;"></div>
+
+    <!-- ========== view-return 退货申请 ========== -->
+    <div id="view-return" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:45; background:#f5f6f8;"></div>
+
+    <!-- ========== view-order-detail 订单详情 ========== -->
+    <div id="view-order-detail" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:46; background:#f5f6f8;"></div>
+
+    <!-- ========== view-my-codes 持有码 ========== -->
+    <div id="view-my-codes" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:45; background:#f5f6f8;"></div>
+
+    <!-- ========== view-code-history 持有码流转历史 ========== -->
+    <div id="view-code-history" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:46; background:#f5f6f8;"></div>
+
+    <!-- ========== view-resale 流转市场 ========== -->
+    <div id="view-resale" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:45; background:#f5f6f8;"></div>
+
+    <!-- ========== view-list-item 挂单表单 ========== -->
+    <div id="view-list-item" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:46; background:#f5f6f8;"></div>
+
+    <!-- ========== view-transfer-item 转赠表单 ========== -->
+    <div id="view-transfer-item" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:46; background:#f5f6f8;"></div>
+
+    <!-- ========== view-buy-listed 购买确认弹窗（底部抽屉） ========== -->
+    <div id="view-buy-listed" class="view" style="position:absolute; top:0; left:0; right:0; bottom:0; z-index:55; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); display:none; align-items:flex-end; justify-content:center;">
+        <div class="bg-white rounded-t-2xl p-5 w-full max-w-md" id="buy-listed-body"></div>
+    </div>
+
+    <!-- ========== view-cancel-listing 撤单确认弹窗（底部抽屉） ========== -->
+    <div id="view-cancel-listing" class="view" style="position:absolute; top:0; left:0; right:0; bottom:0; z-index:55; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); display:none; align-items:flex-end; justify-content:center;">
+        <div class="bg-white rounded-t-2xl p-5 w-full max-w-md" id="cancel-listing-body"></div>
+    </div>
+
+    <!-- ========== view-short-center 短号中心 ========== -->
+    <div id="view-short-center" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:45; background:#f5f6f8;"></div>
+
+    <!-- ========== view-short-pay 短号支付弹窗 ========== -->
+    <div id="view-short-pay" class="view" style="position:absolute; top:0; left:0; right:0; bottom:0; z-index:55; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); display:none; align-items:flex-end; justify-content:center;">
+        <div class="bg-white rounded-t-2xl p-5 w-full max-w-md" id="short-pay-body"></div>
+    </div>
+
+    <!-- ========== view-short-transfer 短号转移弹窗（底部抽屉） ========== -->
+    <div id="view-short-transfer" class="view" style="position:absolute; top:0; left:0; right:0; bottom:0; z-index:55; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); display:none; align-items:flex-end; justify-content:center;">
+        <div class="bg-white rounded-t-2xl p-5 w-full max-w-md" id="short-transfer-body"></div>
+    </div>
+
+    <!-- ========== view-short-gift 短号赠送弹窗（底部抽屉） ========== -->
+    <div id="view-short-gift" class="view" style="position:absolute; top:0; left:0; right:0; bottom:0; z-index:55; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); display:none; align-items:flex-end; justify-content:center;">
+        <div class="bg-white rounded-t-2xl p-5 w-full max-w-md" id="short-gift-body"></div>
+    </div>
+
+    <!-- ========== view-short-history 短号操作记录弹窗（底部抽屉） ========== -->
+    <div id="view-short-history" class="view" style="position:absolute; top:0; left:0; right:0; bottom:0; z-index:55; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); display:none; align-items:flex-end; justify-content:center;">
+        <div class="bg-white rounded-t-2xl w-full max-w-md flex flex-col" style="max-height:75vh;">
+            <!-- 顶部拖柄 + 标题 -->
+            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-2"></div>
+            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                <div class="text-sm font-bold">操作记录</div>
+                <button onclick="closeHistoryModal()" class="text-slate-400 text-lg">✕</button>
+            </div>
+            <div id="history-list" class="flex-1 overflow-y-auto p-2"></div>
+        </div>
+    </div>
+
+    <!-- ========== view-codes-redeem 保密商品领取卡密 ========== -->
+    <div id="view-codes-redeem" class="view" style="position:absolute; top:0; left:0; right:0; bottom:0; z-index:55; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); display:none; align-items:center; justify-content:center;">
+        <div class="bg-white rounded-2xl p-6 mx-6 w-full"></div>
+    </div>
+
+    <!-- ========== view-address 地址管理 ========== -->
+    <div id="view-address" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:45; background:#f5f6f8;"></div>
+
+    <!-- ========== view-address-edit 新增/编辑地址 ========== -->
+    <div id="view-address-edit" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:46; background:#f5f6f8;"></div>
+
+    <!-- ========== view-admin 矿工后台 ========== -->
+    <div id="view-admin" class="view" style="position:absolute; top:44px; left:0; right:0; bottom:0; overflow-y:auto; z-index:60; background:#0f172a;"></div>
+
+    <!-- Toast -->
+    <div id="toast" style="position:fixed; bottom:80px; left:50%; transform:translateX(-50%); z-index:9998; display:none;">
+        <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg max-w-xs text-center text-sm"></div>
+    </div>
+</div>
+
+<script>
+// ==========================================================
+// v4.0 Mock 数据（对齐 v1.5 合约字段）
+// ==========================================================
+
+// 5 合约地址（部署后回填）
+const CONTRACTS = {
+    goodsMarket: '0x71C7656EC7e1E2F3A8B6E5c4D3e2F1a0B9c8D7e6',
+    agentPoints: '0x5F4E0343C29B6c1a2D3e4F5a6B7c8D9e0F1a2B3c',
+    agentLevel:  '0x3B2A1C0D9E8F7A6B5C4D3E2F1A0B9C8D7E6F5A4B',
+    agentReward: '0x9A8B7C6D5E4F3A2B1C0D9E8F7A6B5C4D3E2F1A0B',
+    rewardClaim_USDR: '0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B',
+    rewardClaim_USDT: '0xC8D7E6F5A4B3C2D1E0F9A8B7C6D5E4F3A2B1C0D9E',
+    referralRegistry: '0xE5F4A3B2C1D0E9F8A7B6C5D4E3F2A1B0C9D8E7F6',
+};
+
+// 返利矩阵（对齐 AgentLevel.rebateBps[rank][layer]）
+// rank 1..10 × layer 1..3
+const REBATE_MATRIX = {
+    1:  { 1: 0.15, 2: 0.08, 3: 0.02 },
+    2:  { 1: 0.16, 2: 0.085, 3: 0.022 },
+    3:  { 1: 0.17, 2: 0.09, 3: 0.025 },
+    4:  { 1: 0.18, 2: 0.095, 3: 0.028 },
+    5:  { 1: 0.19, 2: 0.10, 3: 0.03 },
+    6:  { 1: 0.20, 2: 0.105, 3: 0.033 },
+    7:  { 1: 0.21, 2: 0.11, 3: 0.036 },
+    8:  { 1: 0.22, 2: 0.115, 3: 0.04 },
+    9:  { 1: 0.23, 2: 0.12, 3: 0.044 },
+    10: { 1: 0.25, 2: 0.13, 3: 0.05 },
+};
+
+// 升级门槛（对齐 AgentLevel.threshold + thresholdBasis）
+// basis: 0=个人积分 1=团队积分
+const UPGRADE_THRESHOLDS = [
+    { level: 1,  threshold: 100,    basis: 0, desc: '个人积分 100' },
+    { level: 2,  threshold: 500,    basis: 0, desc: '个人积分 500' },
+    { level: 3,  threshold: 1000,   basis: 1, desc: '团队积分 1,000（开始需要团队）' },
+    { level: 4,  threshold: 5000,   basis: 1, desc: '团队积分 5,000' },
+    { level: 5,  threshold: 20000,  basis: 1, desc: '团队积分 20,000' },
+    { level: 6,  threshold: 50000,  basis: 1, desc: '团队积分 50,000' },
+    { level: 7,  threshold: 100000, basis: 1, desc: '团队积分 10万' },
+    { level: 8,  threshold: 200000, basis: 1, desc: '团队积分 20万' },
+    { level: 9,  threshold: 500000, basis: 1, desc: '团队积分 50万' },
+    { level: 10, threshold: 1000000,basis: 1, desc: '团队积分 100万' },
+];
+
+// 商品池（对齐 GoodsMarket.Product struct）
+// Product 字段: exists/active/secretCode/minOrderQty/resaleFeeBps/pointsPerUnit/feedTeamPoints/name
+const PRODUCTS = [
+    {
+        id: 1,
+        name: 'R9 硬件钥匙芯片',
+        emoji: '🔑',
+        category: 'physical',
+        secretCode: false,
+        minOrderQty: 1,
+        resaleFeeBps: 500,  // 5%
+        pointsPerUnit: 10,
+        feedTeamPoints: true,
+        desc: 'R9 链上身份硬件钥匙，内置安全芯片，支持冷钱包签名。',
+        prices: { USDR: 199, USDT: 199 },
+        tiers: [
+            { minQty: 1,   bps: 10000 },
+            { minQty: 10,  bps: 9500 },
+            { minQty: 50,  bps: 9000 },
+            { minQty: 100, bps: 8500 },
+        ],
+        rewards: [],  // 无直写奖励
+        stock: 500,
+        sold: 320,
+    },
+    {
+        id: 2,
+        name: 'VIP 会员服务（月度）',
+        emoji: '💎',
+        category: 'service',
+        secretCode: false,
+        minOrderQty: 1,
+        resaleFeeBps: 0,
+        pointsPerUnit: 50,
+        feedTeamPoints: true,
+        desc: 'VIP 月度服务，含专属客服、优先发货、专属活动资格。',
+        prices: { USDR: 99, USDT: 99 },
+        tiers: [
+            { minQty: 1,  bps: 10000 },
+            { minQty: 3,  bps: 9000 },
+            { minQty: 12, bps: 8000 },
+        ],
+        rewards: [
+            // 直写奖励（mode 0=固定×qty，1=按比例）
+            { claim: CONTRACTS.rewardClaim_USDR, mode: 0, amountOrBps: 5, desc: '买就送 5 USDR（每件）' },
+        ],
+        stock: 9999,
+        sold: 1234,
+    },
+    {
+        id: 3,
+        name: '激活卡密（保密商品）',
+        emoji: '🎁',
+        category: 'virtual',
+        secretCode: true,  // 保密商品
+        minOrderQty: 1,
+        resaleFeeBps: 1000,  // 10%
+        pointsPerUnit: 0,
+        feedTeamPoints: false,
+        desc: '高价值激活码，购买后通过链下 API 领取真实卡密。',
+        prices: { USDR: 299, USDT: 299 },
+        tiers: [{ minQty: 1, bps: 10000 }],
+        rewards: [
+            { claim: CONTRACTS.rewardClaim_USDR, mode: 1, amountOrBps: 500, desc: '返 5% USDR（按成交价）' },
+        ],
+        stock: 100,
+        sold: 45,
+    },
+    {
+        id: 4,
+        name: 'Node 积分包',
+        emoji: '⚡',
+        category: 'virtual',
+        secretCode: false,
+        minOrderQty: 1,
+        resaleFeeBps: 300,
+        pointsPerUnit: 100,
+        feedTeamPoints: false,  // 不喂团队积分
+        desc: '纯积分包，购买即送 100 个人积分（升级燃料）。',
+        prices: { USDR: 50, USDT: 50 },
+        tiers: [
+            { minQty: 1,  bps: 10000 },
+            { minQty: 5,  bps: 9500 },
+            { minQty: 10, bps: 9000 },
+        ],
+        rewards: [],
+        stock: 99999,
+        sold: 5000,
+    },
+    {
+        id: 5,
+        name: '节点服务年费',
+        emoji: '🌐',
+        category: 'service',
+        secretCode: false,
+        minOrderQty: 1,
+        resaleFeeBps: 800,
+        pointsPerUnit: 200,
+        feedTeamPoints: true,
+        desc: '节点服务年费，含链上身份维护、短号服务等。',
+        prices: { USDR: 499, USDT: 499 },
+        tiers: [{ minQty: 1, bps: 10000 }],
+        rewards: [
+            { claim: CONTRACTS.rewardClaim_USDR, mode: 0, amountOrBps: 20, desc: '买就送 20 USDR（每件）' },
+        ],
+        stock: 9999,
+        sold: 678,
+    },
+    {
+        id: 6,
+        name: '硬件钱包 Pro',
+        emoji: '💳',
+        category: 'physical',
+        secretCode: false,
+        minOrderQty: 1,
+        resaleFeeBps: 500,
+        pointsPerUnit: 30,
+        feedTeamPoints: true,
+        desc: '硬件钱包 Pro 版，支持多链、安全芯片。',
+        prices: { USDR: 399, USDT: 399 },
+        tiers: [
+            { minQty: 1,  bps: 10000 },
+            { minQty: 5,  bps: 9500 },
+            { minQty: 20, bps: 8800 },
+        ],
+        rewards: [],
+        stock: 200,
+        sold: 88,
+    },
+];
+
+// 4 档角色定义（对齐方案 2.1 节）
+const ROLES = {
+    guest: {
+        key: 'guest', label: '游客', emoji: '🚶', rank: 0,
+        referrerOf: null,
+        upline: [],
+        desc: '未绑定 E 链，可浏览+购买（首次购买触发归因绑定）',
+    },
+    buyer: {
+        key: 'buyer', label: '买家', emoji: '🛒', rank: 0,
+        referrerOf: { shortCode: '100012', name: '上级A', rank: 3 },
+        upline: [
+            { layer: 1, shortCode: '100012', name: '上级A', rank: 3 },
+            { layer: 2, shortCode: '100045', name: '上上级B', rank: 0 },
+            { layer: 3, shortCode: '100078', name: '上上上级C', rank: 1 },
+        ],
+        desc: '已绑定 E 链 rank=0，可购买，自己作为上线时不合格（compression 跳过）',
+    },
+    agent: {
+        key: 'agent', label: '代理', emoji: '🏅', rank: 3,
+        referrerOf: { shortCode: '100012', name: '上级A', rank: 5 },
+        upline: [
+            { layer: 1, shortCode: '100012', name: '上级A', rank: 5 },
+            { layer: 2, shortCode: '100045', name: '上上级B', rank: 2 },
+            { layer: 3, shortCode: '100078', name: '上上上级C', rank: 0 },
+        ],
+        desc: '已绑定 E 链 rank≥1，可拿返利，等级越高返利比例越高',
+    },
+};
+
+// 用户当前状态（可被 switchRole 修改）
+let userState = {
+    role: 'agent',
+    rank: 3,
+    personalPoints: 1500,
+    teamPoints: 8500,
+    referrerOf: { shortCode: '100012', name: '上级A', rank: 5 },
+    upline: [
+        { layer: 1, shortCode: '100012', name: '上级A', rank: 5 },
+        { layer: 2, shortCode: '100045', name: '上上级B', rank: 2 },
+        { layer: 3, shortCode: '100078', name: '上上上级C', rank: 0 },
+    ],
+    shortCode: '100045',
+    walletAddr: '0x71C7656EC7e1E2F3A8B6E5c4D3e2F1a0B9c8D7e6',
+    usdrBalance: 2400,
+    usdtBalance: 3500,
+    teamSize: 342,
+    currentProduct: null,
+    currentOrderQty: 1,
+    currentPayToken: 'USDR',
+    selectedAddressId: null,
+    _addressFromCheckout: false,
+};
+
+// 持有码（对齐 GoodsMarket._ownedCodes + codeStatus 0/1/2/3 四态）
+let MY_CODES = [
+    {
+        codeId: '0xabc123def456789012345678901234567890123456789012345678901234abcd',
+        productId: 1, productName: 'R9 硬件钥匙芯片', emoji: '🔑',
+        productType: 'physical', secretCode: false,
+        codeStatus: 2, businessStatus: 'active',
+        acquiredAt: '2026-07-18', acquiredFrom: 'purchase', acquiredFromAddr: '',
+        refId: '0xorder001', realCode: null, realCodeExpiresAt: null,
+        listing: null, actions: ['list', 'transfer', 'view_history'],
+    },
+    {
+        codeId: '0xdef456abc7890123456789012345678901234567890123456789012345678def',
+        productId: 3, productName: '激活卡密（保密商品）', emoji: '🎁',
+        productType: 'virtual', secretCode: true,
+        codeStatus: 2, businessStatus: 'pending_redeem',
+        acquiredAt: '2026-07-15', acquiredFrom: 'purchase', acquiredFromAddr: '',
+        refId: '0xorder002', realCode: null, realCodeExpiresAt: null,
+        listing: null, actions: ['redeem', 'view_history'],
+    },
+    {
+        codeId: '0x7890123456789012345678901234567890123456789012345678901234567890',
+        productId: 2, productName: 'VIP 会员服务（月度）', emoji: '💎',
+        productType: 'service', secretCode: false,
+        codeStatus: 2, businessStatus: 'listed',
+        acquiredAt: '2026-07-12', acquiredFrom: 'purchase', acquiredFromAddr: '',
+        refId: '0xorder003', realCode: null, realCodeExpiresAt: null,
+        listing: { payToken: 'USDR', price: 89, active: true, listedAt: '2026-07-20' },
+        actions: ['cancel', 'view_history'],
+    },
+    {
+        codeId: '0xexpired01234567890123456789012345678901234567890123456789012ab',
+        productId: 3, productName: '激活卡密（保密商品）', emoji: '🎁',
+        productType: 'virtual', secretCode: true,
+        codeStatus: 3, businessStatus: 'expired',
+        acquiredAt: '2026-06-10', acquiredFrom: 'purchase', acquiredFromAddr: '',
+        refId: '0xorder000', realCode: 'ABCD-1234-EFGH-5678', realCodeExpiresAt: '2026-07-01',
+        listing: null, actions: ['view_history'],
+    },
+];
+
+// 流转市场挂单（对齐 GoodsMarket.Listing）
+let RESALE_LISTINGS = [
+    { codeId: '0xdef456abc7890123456789012345678901234567890123456789012345678def', productId: 3, seller: '#100023', sellerName: '张三', payToken: 'USDR', price: 280, active: true, listedAt: '2026-07-20' },
+    { codeId: '0x7890123456789012345678901234567890123456789012345678901234567890', productId: 2, seller: '#100045', sellerName: '李四', payToken: 'USDR', price: 85, active: true, listedAt: '2026-07-19' },
+];
+
+// 流转市场交易记录（买入/卖出）
+let RESALE_TRADES = [
+    { type: 'sell', codeId: '0xsold001...', productName: '激活卡密（保密商品）', emoji: '🎁', counterparty: '#100099 (买家C)', counterpartyAddr: '0x2b4c...', price: 280, fee: 14, toSeller: 266, payToken: 'USDR', time: '2026-07-18 14:20', txHash: '0xabc123...' },
+    { type: 'buy', codeId: '0xbought001...', productName: 'R9 硬件钥匙芯片', emoji: '🔑', counterparty: '一级购买', counterpartyAddr: '0x71C7...', price: 199, fee: 0, toSeller: 199, payToken: 'USDR', time: '2026-07-18 10:30', txHash: '0xdef456...' },
+];
+
+// ==================== 短号中心数据 ====================
+// 我的短号列表（复用 DID 短号服务能力，支持多短号，同一时间只有一个展示短号）
+let myShortNumbers = [
+    { number: '#100068', type: 'premium', subType: '吉尾号', acquiredAt: '2026-07-09', chain: 'OBChain', isDisplaying: true },
+    { number: '#10023547891', type: 'free', subType: '免费号', acquiredAt: '2026-07-15', chain: 'OBChain', isDisplaying: false },
+    { number: '#88888', type: 'premium', subType: '豹子号', acquiredAt: '2026-07-10', chain: 'OBChain', isDisplaying: false }
+];
+
+// 短号管理子页 Tab 状态
+let shortManageTab = 'premium';
+let shortFreeCandidates = [];
+let shortFreeSelected = null;
+let selectedDigitLength = 5;
+let payPendingNumber = null;
+let payPendingType = '';
+let payPendingPrice = 0;
+let hasClaimedFreeNumber = false; // 每个身份仅可免费领取 1 个
+let transferPendingNumber = null; // 待转移短号
+let giftPendingNumber = null; // 待赠送短号
+
+// 同网络钱包列表（转移功能：仅显示同网络的用户钱包）
+const SAME_NETWORK_WALLETS = [
+    { addr: '0x4a2b3c5D8e9F0a1B2c3D4e5F6a7B8c9D0e1F2a3B', shortCode: '#100012', name: '上级A', lastActive: '2小时前' },
+    { addr: '0x7C2d4E6f8A0b1C2d3E4f5A6b7C8d9E0f1A2b3C4d', shortCode: '#100045', name: '李四', lastActive: '昨天' },
+    { addr: '0x9e3f5A7b9c1D2e3F4a5B6c7D8e9F0a1B2c3D4e5F', shortCode: '#100088', name: '买家B', lastActive: '3天前' },
+    { addr: '0x2b4C6d8E0f1A2b3C4d5E6f7A8b9C0d1E2f3A4b5c', shortCode: '#100099', name: '买家C', lastActive: '1周前' },
+];
+
+// 短号操作记录（对齐方案文档 4.4 节，5 种类型）
+// 类型: free_claim(🎁领取) / purchase(💎购买) / transfer_in(📥转入) / transfer_out(📤转出) / gift_out(🎀赠出)
+let shortHistory = [
+    { date: '07-15', type: 'purchase',    number: '#100068', addr: '' },
+    { date: '07-10', type: 'free_claim',  number: '#10023547891', addr: '' },
+    { date: '07-09', type: 'purchase',    number: '#88888', addr: '' },
+    { date: '06-20', type: 'gift_out',    number: '#77777', addr: '0x9d1e...5c6a' },
+];
+
+// 我的购买订单（对齐方案《交易订单状态设计方案》）
+// 主状态 4 态：created / return_requested / returned / return_rejected（合约派生）
+// 辅助态独立字段：
+//   实物 fulfillmentStatus: pending_shipment / shipped / delivered
+//   虚拟 redeemStatus:       pending_redeem   / redeemed
+// Web3 即时支付无"待付款"态
+let MY_PURCHASES = [
+    // 1. 实物-待发货（主状态=created，物流态=pending_shipment）
+    {
+        refId: '0xd4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6',
+        orderType: 'physical', productId: 1, icon: '🔑', name: 'R9 硬件钥匙芯片',
+        qty: 1, payToken: 'USDR', paid: 199, gross: 199, net: 199,
+        time: '2026-07-20 10:30',
+        status: 'created',                              // 主状态（created/return_requested/returned/return_rejected）
+        fulfillmentStatus: 'pending_shipment',         // 物流辅助态
+        exists: true, returned: false,
+        shipping: { address: '北京市朝阳区xxx', trackingNo: '', status: 'pending_shipment' },
+        codeIds: ['0xabc123def456789012345678901234567890123456789012345678901234abcd'],
+        directRewards: [],
+        layerRewards: [
+            { layer: 1, addr: '#100012', amount: 0, claimed: true },
+            { layer: 2, addr: '#100045', amount: 0, claimed: true },
+        ],
+        returnRequest: null,
+        actions: ['view_detail', 'apply_return', 'view_codes'],
+        timeline: [
+            { time: '2026-07-20 10:30', event: '订单创建' },
+            { time: '2026-07-20 10:31', event: '支付成功' },
+            { time: '2026-07-20 10:31', event: '等待矿工发货' },
+        ],
+    },
+    // 2. 实物-已发货（主状态=created，物流态=shipped）
+    {
+        refId: '0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+        orderType: 'physical', productId: 1, icon: '🔑', name: 'R9 硬件钥匙芯片',
+        qty: 1, payToken: 'USDR', paid: 199, gross: 199, net: 199,
+        time: '2026-07-18 10:30',
+        status: 'created',
+        fulfillmentStatus: 'shipped',
+        exists: true, returned: false,
+        shipping: { address: '北京市朝阳区xxx', trackingNo: 'SF1234567890', status: 'shipped' },
+        codeIds: ['0xabc123def456789012345678901234567890123456789012345678901234abcd'],
+        directRewards: [],
+        layerRewards: [
+            { layer: 1, addr: '#100012', amount: 0, claimed: true },
+            { layer: 2, addr: '#100045', amount: 0, claimed: true },
+        ],
+        returnRequest: null,
+        actions: ['view_detail', 'confirm_receive', 'apply_return', 'view_codes'],
+        timeline: [
+            { time: '2026-07-18 10:30', event: '订单创建' },
+            { time: '2026-07-18 10:31', event: '支付成功' },
+            { time: '2026-07-19 09:15', event: '已发货（快递 SF1234567890）' },
+        ],
+    },
+    // 3. 虚拟-待领取（主状态=created，卡密态=pending_redeem）
+    {
+        refId: '0xe5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7',
+        orderType: 'virtual', productId: 4, icon: '🎮', name: 'Steam 游戏激活码',
+        qty: 1, payToken: 'USDR', paid: 99, gross: 99, net: 99,
+        time: '2026-07-21 16:00',
+        status: 'created',
+        redeemStatus: 'pending_redeem',
+        exists: true, returned: false,
+        shipping: null,
+        codeIds: ['0xpending001def456789012345678901234567890123456789012345678901234ab'],
+        directRewards: [
+            { index: 0, claim: CONTRACTS.rewardClaim_USDR, directRefId: '0xdr004', amount: 4.95, status: 'pending', returnedAmount: 0, revoked: false },
+        ],
+        layerRewards: [],
+        returnRequest: null,
+        actions: ['view_detail', 'redeem_code', 'apply_return'],
+        timeline: [
+            { time: '2026-07-21 16:00', event: '订单创建' },
+            { time: '2026-07-21 16:01', event: '支付成功' },
+            { time: '2026-07-21 16:01', event: '等待领取卡密' },
+        ],
+    },
+    // 4. 虚拟-已完成（主状态=created，卡密态=redeemed）
+    {
+        refId: '0xb2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3',
+        orderType: 'virtual', productId: 3, icon: '🎁', name: '激活卡密（保密商品）',
+        qty: 1, payToken: 'USDR', paid: 299, gross: 299, net: 299,
+        time: '2026-07-15 14:20',
+        status: 'created',
+        redeemStatus: 'redeemed',
+        exists: true, returned: false,
+        shipping: null,
+        codeIds: ['0xdef456abc7890123456789012345678901234567890123456789012345678def'],
+        directRewards: [
+            { index: 0, claim: CONTRACTS.rewardClaim_USDR, directRefId: '0xdr001', amount: 14.95, status: 'pending', returnedAmount: 0, revoked: false },
+        ],
+        layerRewards: [],
+        returnRequest: null,
+        actions: ['view_detail', 'view_codes', 'apply_return'],
+        timeline: [
+            { time: '2026-07-15 14:20', event: '订单创建' },
+            { time: '2026-07-15 14:21', event: '支付成功' },
+            { time: '2026-07-15 14:25', event: '卡密已领取' },
+        ],
+    },
+    // 5. 服务-已完成（主状态=created，无辅助态）
+    {
+        refId: '0xc3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
+        orderType: 'service', productId: 2, icon: '💎', name: 'VIP 会员服务（月度）',
+        qty: 1, payToken: 'USDR', paid: 99, gross: 99, net: 99,
+        time: '2026-07-12 09:00',
+        status: 'created',
+        exists: true, returned: false,
+        shipping: null,
+        codeIds: ['0x7890123456789012345678901234567890123456789012345678901234567890'],
+        directRewards: [
+            { index: 0, claim: CONTRACTS.rewardClaim_USDR, directRefId: '0xdr003', amount: 5, status: 'claimed', returnedAmount: 0, revoked: false },
+        ],
+        layerRewards: [],
+        returnRequest: null,
+        actions: ['view_detail', 'apply_return'],
+        timeline: [
+            { time: '2026-07-12 09:00', event: '订单创建' },
+            { time: '2026-07-12 09:01', event: '支付成功' },
+            { time: '2026-07-12 09:01', event: '服务已生效（积分已发放）' },
+        ],
+    },
+    // 6. 实物-退货申请中（主状态=return_requested，物流态=delivered）
+    {
+        refId: '0xf6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8',
+        orderType: 'physical', productId: 5, icon: '🔋', name: '备用电池组',
+        qty: 1, payToken: 'USDR', paid: 150, gross: 150, net: 150,
+        time: '2026-07-10 11:00',
+        status: 'return_requested',
+        fulfillmentStatus: 'delivered',
+        exists: true, returned: false,
+        shipping: { address: '北京市朝阳区xxx', trackingNo: 'YT9876543210', status: 'delivered' },
+        codeIds: ['0xret001abc7890123456789012345678901234567890123456789012345678ab'],
+        directRewards: [
+            { index: 0, claim: CONTRACTS.rewardClaim_USDR, directRefId: '0xdr005', amount: 7.5, status: 'claimed', returnedAmount: 7.5, revoked: false },
+        ],
+        layerRewards: [],
+        returnRequest: {
+            codeId: '0xret001abc7890123456789012345678901234567890123456789012345678ab',
+            time: '2026-07-21 15:00',
+            refundAmount: null,
+            reason: '商品质量问题',
+            open: true,
+        },
+        actions: ['view_detail', 'cancel_return'],
+        timeline: [
+            { time: '2026-07-10 11:00', event: '订单创建' },
+            { time: '2026-07-10 11:01', event: '支付成功' },
+            { time: '2026-07-11 09:00', event: '已发货' },
+            { time: '2026-07-13 14:00', event: '确认收货' },
+            { time: '2026-07-21 15:00', event: '退货申请已提交' },
+            { time: '2026-07-21 15:01', event: '等待矿工审核' },
+        ],
+    },
+    // 7. 虚拟-已退货（主状态=returned，终态不可逆）
+    {
+        refId: '0xa7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9',
+        orderType: 'virtual', productId: 6, icon: '🎟️', name: '电影票兑换码',
+        qty: 1, payToken: 'USDR', paid: 50, gross: 50, net: 50,
+        time: '2026-07-05 18:00',
+        status: 'returned',
+        redeemStatus: 'redeemed',
+        exists: true, returned: true,
+        shipping: null,
+        codeIds: ['0xret002def7890123456789012345678901234567890123456789012345678cd'],
+        directRewards: [
+            { index: 0, claim: CONTRACTS.rewardClaim_USDR, directRefId: '0xdr006', amount: 2.5, status: 'claimed', returnedAmount: 2.5, revoked: true },
+        ],
+        layerRewards: [],
+        returnRequest: {
+            codeId: '0xret002def7890123456789012345678901234567890123456789012345678cd',
+            time: '2026-07-08 10:00',
+            refundAmount: 50,
+            reason: '不需要了',
+            open: false,
+            approved: true,
+            approvedTime: '2026-07-09 14:00',
+        },
+        actions: ['view_detail'],
+        timeline: [
+            { time: '2026-07-05 18:00', event: '订单创建' },
+            { time: '2026-07-05 18:01', event: '支付成功' },
+            { time: '2026-07-05 18:10', event: '卡密已领取' },
+            { time: '2026-07-08 10:00', event: '退货申请已提交' },
+            { time: '2026-07-09 14:00', event: '退货已批准（码已作废）' },
+        ],
+    },
+    // 8. 实物-退货被拒（主状态=return_rejected，可重新申请）
+    {
+        refId: '0xb8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0',
+        orderType: 'physical', productId: 7, icon: '🎧', name: '蓝牙耳机',
+        qty: 1, payToken: 'USDR', paid: 299, gross: 299, net: 299,
+        time: '2026-07-08 09:30',
+        status: 'return_rejected',
+        fulfillmentStatus: 'delivered',
+        exists: true, returned: false,
+        shipping: { address: '北京市朝阳区xxx', trackingNo: 'ZT5556667777', status: 'delivered' },
+        codeIds: ['0xret003abc7890123456789012345678901234567890123456789012345678ef'],
+        directRewards: [
+            { index: 0, claim: CONTRACTS.rewardClaim_USDR, directRefId: '0xdr007', amount: 14.95, status: 'claimed', returnedAmount: 0, revoked: false },
+        ],
+        layerRewards: [],
+        returnRequest: {
+            codeId: '0xret003abc7890123456789012345678901234567890123456789012345678ef',
+            time: '2026-07-21 15:00',
+            refundAmount: null,
+            reason: '商品质量问题',
+            open: false,
+            approved: false,
+            rejectedTime: '2026-07-22 10:00',
+            rejectReason: '奖励未退回（请先退回已领奖励 14.95 USDR）',
+        },
+        actions: ['view_detail', 'reapply_return', 'view_reject_reason'],
+        timeline: [
+            { time: '2026-07-08 09:30', event: '订单创建' },
+            { time: '2026-07-08 09:31', event: '支付成功' },
+            { time: '2026-07-09 10:00', event: '已发货' },
+            { time: '2026-07-11 16:00', event: '确认收货' },
+            { time: '2026-07-21 15:00', event: '退货申请已提交' },
+            { time: '2026-07-22 10:00', event: '退货被拒（奖励未退回）' },
+        ],
+    },
+];
+
+// 收货地址
+const MY_ADDRESSES = [
+    { id: 1, name: '张三', phone: '138****8888', address: '北京市朝阳区xxx', isDefault: true },
+    { id: 2, name: '李四', phone: '139****9999', address: '上海市浦东新区xxx', isDefault: false },
+];
+
+// 矿工后台数据
+const ADMIN_DATA = {
+    // 待审核退货（含 P0/P1 防护校验结果）
+    pendingReturns: [
+        {
+            id: 0, refId: '0xorder002', buyer: '0x1234...abcd', buyerName: '买家X', productId: 3, productName: '激活卡密（保密商品）',
+            paid: 299, payToken: 'USDR', requestedAt: '2026-07-21 10:30',
+            directRewards: [
+                { index: 0, claim: CONTRACTS.rewardClaim_USDR, directRefId: '0xdr001', amount: 14.95, status: 'claimed', returnedAmount: 0, revoked: false },
+            ],
+            layerRewards: [
+                { layer: 1, refId: '0xrebate_layer_001', amount: 44.85, status: 'claimed', returnedAmount: 0, revoked: false },
+            ],
+            // P1 漏洞 4：approveReturn 前置校验
+            checks: {
+                directRewardsRevoked: false,    // 直写奖励已撤销？
+                directRewardsReturned: false,    // 直写奖励已退回？
+                layerRewardsRevoked: false,      // 级差返利已撤销？
+                layerRewardsReturned: false,     // 级差返利已退回？
+            },
+        },
+    ],
+    // 对账告警（P1 漏洞 3：积分静默失败）
+    reconcileAlerts: [
+        {
+            id: 0, type: 'points_silent_fail', severity: 'P1',
+            refId: '0xorder005', buyer: '0x5678...def', productId: 2, expectedPts: 50,
+            agentPointsMinted: false, agentLevelRecorded: true,
+            time: '2026-07-21 09:15', message: 'AgentPoints.mint 静默失败，需手动补发',
+        },
+        {
+            id: 1, type: 'rebate_hook_failed', severity: 'P2',
+            refId: '0xorder006', buyer: '0x9abc...ghi', productId: 1,
+            message: 'RebateHookFailed 事件触发，返利未发，需补打',
+            time: '2026-07-21 08:30',
+        },
+    ],
+    // 风控告警（P2 刷单识别）
+    riskAlerts: [
+        {
+            id: 0, address: '0xsybil...001', label: '疑似刷子',
+            teamSize: 100, returnRate: 0.85, teamPoints: 9500, actualSpent: 100,
+            severity: 'high', action: '建议 minerSetLevel 降级为 0',
+        },
+    ],
+};
+
+// ==========================================================
+// v4.0 核心函数
+// ==========================================================
+
+// ---------- 视图切换 ----------
+function openView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+function closeView(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+function switchTab(tab) {
+    if (tab === 'mall') openView('view-mall');
+    else if (tab === 'orders') openOrders();
+    else if (tab === 'codes') openMyCodes();
+    else if (tab === 'resale') openResale();
+}
+
+// ---------- Toast ----------
+function showToast(message, icon = 'ℹ️') {
+    const toast = document.getElementById('toast');
+    toast.querySelector('div').textContent = `${icon} ${message}`;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2500);
+}
+
+// ---------- 角色切换 ----------
+function switchRole(role) {
+    const roleDef = ROLES[role];
+    if (!roleDef) return;
+
+    userState.role = role;
+    userState.rank = roleDef.rank;
+    userState.referrerOf = roleDef.referrerOf;
+    userState.upline = roleDef.upline;
+
+    document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`role-btn-${role}`).classList.add('active');
+
+    renderRoleDetail();
+
+    showToast(`已切换为「${roleDef.label}」视图`, '👤');
+}
+
+function renderRoleDetail() {
+    const detail = document.getElementById('role-detail');
+    const role = ROLES[userState.role];
+
+    let html = `
+        <div class="bg-slate-50 rounded-lg p-2.5 mb-2">
+            <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-lg">${role.emoji}</span>
+                    <span class="text-xs font-bold text-slate-900">${role.label}</span>
+                </div>
+                ${userState.rank > 0 ? `<span class="rank-pill text-[10px] px-1.5 py-0.5 rounded">rank ${userState.rank}</span>` : ''}
+            </div>
+            <div class="text-[10px] text-slate-500 leading-relaxed">${role.desc}</div>
+            ${userState.shortCode ? `<div class="text-[10px] text-slate-400 mt-1">短号: ${userState.shortCode}</div>` : ''}
+        </div>
+    `;
+
+    // rank 滑块（仅 agent）
+    if (userState.role === 'agent') {
+        html += `
+            <div class="bg-amber-50 rounded-lg p-2.5 mb-2">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[10px] font-bold text-slate-700">我的 rank 滑块</span>
+                    <span class="text-xs font-mono font-bold text-amber-600">L${userState.rank}</span>
+                </div>
+                <input type="range" min="1" max="10" value="${userState.rank}" oninput="updateRank(this.value)" class="w-full" style="accent-color: #f59e0b;" />
+                <div class="text-[9px] text-slate-400 mt-1">仅影响自身 rank，不影响上线链各层 rank</div>
+            </div>
+        `;
+    }
+
+    // 双视角标识
+    if (userState.role === 'agent' || userState.role === 'buyer') {
+        html += `
+            <div class="flex gap-1.5 mb-2">
+                <div class="flex-1 bg-blue-50 rounded-md py-1 text-center">
+                    <div class="text-[9px] text-blue-600 font-bold">🛒 购买视角</div>
+                    <div class="text-[9px] text-blue-400">我买东西上线赚</div>
+                </div>
+                <div class="flex-1 bg-emerald-50 rounded-md py-1 text-center">
+                    <div class="text-[9px] text-emerald-600 font-bold">💰 上线视角</div>
+                    <div class="text-[9px] text-emerald-400">别人买我赚</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 上线链（仅 buyer/agent）
+    if (userState.upline && userState.upline.length > 0) {
+        html += `<div class="bg-white border border-slate-200 rounded-lg p-2 mb-2"><div class="text-[9px] font-bold text-slate-500 mb-1">上线链（各层 rank 独立）</div>`;
+        userState.upline.forEach((u, i) => {
+            const opacity = i === 0 ? 'opacity-100' : (i === 1 ? 'opacity-60' : 'opacity-40');
+            const rankBadge = u.rank >= 1 ? `<span class="rank-pill text-[9px] px-1 py-0.5 rounded">L${u.rank}</span>` : `<span class="text-[9px] text-slate-400">L0</span>`;
+            const status = u.rank >= 1 ? '✅ 合格' : '❌ 跳过(compression)';
+            html += `
+                <div class="flex items-center justify-between py-1 ${opacity}">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] text-slate-400">L${u.layer}</span>
+                        <span class="text-[10px] font-bold text-slate-700">${u.name}</span>
+                        <span class="text-[9px] text-slate-400">#${u.shortCode}</span>
+                    </div>
+                    <div class="flex items-center gap-1">${rankBadge}<span class="text-[9px] ${u.rank >= 1 ? 'text-emerald-600' : 'text-slate-400'}">${status}</span></div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    // 购买视角示例（100U 商品）
+    if (userState.role === 'buyer' || userState.role === 'agent') {
+        const preview = mockPreviewRebate(null, 100);
+        html += `
+            <div class="bg-blue-50 rounded-lg p-2 mb-2">
+                <div class="text-[9px] font-bold text-blue-600 mb-1">🛒 购买视角：我买 100U 商品</div>
+                ${preview.map(p => `
+                    <div class="flex items-center justify-between py-0.5">
+                        <span class="text-[10px] text-slate-600">L${p.layer} ${p.name} ${p.rank >= 1 ? `(L${p.rank})` : '(L0)'}</span>
+                        <span class="text-[10px] font-mono ${p.skip ? 'text-slate-400 line-through' : 'text-emerald-600 font-bold'}">${p.skip ? '跳过' : `+${p.amount.toFixed(2)}U`}</span>
+                    </div>
+                `).join('')}
+                <div class="text-[9px] text-blue-500 mt-1 pt-1 border-t border-blue-200">上线总赚: ${preview.reduce((s, p) => s + (p.skip ? 0 : p.amount), 0).toFixed(2)}U</div>
+            </div>
+        `;
+    }
+
+    // 上线视角（仅 agent）
+    if (userState.role === 'agent') {
+        const myBps = REBATE_MATRIX[userState.rank][1];
+        const earn = 100 * myBps;
+        html += `
+            <div class="bg-emerald-50 rounded-lg p-2 mb-2">
+                <div class="text-[9px] font-bold text-emerald-600 mb-1">💰 上线视角：下级买 100U 我赚</div>
+                <div class="flex items-center justify-between py-0.5">
+                    <span class="text-[10px] text-slate-600">作为 L1 直接上线</span>
+                    <span class="text-[10px] font-mono text-emerald-600 font-bold">+${earn.toFixed(2)}U</span>
+                </div>
+                <div class="text-[9px] text-emerald-400 mt-1">按 rank ${userState.rank} 的 L1 比例 ${(myBps * 100).toFixed(1)}%</div>
+            </div>
+        `;
+    }
+
+    // 游客归因提示
+    if (userState.role === 'guest') {
+        html += `
+            <div class="bg-amber-50 rounded-lg p-2 mb-2">
+                <div class="text-[9px] font-bold text-amber-600 mb-1">🚶 游客购买提示</div>
+                <div class="text-[10px] text-slate-600">首次购买将触发归因绑定到邀请人</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">本次购买无上线分润（未绑定 E 链）</div>
+            </div>
+        `;
+    }
+
+    detail.innerHTML = html;
+}
+
+function updateRank(val) {
+    userState.rank = parseInt(val);
+    renderRoleDetail();
+    if (document.getElementById('view-detail').classList.contains('active') && userState.currentProduct) {
+        renderDetail(userState.currentProduct.id);
+    }
+    if (document.getElementById('view-checkout').classList.contains('active')) {
+        renderCheckout();
+    }
+}
+
+function toggleRoleFloat() {
+    const float = document.getElementById('role-float');
+    const mini = document.getElementById('role-float-mini');
+    if (float.style.display !== 'none') {
+        float.style.display = 'none';
+        mini.style.display = 'flex';
+    } else {
+        float.style.display = 'block';
+        mini.style.display = 'none';
+    }
+}
+
+// 模拟合约 previewRebate（对齐 AgentReward.sol）
+// 从 buyer 上线链取 N 层，compression 跳过 rank=0
+function mockPreviewRebate(buyer, base) {
+    const upline = userState.upline || [];
+    const rebateLayers = 3;
+    const result = [];
+
+    for (let layer = 1; layer <= rebateLayers; layer++) {
+        const uplineAtLayer = upline[layer - 1];
+        if (!uplineAtLayer) break;
+
+        if (uplineAtLayer.rank >= 1) {
+            const bps = REBATE_MATRIX[uplineAtLayer.rank][layer];
+            result.push({
+                layer,
+                name: uplineAtLayer.name,
+                rank: uplineAtLayer.rank,
+                amount: base * bps,
+                skip: false,
+            });
+        } else {
+            result.push({
+                layer,
+                name: uplineAtLayer.name,
+                rank: 0,
+                amount: 0,
+                skip: true,
+            });
+        }
+    }
+
+    return result;
+}
+
+// ---------- 商城首页 ----------
+// 身份卡已移除（v4.0.1 按用户要求）
+// 角色与上线链信息保留在 role-float 浮层中查看
+
+function switchCategory(cat) {
+    document.querySelectorAll('[id^="cat-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById(`cat-${cat}`).classList.add('active');
+    renderProductGrid(cat);
+}
+
+function openSearch() {
+    const view = document.getElementById('view-search');
+    view.innerHTML = `
+        <div class="p-3">
+            <div class="flex items-center gap-2 mb-3">
+                <button onclick="openView('view-mall')" class="text-slate-400">←</button>
+                <input class="input-field flex-1" placeholder="搜索商品..." />
+            </div>
+            <div class="text-xs text-slate-500">热搜：VIP 会员、硬件钥匙、积分包</div>
+        </div>
+    `;
+    openView('view-search');
+}
+
+function renderHotProducts() {
+    const container = document.getElementById('hot-products');
+    const hot = PRODUCTS.slice(0, 3);
+    container.innerHTML = hot.map(p => `
+        <div onclick="openProductDetail(${p.id})" class="flex-shrink-0 w-32 bg-white rounded-xl p-2 card-shadow active-scale cursor-pointer">
+            <div class="w-full h-20 product-img-fade rounded-lg flex items-center justify-center text-3xl mb-1.5">${p.emoji}</div>
+            <div class="text-[11px] font-bold text-slate-900 line-clamp-1">${p.name}</div>
+            <div class="text-xs font-mono text-brand font-bold">${p.prices.USDR} <span class="text-[9px]">USDR</span></div>
+        </div>
+    `).join('');
+}
+
+function renderProductGrid(category = 'all') {
+    const container = document.getElementById('product-grid');
+    const list = category === 'all' ? PRODUCTS : PRODUCTS.filter(p => p.category === category);
+    container.innerHTML = list.map(p => {
+        const stockPercent = (p.sold / (p.stock + p.sold)) * 100;
+        const lowStock = p.stock < 50;
+        return `
+            <div onclick="openProductDetail(${p.id})" class="bg-white rounded-xl p-2 card-shadow active-scale cursor-pointer">
+                <div class="w-full h-24 product-img-fade rounded-lg flex items-center justify-center text-3xl mb-1.5 relative">
+                    ${p.emoji}
+                    ${p.secretCode ? '<span class="absolute top-1 right-1 badge-p1">保密</span>' : ''}
+                    ${p.stock === 0 ? '<span class="absolute top-1 left-1 tag-stockout text-[9px] px-1.5 py-0.5 rounded">缺货</span>' : ''}
+                </div>
+                <div class="text-xs font-bold text-slate-900 line-clamp-1">${p.name}</div>
+                <div class="text-[10px] text-slate-400 mb-1">${p.category === 'physical' ? '实物' : p.category === 'virtual' ? '虚拟' : '服务'}</div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-mono text-brand font-bold">${p.prices.USDR}</span>
+                    <span class="text-[9px] text-slate-400">USDR</span>
+                </div>
+                ${p.rewards.length > 0 ? `<div class="text-[9px] text-emerald-600 mt-0.5">🎁 ${p.rewards[0].desc}</div>` : ''}
+                ${stockPercent < 100 ? `<div class="progress-bar mt-1"><div class="progress-fill ${lowStock ? 'warn' : ''}" style="width:${stockPercent}%"></div></div>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// ---------- 商品详情 ----------
+function openProductDetail(id) {
+    userState.currentProduct = PRODUCTS.find(p => p.id === id);
+    if (!userState.currentProduct) return;
+    renderDetail(id);
+    openView('view-detail');
+}
+
+function renderDetail(id) {
+    const p = PRODUCTS.find(x => x.id === id);
+    if (!p) return;
+    userState.currentProduct = p;
+    const view = document.getElementById('view-detail');
+
+    const tiers = p.tiers.map(t => `<div class="text-[10px] text-slate-600">满 ${t.minQty} 件 → ${(t.bps / 100).toFixed(0)}% 折扣</div>`).join('');
+    const rewards = p.rewards.map(r => `<div class="text-[10px] text-emerald-600">🎁 ${r.desc}</div>`).join('');
+
+    // 按合约字段动态生成属性行（仅展示真实有值的字段）
+    // 库存：仅实物/保密商品（服务类/积分包类无限量）
+    const showStock = p.category === 'physical' || p.secretCode;
+    // 积分/件：仅 pointsPerUnit > 0
+    const showPoints = p.pointsPerUnit > 0;
+    // 喂团队：仅 feedTeamPoints === true
+    const showFeedTeam = p.feedTeamPoints === true;
+    // 流转费：仅 resaleFeeBps > 0
+    const showResaleFee = p.resaleFeeBps > 0;
+
+    const stockRow = showStock ? `<div><div class="text-[10px] text-slate-400">库存</div><div class="text-sm font-bold text-slate-900">${p.stock}</div></div>` : '';
+    const soldRow = `<div><div class="text-[10px] text-slate-400">已售</div><div class="text-sm font-bold text-slate-900">${p.sold}</div></div>`;
+    const minOrderRow = `<div><div class="text-[10px] text-slate-400">起订量</div><div class="text-sm font-bold text-slate-900">${p.minOrderQty}</div></div>`;
+    const pointsRow = showPoints ? `<div><div class="text-[10px] text-slate-400">积分/件</div><div class="text-sm font-bold text-slate-900">${p.pointsPerUnit}</div></div>` : '';
+    const feedTeamRow = showFeedTeam ? `<div><div class="text-[10px] text-slate-400">喂团队</div><div class="text-sm font-bold text-emerald-600">✓</div></div>` : '';
+    const resaleFeeRow = showResaleFee ? `<div><div class="text-[10px] text-slate-400">流转费</div><div class="text-sm font-bold text-slate-900">${(p.resaleFeeBps / 100).toFixed(0)}%</div></div>` : '';
+
+    // 第一行：库存/已售/起订量（库存按条件展示）
+    const row1 = [stockRow, soldRow, minOrderRow].filter(Boolean).join('');
+    // 第二行：积分/喂团队/流转费（按条件展示，全为空则不渲染第二行）
+    const row2 = [pointsRow, feedTeamRow, resaleFeeRow].filter(Boolean).join('');
+
+    view.innerHTML = `
+        <div class="relative">
+            <div class="w-full h-56 product-img-fade flex items-center justify-center text-7xl">${p.emoji}</div>
+            <button onclick="openView('view-mall')" class="absolute top-3 left-3 w-9 h-9 rounded-full bg-white bg-opacity-90 flex items-center justify-center shadow">←</button>
+            ${p.secretCode ? '<div class="absolute top-3 right-3 badge-p1">保密商品</div>' : ''}
+        </div>
+        <div class="p-4">
+            <div class="text-lg font-bold text-slate-900 mb-1">${p.name}</div>
+            <div class="text-xs text-slate-500 mb-3">${p.desc}</div>
+
+            <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                <div class="flex items-baseline gap-1 mb-2">
+                    <span class="text-2xl font-mono font-bold text-brand">${p.prices.USDR}</span>
+                    <span class="text-xs text-slate-400">USDR</span>
+                    <span class="text-[10px] text-slate-400 ml-2">/ ${p.prices.USDT} USDT</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mb-1">阶梯折扣（按数量）</div>
+                ${tiers}
+            </div>
+
+            ${rewards ? `
+                <div class="bg-emerald-50 rounded-xl p-3 mb-3">
+                    <div class="text-[10px] font-bold text-emerald-700 mb-1">🎁 直写奖励</div>
+                    ${rewards}
+                    <div class="text-[9px] text-emerald-500 mt-1">⚠️ 直写奖励失败会导致整单 revert（无 try/catch）</div>
+                </div>
+            ` : ''}
+
+            ${p.secretCode ? `
+                <div class="alert-p1 rounded-xl p-3 mb-3">
+                    <div class="text-[10px] font-bold text-amber-700 mb-1">⚠️ 保密商品说明</div>
+                    <div class="text-[10px] text-slate-600">购买后通过链下 API 凭 refId 领取真实卡密。链上仅存哈希，攻击者扫描 calldata 无法还原真实码体。</div>
+                </div>
+            ` : ''}
+
+            ${row1 ? `
+                <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        ${row1}
+                    </div>
+                    ${row2 ? `
+                        <div class="grid grid-cols-3 gap-2 text-center mt-2 pt-2 border-t border-slate-100">
+                            ${row2}
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
+
+            <button onclick="openCheckout()" class="btn-primary w-full">立即购买</button>
+            <div class="h-4"></div>
+        </div>
+    `;
+}
+
+// ---------- 结算 ----------
+function openCheckout() {
+    if (!userState.currentProduct) return;
+    renderCheckout();
+    openView('view-checkout');
+}
+
+function renderCheckout() {
+    const p = userState.currentProduct;
+    const qty = userState.currentOrderQty || 1;
+    const payToken = userState.currentPayToken || 'USDR';
+    const unit = p.prices[payToken];
+
+    // 阶梯折扣（对齐 _tierBps 算法：默认 10000，找最高 minQty 那档）
+    let tierBps = 10000;
+    let bestMin = 0;
+    for (const t of p.tiers) {
+        if (qty >= t.minQty && t.minQty >= bestMin) {
+            bestMin = t.minQty;
+            tierBps = t.bps;
+        }
+    }
+
+    const gross = unit * qty;
+    const net = gross * tierBps / 10000;
+
+    // 直写奖励预览
+    let directRewardTotal = 0;
+    const directRewardsHtml = p.rewards.map((r, i) => {
+        let amt = 0;
+        if (r.mode === 0) amt = r.amountOrBps * qty;
+        else amt = net * r.amountOrBps / 10000;
+        directRewardTotal += amt;
+        return `<div class="flex items-center justify-between py-0.5"><span class="text-[10px] text-slate-600">${r.desc}</span><span class="text-[10px] font-mono text-emerald-600 font-bold">+${amt.toFixed(2)} ${payToken}</span></div>`;
+    }).join('');
+
+    // 是否实物商品（需要收货地址）
+    const isPhysical = p.category === 'physical';
+    // 当前选中地址
+    const selectedAddr = userState.selectedAddressId ? MY_ADDRESSES.find(a => a.id === userState.selectedAddressId) : MY_ADDRESSES.find(a => a.isDefault);
+
+    // 批量定购快捷档位（复用商品 tiers 数据）
+    const tiersHtml = p.tiers.map(t => {
+        const isActive = qty >= t.minQty && tierBps === t.bps;
+        const saved = t.bps < 10000 ? `省 ${((10000 - t.bps) / 100).toFixed(0)}%` : '原价';
+        return `<button onclick="applyTier(${t.minQty})" class="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-bold border ${isActive ? 'gradient-brand text-white border-transparent' : 'bg-white text-slate-600 border-slate-200'}">
+            <div>${t.minQty}件</div>
+            <div class="text-[9px] ${isActive ? 'opacity-90' : 'text-slate-400'}">${(t.bps / 100).toFixed(0)}%价 · ${saved}</div>
+        </button>`;
+    }).join('');
+
+    // 钱包调用明细
+    const walletShort = userState.walletAddr.slice(0, 8) + '...' + userState.walletAddr.slice(-4);
+    const balance = payToken === 'USDR' ? userState.usdrBalance : userState.usdtBalance;
+    const walletCallHtml = `
+        <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-bold text-slate-700">📋 链上调用预览</span>
+                <button onclick="toggleCallPreview()" class="text-[10px] text-brand font-bold" id="call-preview-toggle">收起</button>
+            </div>
+            <div id="call-preview-body" class="space-y-1.5">
+                <div class="bg-slate-50 rounded-lg p-2">
+                    <div class="text-[10px] text-slate-600"><span class="font-mono font-bold text-slate-800">①</span> approve(${payToken}, GoodsMarket, ${net.toFixed(2)})</div>
+                    <div class="text-[9px] text-slate-400 pl-4">授权合约扣款</div>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2">
+                    <div class="text-[10px] text-slate-600"><span class="font-mono font-bold text-slate-800">②</span> GoodsMarket.buy(${p.id}, ${qty}, ${payToken})</div>
+                    <div class="text-[9px] text-slate-400 pl-4">触发购买 + 返利 hook（自动下发上线）</div>
+                </div>
+                <div class="pt-1.5 border-t border-slate-100 space-y-1">
+                    <div class="flex items-center justify-between text-[10px]">
+                        <span class="text-slate-500">调用钱包</span>
+                        <span class="font-mono text-slate-700">${walletShort}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px]">
+                        <span class="text-slate-500">支付代币</span>
+                        <span class="font-mono text-slate-700">${payToken} · 余额 ${balance}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px]">
+                        <span class="text-slate-500">授权状态</span>
+                        <span class="check-passed">✓ 已授权</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px]">
+                        <span class="text-slate-500">余额检查</span>
+                        <span class="${balance >= net ? 'check-passed' : 'check-failed'}">${balance >= net ? '✓' : '❌'} ${balance} ${payToken}</span>
+                    </div>
+                </div>
+                <div class="text-[9px] text-slate-400 pt-1">涉及合约: GoodsMarket / AgentReward / AgentPoints / AgentLevel</div>
+            </div>
+        </div>
+    `;
+
+    const view = document.getElementById('view-checkout');
+    view.innerHTML = `
+        <!-- ① 顶部导航栏 -->
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openView('view-detail')" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">确认订单</span>
+            <span class="text-[10px] text-slate-400 ml-auto truncate max-w-[120px]">${p.name}</span>
+        </div>
+        <div class="p-3">
+            <!-- ② 商品概要卡 -->
+            <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                <div class="flex gap-3">
+                    <div class="w-14 h-14 product-img-fade rounded-lg flex items-center justify-center text-2xl">${p.emoji}</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-bold text-slate-900">${p.name}</div>
+                        <div class="text-[10px] text-slate-400">${p.desc}</div>
+                        <div class="text-xs font-mono text-brand font-bold mt-1">${unit} ${payToken}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ③ 批量定购快捷档位 -->
+            ${p.tiers.length > 1 ? `
+                <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                    <div class="text-[10px] font-bold text-slate-700 mb-2">📦 批量定购快捷档位</div>
+                    <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                        ${tiersHtml}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- ④ 数量精调 -->
+            <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                <div class="text-[10px] text-slate-500 mb-2">购买数量（起订 ${p.minOrderQty}）</div>
+                <div class="flex items-center gap-3">
+                    <button onclick="changeQty(-1)" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold">−</button>
+                    <span class="text-lg font-bold w-10 text-center" id="qty-display">${qty}</span>
+                    <button onclick="changeQty(1)" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold">+</button>
+                    <span class="ml-auto text-[10px] text-slate-400">阶梯：${tierBps === 10000 ? '原价' : `${(tierBps / 100).toFixed(0)}% 折扣`}</span>
+                </div>
+            </div>
+
+            <!-- ⑤ 收货地址卡（仅实物商品） -->
+            ${isPhysical ? `
+                <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-bold text-slate-700">📍 收货地址</span>
+                        <button onclick="openAddress(true)" class="text-[10px] text-brand font-bold">切换</button>
+                    </div>
+                    ${selectedAddr ? `
+                        <div class="flex items-start gap-2">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-bold text-slate-900">${selectedAddr.name}</span>
+                                    <span class="text-[10px] text-slate-400">${selectedAddr.phone}</span>
+                                    ${selectedAddr.isDefault ? '<span class="badge-info">默认</span>' : ''}
+                                </div>
+                                <div class="text-xs text-slate-600 mt-1">${selectedAddr.address}</div>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="text-center py-2">
+                            <div class="text-[10px] text-slate-400 mb-2">暂无收货地址</div>
+                            <button onclick="openAddress(true)" class="btn-primary text-xs py-2 px-4">新增地址</button>
+                        </div>
+                    `}
+                </div>
+            ` : ''}
+
+            <!-- ⑥ 支付币种 -->
+            <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                <div class="text-[10px] text-slate-500 mb-2">支付币种</div>
+                <div class="flex gap-2">
+                    ${Object.keys(p.prices).map(t => `
+                        <button onclick="selectPayToken('${t}')" class="flex-1 py-2 rounded-lg text-xs font-bold ${payToken === t ? 'gradient-brand text-white' : 'bg-slate-100 text-slate-600'}">${t}</button>
+                    `).join('')}
+                </div>
+                <div class="text-[10px] text-slate-400 mt-2">余额：${balance} ${payToken}</div>
+            </div>
+
+            <!-- ⑦ 价格明细 -->
+            <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                <div class="text-[10px] text-slate-500 mb-2">价格明细</div>
+                <div class="flex justify-between text-xs py-1"><span class="text-slate-500">单价</span><span class="font-mono">${unit} ${payToken}</span></div>
+                <div class="flex justify-between text-xs py-1"><span class="text-slate-500">数量</span><span class="font-mono">× ${qty}</span></div>
+                <div class="flex justify-between text-xs py-1"><span class="text-slate-500">原价（gross）</span><span class="font-mono">${gross.toFixed(2)} ${payToken}</span></div>
+                ${tierBps < 10000 ? `<div class="flex justify-between text-xs py-1"><span class="text-slate-500">阶梯折扣</span><span class="font-mono text-emerald-600">-${(gross - net).toFixed(2)} ${payToken}</span></div>` : ''}
+                <div class="flex justify-between text-sm py-1 mt-1 pt-1 border-t border-slate-100"><span class="font-bold">实付（net）</span><span class="font-mono font-bold text-brand">${net.toFixed(2)} ${payToken}</span></div>
+            </div>
+
+            ${directRewardsHtml ? `
+                <div class="bg-emerald-50 rounded-xl p-3 mb-3">
+                    <div class="text-[10px] font-bold text-emerald-700 mb-1">🎁 直写奖励</div>
+                    ${directRewardsHtml}
+                    <div class="text-[9px] text-amber-600 mt-1">⚠️ 直写奖励失败会 revert 整单（无 try/catch 保护）</div>
+                </div>
+            ` : ''}
+
+            ${userState.role === 'guest' ? `
+                <div class="alert-p1 rounded-xl p-3 mb-3">
+                    <div class="text-[10px] font-bold text-amber-700">⚠️ 归因绑定提示</div>
+                    <div class="text-[10px] text-slate-600">本次购买将触发 E 链归因绑定到邀请人，本次购买无上线分润。</div>
+                </div>
+            ` : ''}
+
+            <!-- 钱包调用明细卡 -->
+            ${walletCallHtml}
+
+            <!-- 底部固定栏：实付 + 确认下单 -->
+            <div class="sticky bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-3 py-3 flex items-center gap-3">
+                <div class="flex-1">
+                    <div class="text-[10px] text-slate-400">实付</div>
+                    <div class="text-lg font-mono font-bold text-brand">${net.toFixed(2)} ${payToken}</div>
+                </div>
+                <button onclick="openPinModal()" class="btn-primary flex-1 ${isPhysical && !selectedAddr ? 'opacity-50 pointer-events-none' : ''}">确认下单</button>
+            </div>
+            <div class="h-4"></div>
+        </div>
+    `;
+}
+
+// 批量定购：点击档位直接设为该档位 minQty
+function applyTier(minQty) {
+    const p = userState.currentProduct;
+    if (minQty > p.stock && (p.category === 'physical' || p.secretCode)) {
+        showToast('库存不足', '⚠️');
+        return;
+    }
+    userState.currentOrderQty = minQty;
+    renderCheckout();
+}
+
+// 折叠/展开调用明细
+function toggleCallPreview() {
+    const body = document.getElementById('call-preview-body');
+    const toggle = document.getElementById('call-preview-toggle');
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        toggle.textContent = '收起';
+    } else {
+        body.style.display = 'none';
+        toggle.textContent = '展开';
+    }
+}
+
+function changeQty(delta) {
+    const p = userState.currentProduct;
+    let qty = (userState.currentOrderQty || 1) + delta;
+    if (qty < p.minOrderQty) qty = p.minOrderQty;
+    // 仅实物/保密商品有库存上限
+    if ((p.category === 'physical' || p.secretCode) && qty > p.stock) {
+        showToast('库存不足', '⚠️');
+        return;
+    }
+    userState.currentOrderQty = qty;
+    renderCheckout();
+}
+
+function selectPayToken(token) {
+    userState.currentPayToken = token;
+    renderCheckout();
+}
+
+// ---------- PIN 验签 ----------
+function openPinModal() {
+    document.getElementById('view-pin').style.display = 'flex';
+    for (let i = 1; i <= 6; i++) document.getElementById(`pin-${i}`).value = '';
+    setTimeout(() => document.getElementById('pin-1').focus(), 100);
+}
+
+function closePinModal() {
+    document.getElementById('view-pin').style.display = 'none';
+}
+
+function movePin(input, idx) {
+    if (input.value && idx < 6) {
+        document.getElementById(`pin-${idx + 1}`).focus();
+    }
+}
+
+function confirmPin() {
+    let pin = '';
+    for (let i = 1; i <= 6; i++) pin += document.getElementById(`pin-${i}`).value;
+    if (pin.length !== 6) {
+        showToast('请输入 6 位 PIN 码', '⚠️');
+        return;
+    }
+    closePinModal();
+    processOrder();
+}
+
+function processOrder() {
+    const p = userState.currentProduct;
+    const qty = userState.currentOrderQty || 1;
+    const payToken = userState.currentPayToken || 'USDR';
+    const unit = p.prices[payToken];
+
+    let tierBps = 10000;
+    let bestMin = 0;
+    for (const t of p.tiers) {
+        if (qty >= t.minQty && t.minQty >= bestMin) { bestMin = t.minQty; tierBps = t.bps; }
+    }
+    const gross = unit * qty;
+    const net = gross * tierBps / 10000;
+
+    // 模拟订单处理
+    const refId = '0xorder' + Date.now().toString(16);
+
+    // 模拟直写奖励失败概率（演示 P0 风险）
+    const directRewardFail = p.rewards.length > 0 && Math.random() < 0.05;
+
+    const view = document.getElementById('view-result');
+    view.innerHTML = `
+        <div class="p-4">
+            <div class="text-center py-8">
+                <div class="text-5xl mb-3">✅</div>
+                <div class="text-lg font-bold text-slate-900">下单成功</div>
+                <div class="text-xs text-slate-400 mt-1">订单号: ${refId.slice(0, 18)}...</div>
+            </div>
+
+            <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                <div class="text-[10px] text-slate-500 mb-2">订单详情</div>
+                <div class="flex justify-between text-xs py-1"><span class="text-slate-500">商品</span><span class="font-bold">${p.emoji} ${p.name}</span></div>
+                <div class="flex justify-between text-xs py-1"><span class="text-slate-500">数量</span><span class="font-mono">× ${qty}</span></div>
+                <div class="flex justify-between text-xs py-1"><span class="text-slate-500">实付</span><span class="font-mono font-bold text-brand">${net.toFixed(2)} ${payToken}</span></div>
+                <div class="flex justify-between text-xs py-1"><span class="text-slate-500">支付币种</span><span class="font-mono">${payToken}</span></div>
+            </div>
+
+            ${p.secretCode ? `
+                <div class="alert-info rounded-xl p-3 mb-3">
+                    <div class="text-[10px] font-bold text-indigo-700">🎫 保密商品领取</div>
+                    <div class="text-[10px] text-slate-600 mt-1">购买成功！请通过链下 API 凭 refId 领取真实卡密。</div>
+                    <button onclick="redeemCode('${refId}')" class="btn-primary mt-2 text-xs py-2">领取卡密</button>
+                </div>
+            ` : ''}
+
+            ${directRewardFail ? `
+                <div class="alert-p0 rounded-xl p-3 mb-3">
+                    <div class="text-[10px] font-bold text-red-700">❌ 直写奖励失败</div>
+                    <div class="text-[10px] text-slate-600 mt-1">RewardClaim 奖池不足，整单 revert。请重试或换支付币种。</div>
+                </div>
+            ` : `
+                <div class="bg-emerald-50 rounded-xl p-3 mb-3">
+                    <div class="text-[10px] font-bold text-emerald-700">✅ 奖励发放</div>
+                    <div class="text-[10px] text-slate-600 mt-1">直写奖励 + 上线返利已触发</div>
+                </div>
+            `}
+
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="openView('view-mall')" class="btn-secondary">回首页</button>
+                <button onclick="openOrders()" class="btn-primary">查看订单</button>
+            </div>
+        </div>
+    `;
+    openView('view-result');
+}
+
+// ---------- 订单管理 ----------
+// 用户可见状态派生（对齐《交易订单状态设计方案》§五）
+// 主状态 4 态：created / return_requested / returned / return_rejected
+// 辅助态：实物 fulfillmentStatus（pending_shipment/shipped/delivered）
+//        虚拟 redeemStatus（pending_redeem/redeemed）
+function getUserStatus(order) {
+    // 1. 先判主状态
+    if (order.status === 'returned') return { key: 'returned', label: '已退货', badge: 'badge-returned' };
+    if (order.status === 'return_requested') return { key: 'return_requested', label: '退货申请中', badge: 'badge-returning' };
+    if (order.status === 'return_rejected') return { key: 'return_rejected', label: '退货被拒', badge: 'badge-rejected' };
+
+    // 2. 主状态为 created 时，按商品类型看辅助态
+    if (order.status === 'created') {
+        if (order.orderType === 'physical') {
+            const fs = order.fulfillmentStatus;
+            if (fs === 'pending_shipment') return { key: 'pending_shipment', label: '待发货', badge: 'badge-pending' };
+            if (fs === 'shipped') return { key: 'shipped', label: '已发货', badge: 'badge-shipped' };
+            if (fs === 'delivered') return { key: 'completed', label: '已完成', badge: 'badge-completed' };
+            return { key: 'pending_shipment', label: '待发货', badge: 'badge-pending' };
+        }
+        if (order.orderType === 'virtual') {
+            return order.redeemStatus === 'redeemed'
+                ? { key: 'completed', label: '已完成', badge: 'badge-completed' }
+                : { key: 'pending_redeem', label: '待领取', badge: 'badge-pending' };
+        }
+        // 服务/积分：buy() 即时完成，无辅助态
+        return { key: 'completed', label: '已完成', badge: 'badge-completed' };
+    }
+    return { key: 'unknown', label: '未知', badge: 'badge-returned' };
+}
+
+// Tab 筛选条件（对齐方案§八：全部/进行中/已完成/退货）
+// 分类语义互斥：交易进行中 / 交易完结 / 退货流程
+// "进行中" = 待发货 + 待领取 + 已发货（交易流程未完结，需用户推进）
+// "已完成" = 已完成（交易流程完结）
+// "退货"   = 退货申请中 + 已退货 + 退货被拒（退货相关全流程）
+function filterOrderByTab(type) {
+    if (type === 'all') return MY_PURCHASES;
+    if (type === 'pending') {
+        return MY_PURCHASES.filter(o => {
+            const s = getUserStatus(o).key;
+            return ['pending_shipment', 'pending_redeem', 'shipped'].includes(s);
+        });
+    }
+    if (type === 'completed') return MY_PURCHASES.filter(o => getUserStatus(o).key === 'completed');
+    if (type === 'returned') return MY_PURCHASES.filter(o => ['return_requested', 'returned', 'return_rejected'].includes(getUserStatus(o).key));
+    return MY_PURCHASES;
+}
+
+// 订单卡片操作按钮（对齐方案§七）
+function orderCardButtons(o) {
+    const s = getUserStatus(o).key;
+    let btns = `<button onclick="openOrderDetail('${o.refId}')" class="btn-secondary flex-1 text-xs py-2">查看详情</button>`;
+    if (s === 'shipped') {
+        btns += `<button onclick="confirmReceive('${o.refId}')" class="btn-primary flex-1 text-xs py-2">确认收货</button>`;
+    }
+    if (s === 'pending_redeem') {
+        btns += `<button onclick="redeemCode('${o.refId}')" class="btn-primary flex-1 text-xs py-2">领取卡密</button>`;
+    }
+    if (s === 'completed' && o.orderType === 'virtual') {
+        btns += `<button onclick="openCodeDetail('${o.codeIds[0]}')" class="btn-secondary text-xs py-2 px-3">查看卡密</button>`;
+    }
+    // 可申请退货：created 下的任意辅助态 + return_rejected（可重新申请）
+    if (['pending_shipment', 'shipped', 'completed', 'return_rejected', 'pending_redeem'].includes(s)) {
+        if (s === 'return_rejected') {
+            btns += `<button onclick="openReturn('${o.refId}')" class="btn-secondary text-xs py-2 px-3">重新申请</button>`;
+        } else {
+            btns += `<button onclick="openReturn('${o.refId}')" class="btn-secondary text-xs py-2 px-3">申请退货</button>`;
+        }
+    }
+    // 退货申请中：可撤销
+    if (s === 'return_requested') {
+        btns += `<button onclick="cancelReturn('${o.refId}')" class="btn-danger text-xs py-2 px-3">撤销申请</button>`;
+    }
+    return btns;
+}
+
+function openOrders() {
+    renderOrders('pending');  // 默认选中"进行中"（用户最关心的）
+    openView('view-orders');
+}
+
+function renderOrders(type) {
+    const view = document.getElementById('view-orders');
+    const list = filterOrderByTab(type);
+    const orderTypeLabel = (t) => ({physical:'实物',virtual:'虚拟',service:'服务'})[t] || t;
+
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openView('view-mall')" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">我的订单</span>
+            <button onclick="openAddress(false)" class="ml-auto text-xs text-brand font-bold">📍 地址</button>
+        </div>
+        <div class="px-3 py-2 flex gap-2 overflow-x-auto hide-scrollbar">
+            <button onclick="renderOrders('all')" class="tab-btn ${type === 'all' ? 'active' : ''} text-xs font-bold px-3 py-1.5 whitespace-nowrap">全部</button>
+            <button onclick="renderOrders('pending')" class="tab-btn ${type === 'pending' ? 'active' : ''} text-xs font-bold px-3 py-1.5 whitespace-nowrap">进行中</button>
+            <button onclick="renderOrders('completed')" class="tab-btn ${type === 'completed' ? 'active' : ''} text-xs font-bold px-3 py-1.5 whitespace-nowrap">已完成</button>
+            <button onclick="renderOrders('returned')" class="tab-btn ${type === 'returned' ? 'active' : ''} text-xs font-bold px-3 py-1.5 whitespace-nowrap">退货</button>
+        </div>
+        <div class="p-3 space-y-2">
+            ${list.length === 0 ? '<div class="text-center text-slate-400 text-sm py-8">暂无订单</div>' : list.map(o => {
+                const us = getUserStatus(o);
+                return `
+                <div class="bg-white rounded-xl p-3 card-shadow">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${o.icon}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <div class="text-sm font-bold text-slate-900 truncate">${o.name}</div>
+                                <span class="text-[9px] text-slate-400 flex-shrink-0">${orderTypeLabel(o.orderType)}</span>
+                                <span class="${us.badge} flex-shrink-0">${us.label}</span>
+                            </div>
+                            <div class="text-[9px] text-slate-400 font-mono mt-0.5">refId: ${o.refId.slice(0,18)}... <span onclick="copyText('${o.refId}')" class="text-brand">复制</span></div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">${o.time}</div>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xs font-mono font-bold">${o.paid} ${o.payToken}</span>
+                                <span class="text-[10px] text-slate-400">× ${o.qty}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${us.key === 'return_rejected' && o.returnRequest && o.returnRequest.rejectReason ? `
+                        <div class="mt-2 text-[10px] text-red-600 bg-red-50 rounded p-2">❌ 驳回原因：${o.returnRequest.rejectReason}</div>
+                    ` : ''}
+                    <div class="flex gap-2 mt-2">
+                        ${orderCardButtons(o)}
+                    </div>
+                    ${us.key === 'returned' ? '<div class="text-[10px] text-slate-400 mt-2">整单已退货，码已永久作废</div>' : ''}
+                </div>
+            `}).join('')}
+        </div>
+    `;
+}
+
+// ---------- 订单详情 ----------
+function openOrderDetail(refId) {
+    const o = MY_PURCHASES.find(x => x.refId === refId);
+    if (!o) return;
+    const view = document.getElementById('view-order-detail');
+    const orderTypeLabel = {physical:'实物商品',virtual:'虚拟商品',service:'服务商品'}[o.orderType];
+    const us = getUserStatus(o);
+
+    // 详情页操作按钮（对齐方案§七）
+    const detailButtons = () => {
+        const s = us.key;
+        let btns = '';
+        if (s === 'shipped') btns += `<button onclick="confirmReceive('${o.refId}')" class="btn-primary flex-1 text-xs py-2">确认收货</button>`;
+        if (s === 'pending_redeem') btns += `<button onclick="redeemCode('${o.refId}')" class="btn-primary flex-1 text-xs py-2">领取卡密</button>`;
+        if (s === 'completed' && o.orderType === 'virtual') btns += `<button onclick="openCodeDetail('${o.codeIds[0]}')" class="btn-secondary flex-1 text-xs py-2">查看卡密</button>`;
+        // 可申请退货：created 下任意辅助态 + return_rejected 可重新申请
+        if (['pending_shipment', 'shipped', 'completed', 'return_rejected', 'pending_redeem'].includes(s)) {
+            btns += `<button onclick="openReturn('${o.refId}')" class="btn-secondary flex-1 text-xs py-2">${s === 'return_rejected' ? '重新申请' : '申请退货'}</button>`;
+        }
+        // 退货申请中：可撤销
+        if (s === 'return_requested') btns += `<button onclick="cancelReturn('${o.refId}')" class="btn-danger flex-1 text-xs py-2">撤销申请</button>`;
+        // 退货被拒：查看原因
+        if (s === 'return_rejected' && o.returnRequest && o.returnRequest.rejectReason) {
+            btns += `<button onclick="viewReturnReason('${o.refId}')" class="btn-secondary flex-1 text-xs py-2">查看原因</button>`;
+        }
+        return btns || '<div class="text-[10px] text-slate-400 text-center py-2">该订单已完结，无可用操作</div>';
+    };
+
+    // 退货流程时间线（仅退货相关订单展示，对齐方案§9.2/9.3）
+    const returnTimeline = () => {
+        if (!o.returnRequest) return '';
+        const rr = o.returnRequest;
+        let html = `<div class="bg-white rounded-xl p-3 card-shadow">
+            <div class="text-[9px] text-slate-400 mb-2">🔄 退货流程</div>
+            <div class="flex items-start gap-2 mb-2">
+                <div class="w-2 h-2 rounded-full bg-slate-300 mt-1.5"></div>
+                <div>
+                    <div class="text-[10px] font-bold text-slate-700">退货申请已提交</div>
+                    <div class="text-[9px] text-slate-400">${rr.time}</div>
+                    ${rr.reason ? `<div class="text-[9px] text-slate-500 mt-0.5">原因：${rr.reason}</div>` : ''}
+                </div>
+            </div>`;
+        // 等待审核 / 已批准 / 被拒
+        if (o.status === 'return_requested') {
+            html += `<div class="flex items-start gap-2">
+                <div class="w-2 h-2 rounded-full bg-brand mt-1.5"></div>
+                <div>
+                    <div class="text-[10px] font-bold text-brand">等待矿工审核</div>
+                    <div class="text-[9px] text-slate-400">当前状态：退货申请中</div>
+                </div>
+            </div>`;
+        } else if (o.status === 'returned' && rr.approved) {
+            html += `<div class="flex items-start gap-2">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5"></div>
+                <div>
+                    <div class="text-[10px] font-bold text-emerald-700">退货已批准（码已作废）</div>
+                    <div class="text-[9px] text-slate-400">${rr.approvedTime || ''}</div>
+                    ${rr.refundAmount ? `<div class="text-[9px] text-emerald-600 mt-0.5">退款金额：${rr.refundAmount} ${o.payToken}</div>` : ''}
+                </div>
+            </div>`;
+        } else if (o.status === 'return_rejected') {
+            html += `<div class="flex items-start gap-2">
+                <div class="w-2 h-2 rounded-full bg-red-500 mt-1.5"></div>
+                <div>
+                    <div class="text-[10px] font-bold text-red-700">退货被拒</div>
+                    <div class="text-[9px] text-slate-400">${rr.rejectedTime || ''}</div>
+                    ${rr.rejectReason ? `<div class="text-[9px] text-red-600 mt-0.5">原因：${rr.rejectReason}</div>` : ''}
+                </div>
+            </div>`;
+        }
+        html += `</div>`;
+        return html;
+    };
+
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openOrders()" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">订单详情</span>
+            <span class="${us.badge} ml-auto">${us.label}</span>
+        </div>
+        <div class="p-3 space-y-3">
+            <!-- 订单号 -->
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400">订单号 refId</div>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-[10px] font-mono text-slate-700 break-all">${o.refId}</span>
+                    <button onclick="copyText('${o.refId}')" class="text-brand text-[10px] flex-shrink-0">复制</button>
+                </div>
+            </div>
+            <!-- 商品信息 -->
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-1">📦 商品信息</div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${o.icon}</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-bold">${o.name}</div>
+                        <div class="text-[10px] text-slate-400">${orderTypeLabel} · 商品 ID #${o.productId} · × ${o.qty}</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 支付明细 -->
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-1">💰 支付明细</div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-slate-500">原价</span>
+                    <span class="font-mono">${o.gross} ${o.payToken}</span>
+                </div>
+                ${o.gross !== o.net ? `
+                    <div class="flex justify-between text-xs mt-1">
+                        <span class="text-slate-500">阶梯折扣</span>
+                        <span class="font-mono text-red-500">-${o.gross - o.net} ${o.payToken}</span>
+                    </div>
+                ` : ''}
+                <div class="flex justify-between text-xs mt-1 pt-1 border-t border-slate-100">
+                    <span class="text-slate-700 font-bold">实付</span>
+                    <span class="font-mono font-bold text-brand">${o.paid} ${o.payToken}</span>
+                </div>
+            </div>
+            <!-- 物流信息（仅实物） -->
+            ${o.orderType === 'physical' && o.shipping ? `
+                <div class="bg-white rounded-xl p-3 card-shadow">
+                    <div class="text-[9px] text-slate-400 mb-1">🚚 物流信息</div>
+                    <div class="text-xs text-slate-700">收货地址: ${o.shipping.address}</div>
+                    ${o.shipping.trackingNo ? `
+                        <div class="flex items-center justify-between mt-1">
+                            <span class="text-xs text-slate-700">快递单号: ${o.shipping.trackingNo}</span>
+                            <button onclick="copyText('${o.shipping.trackingNo}')" class="text-brand text-[10px]">复制</button>
+                        </div>
+                    ` : '<div class="text-[10px] text-slate-400 mt-1">尚未录入快递单号</div>'}
+                    <div class="text-[10px] text-amber-600 mt-1">物流状态: ${({pending_shipment:'待发货',shipped:'已发货',delivered:'已送达'})[o.shipping.status] || o.shipping.status}</div>
+                </div>
+            ` : ''}
+            <!-- 关联持有码 -->
+            ${o.codeIds && o.codeIds.length > 0 ? `
+                <div class="bg-white rounded-xl p-3 card-shadow">
+                    <div class="text-[9px] text-slate-400 mb-1">🎫 关联持有码</div>
+                    ${o.codeIds.map(cid => `
+                        <div class="flex items-center justify-between text-[10px] mt-1">
+                            <span class="font-mono text-slate-600 break-all">${cid.slice(0,24)}...</span>
+                            <button onclick="openCodeDetail('${cid}')" class="text-brand flex-shrink-0">查看</button>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
+            <!-- 退货流程时间线（对齐方案§9.2/9.3，仅退货相关订单展示） -->
+            ${returnTimeline()}
+            <!-- 退货被拒红色提示（对齐方案§9.3） -->
+            ${us.key === 'return_rejected' && o.returnRequest && o.returnRequest.rejectReason ? `
+                <div class="bg-red-50 border border-red-200 rounded-xl p-3">
+                    <div class="text-[10px] font-bold text-red-700 mb-1">❌ 退货被拒</div>
+                    <div class="text-[10px] text-red-600">原因：${o.returnRequest.rejectReason}</div>
+                    <div class="text-[9px] text-slate-500 mt-1">合约层 returned 仍为 false，可重新发起 returnRequest</div>
+                </div>
+            ` : ''}
+            <!-- 操作按钮 -->
+            <div class="flex gap-2">
+                ${detailButtons()}
+            </div>
+        </div>
+    `;
+    openView('view-order-detail');
+}
+
+// 确认收货（对齐方案§10.2：只改辅助态 fulfillmentStatus=delivered，主状态仍为 created）
+function confirmReceive(refId) {
+    const o = MY_PURCHASES.find(x => x.refId === refId);
+    if (!o) return;
+    o.fulfillmentStatus = 'delivered';
+    o.shipping.status = 'delivered';
+    o.timeline.push({ time: new Date().toISOString().slice(0,16).replace('T',' '), event: '用户确认收货' });
+    showToast('已确认收货', '✅');
+    openOrderDetail(refId);
+}
+
+// 领取卡密（对齐方案§10.3：标记 redeemStatus=redeemed，主状态仍为 created）
+function redeemCode(refId) {
+    const o = MY_PURCHASES.find(x => x.refId === refId);
+    if (!o) return;
+    o.redeemStatus = 'redeemed';
+    o.timeline.push({ time: new Date().toISOString().slice(0,16).replace('T',' '), event: '卡密已领取' });
+    showToast('卡密已领取', '✅');
+    // 展示卡密
+    if (o.codeIds && o.codeIds.length > 0) openCodeDetail(o.codeIds[0]);
+    else openOrderDetail(refId);
+}
+
+function copyText(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => showToast('已复制', '📋'));
+    } else {
+        showToast('请手动复制', '📋');
+    }
+}
+
+// ---------- 退货相关函数 ----------
+// 撤销退货申请（对齐方案§七：退货申请中→撤销申请，调链下撤销）
+function cancelReturn(refId) {
+    const o = MY_PURCHASES.find(x => x.refId === refId);
+    if (!o || o.status !== 'return_requested') return;
+    if (!confirm('确认撤销退货申请？撤销后将恢复订单原状态。')) return;
+    o.status = 'created';                // 主状态回退到 created
+    o.returnRequest = null;              // 清空退货申请
+    o.timeline.push({ time: new Date().toISOString().slice(0,16).replace('T',' '), event: '退货申请已撤销' });
+    showToast('退货申请已撤销', '✅');
+    openOrderDetail(refId);
+}
+
+// 查看退货驳回原因（对齐方案§七：退货被拒→查看原因）
+function viewReturnReason(refId) {
+    const o = MY_PURCHASES.find(x => x.refId === refId);
+    if (!o || !o.returnRequest) return;
+    showToast(`驳回原因：${o.returnRequest.rejectReason || '未提供'}`, '❌');
+}
+
+// ---------- 退货申请（含 P0 漏洞 1 防护）----------
+function openReturn(refId) {
+    const order = MY_PURCHASES.find(o => o.refId === refId);
+    if (!order) return;
+
+    const view = document.getElementById('view-return');
+    const directRewards = order.directRewards || [];
+    const hasClaimedDirect = directRewards.some(dr => dr.status === 'claimed' && dr.returnedAmount < dr.amount);
+    const hasUnrevokedDirect = directRewards.some(dr => !dr.revoked && dr.status !== 'claimed');
+    const isReapply = order.status === 'return_rejected';  // 重新申请场景
+
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openOrders()" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">${isReapply ? '重新申请退货' : '申请退货'}</span>
+        </div>
+        <div class="p-3">
+            <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+                <div class="text-[10px] text-slate-500 mb-1">订单</div>
+                <div class="text-sm font-bold">${order.icon} ${order.name}</div>
+                <div class="text-xs text-slate-400">实付 ${order.paid} ${order.payToken} × ${order.qty}</div>
+            </div>
+
+            ${isReapply && order.returnRequest && order.returnRequest.rejectReason ? `
+                <div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-3">
+                    <div class="text-[10px] font-bold text-red-700 mb-1">上次驳回原因</div>
+                    <div class="text-[10px] text-red-600">${order.returnRequest.rejectReason}</div>
+                    <div class="text-[9px] text-slate-500 mt-1">合约层 returned=false，可再次发起 returnRequest</div>
+                </div>
+            ` : ''}
+
+            <!-- ⚠️ P0 漏洞 1 防护：直写奖励撤销检查 -->
+            ${directRewards.length > 0 ? `
+                <div class="${hasClaimedDirect ? 'alert-p0' : 'alert-p1'} rounded-xl p-3 mb-3">
+                    <div class="text-[10px] font-bold ${hasClaimedDirect ? 'text-red-700' : 'text-amber-700'} mb-1">⚠️ P0 漏洞防护：直写奖励撤销检查</div>
+                    <div class="text-[10px] text-slate-600 mb-2">合约层 approveReturn 不会自动撤销直写奖励。必须先撤销/退回直写奖励，否则用户退货后仍可领走。</div>
+                    ${directRewards.map(dr => `
+                        <div class="bg-white bg-opacity-50 rounded p-2 mb-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] text-slate-600">直写奖励 #${dr.index}</span>
+                                <span class="text-[10px] font-mono">${dr.amount} ${order.payToken}</span>
+                            </div>
+                            <div class="flex items-center justify-between mt-1">
+                                <span class="text-[9px] text-slate-500">状态</span>
+                                <span class="text-[9px] ${dr.status === 'claimed' ? 'text-amber-600' : 'text-emerald-600'}">
+                                    ${dr.status === 'claimed' ? '⚠️ 已领取（需 returnReward 退回）' : '✓ 未领取（可 revokeReward 撤销）'}
+                                </span>
+                            </div>
+                            ${dr.status === 'claimed' && dr.returnedAmount < dr.amount ? `
+                                <button onclick="returnDirectReward('${order.refId}', ${dr.index})" class="btn-danger mt-1 text-[10px] py-1.5 w-full">退回直写奖励（returnReward）</button>
+                            ` : ''}
+                            ${!dr.revoked && dr.status !== 'claimed' ? `
+                                <button onclick="revokeDirectReward('${order.refId}', ${dr.index})" class="btn-secondary mt-1 text-[10px] py-1.5 w-full">撤销直写奖励（revokeReward）</button>
+                            ` : ''}
+                            ${dr.revoked || dr.returnedAmount >= dr.amount ? '<div class="text-[10px] text-emerald-600 mt-1">✓ 已处理</div>' : ''}
+                        </div>
+                    `).join('')}
+                    ${hasClaimedDirect ? '<div class="text-[10px] text-red-700 mt-2">❌ 存在已领取未退回的直写奖励，禁止 approveReturn</div>' : ''}
+                </div>
+            ` : ''}
+
+            <!-- 退货方式说明 -->
+            <div class="alert-info rounded-xl p-3 mb-3">
+                <div class="text-[10px] font-bold text-indigo-700 mb-1">📋 退货规则</div>
+                <div class="text-[10px] text-slate-600">• 合约仅支持整单退货，不支持部分退货</div>
+                <div class="text-[10px] text-slate-600">• 退货后码状态变 3，永久作废</div>
+                <div class="text-[10px] text-slate-600">• 退货不退 E 链关系</div>
+                <div class="text-[10px] text-slate-600">• teamPoints 不扣减（需矿工后台风控）</div>
+            </div>
+
+            <button onclick="submitReturn('${order.refId}')" class="btn-primary w-full" ${hasClaimedDirect ? 'disabled' : ''}>
+                ${hasClaimedDirect ? '禁止退货（先退回直写奖励）' : '提交退货申请'}
+            </button>
+        </div>
+    `;
+    openView('view-return');
+}
+
+function returnDirectReward(orderRefId, index) {
+    const order = MY_PURCHASES.find(o => o.refId === orderRefId);
+    const dr = order.directRewards[index];
+    dr.returnedAmount = dr.amount;
+    showToast('直写奖励已退回', '✓');
+    openReturn(orderRefId);
+}
+
+function revokeDirectReward(orderRefId, index) {
+    const order = MY_PURCHASES.find(o => o.refId === orderRefId);
+    const dr = order.directRewards[index];
+    dr.revoked = true;
+    showToast('直写奖励已撤销', '✓');
+    openReturn(orderRefId);
+}
+
+// 提交退货申请（对齐方案§二：主状态 created/return_rejected → return_requested）
+// 合约层：调用 returnRequest 触发 ReturnRequested 事件，主状态变为 return_requested
+function submitReturn(refId) {
+    const o = MY_PURCHASES.find(x => x.refId === refId);
+    if (!o) return;
+    // P0 校验：已领取未退回的直写奖励禁止提交
+    const hasClaimedDirect = (o.directRewards || []).some(dr => dr.status === 'claimed' && dr.returnedAmount < dr.amount);
+    if (hasClaimedDirect) {
+        showToast('请先退回已领取的直写奖励', '❌');
+        return;
+    }
+    // 主状态流转：created 或 return_rejected → return_requested
+    o.status = 'return_requested';
+    // 创建退货申请记录
+    o.returnRequest = {
+        codeId: (o.codeIds && o.codeIds[0]) || '',
+        time: new Date().toISOString().slice(0,16).replace('T',' '),
+        refundAmount: null,
+        reason: '用户主动申请',
+        open: true,
+    };
+    o.timeline.push({ time: o.returnRequest.time, event: '退货申请已提交（等待矿工审核）' });
+    showToast('退货申请已提交，等待矿工审核', '✅');
+    openOrderDetail(refId);
+}
+
+// ---------- 持有码 ----------
+let codesTab = 'all';
+function openMyCodes() {
+    codesTab = 'all';
+    renderMyCodes();
+    openView('view-my-codes');
+}
+
+function renderMyCodes() {
+    const view = document.getElementById('view-my-codes');
+    let list = MY_CODES.filter(c => c.codeStatus !== 0 && c.codeStatus !== 1);
+    if (codesTab === 'pending_redeem') list = MY_CODES.filter(c => c.businessStatus === 'pending_redeem');
+    if (codesTab === 'listed') list = MY_CODES.filter(c => c.businessStatus === 'listed');
+    if (codesTab === 'expired') list = MY_CODES.filter(c => c.codeStatus === 3);
+
+    const statusBadge = (c) => {
+        if (c.codeStatus === 3) return '<span class="badge-p0">已作废</span>';
+        if (c.businessStatus === 'listed') return '<span class="badge-warn">在售中</span>';
+        if (c.businessStatus === 'pending_redeem') return '<span class="badge-warn">待领取</span>';
+        if (c.businessStatus === 'redeemed') return '<span class="badge-success">已领取</span>';
+        return '<span class="badge-success">持有中</span>';
+    };
+
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openView('view-mall')" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">我的持有码</span>
+        </div>
+        <div class="px-3 py-2 flex gap-2 overflow-x-auto hide-scrollbar">
+            <button onclick="codesTab='all'; renderMyCodes()" class="tab-btn ${codesTab === 'all' ? 'active' : ''} text-xs font-bold px-3 py-1.5 whitespace-nowrap">全部</button>
+            <button onclick="codesTab='pending_redeem'; renderMyCodes()" class="tab-btn ${codesTab === 'pending_redeem' ? 'active' : ''} text-xs font-bold px-3 py-1.5 whitespace-nowrap">卡密待领</button>
+            <button onclick="codesTab='listed'; renderMyCodes()" class="tab-btn ${codesTab === 'listed' ? 'active' : ''} text-xs font-bold px-3 py-1.5 whitespace-nowrap">在售中</button>
+            <button onclick="codesTab='expired'; renderMyCodes()" class="tab-btn ${codesTab === 'expired' ? 'active' : ''} text-xs font-bold px-3 py-1.5 whitespace-nowrap">已作废</button>
+        </div>
+        <div class="p-3 space-y-2">
+            ${list.length === 0 ? '<div class="text-center text-slate-400 text-sm py-8">暂无持有码</div>' : list.map(c => `
+                <div class="bg-white rounded-xl p-3 card-shadow ${c.codeStatus === 3 ? 'opacity-60' : ''}">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${c.emoji}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <div class="text-sm font-bold truncate">${c.productName}</div>
+                                ${statusBadge(c)}
+                            </div>
+                            <div class="text-[9px] text-slate-400 font-mono mt-0.5">
+                                ${c.secretCode ? 'codeHash: ' : 'codeId: '}${c.codeId.slice(0, 18)}...
+                                <span onclick="copyText('${c.codeId}')" class="text-brand">复制</span>
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">来源: ${acquiredFromLabel(c.acquiredFrom)} · ${c.acquiredAt}</div>
+                            ${c.secretCode && c.realCode ? `
+                                <div class="bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2">
+                                    <div class="text-[9px] text-amber-700">真实卡密（链下获取）</div>
+                                    <div class="text-[10px] font-mono font-bold">${c.realCode}</div>
+                                    ${c.realCodeExpiresAt ? `<div class="text-[9px] text-amber-600 mt-0.5">有效期至 ${c.realCodeExpiresAt}</div>` : ''}
+                                </div>
+                            ` : ''}
+                            ${c.listing && c.listing.active ? `
+                                <div class="bg-purple-50 border border-purple-200 rounded-lg p-2 mt-2">
+                                    <div class="text-[9px] text-purple-700">挂单信息</div>
+                                    <div class="text-[10px] text-slate-700">挂单价: ${c.listing.price} ${c.listing.payToken} · ${c.listing.listedAt}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ${c.codeStatus === 2 ? `
+                        <div class="flex gap-2 mt-2 pt-2 border-t border-slate-100">
+                            ${c.businessStatus === 'pending_redeem' ? `
+                                <button onclick="redeemCode('${c.codeId}')" class="btn-primary flex-1 text-[10px] py-1.5">领取卡密</button>
+                            ` : ''}
+                            ${!c.listing || !c.listing.active ? `
+                                <button onclick="openListItem('${c.codeId}')" class="btn-secondary flex-1 text-[10px] py-1.5">挂单出售</button>
+                                <button onclick="openTransferItem('${c.codeId}')" class="btn-secondary flex-1 text-[10px] py-1.5">转赠</button>
+                            ` : `
+                                <button onclick="openCancelListing('${c.codeId}')" class="btn-danger flex-1 text-[10px] py-1.5">撤单</button>
+                            `}
+                            <button onclick="openCodeDetail('${c.codeId}')" class="btn-secondary text-[10px] py-1.5 px-3">流转</button>
+                        </div>
+                    ` : c.codeStatus === 3 ? `
+                        <div class="text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-100 text-center">码已永久作废（退货）</div>
+                        <button onclick="openCodeDetail('${c.codeId}')" class="btn-secondary text-[10px] py-1.5 w-full mt-1">查看流转历史</button>
+                    ` : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function acquiredFromLabel(from) {
+    return {purchase:'购买', transfer_in:'转入', gift_in:'赠入', resale:'二手购入'}[from] || from;
+}
+
+function openCodeDetail(codeId) {
+    // 跨模块跳转：持有码 → 流转历史
+    renderCodeHistory(codeId);
+    openView('view-code-history');
+}
+
+// 卡密领取流程（模拟链下 API 校验）
+function redeemCode(codeId) {
+    const code = MY_CODES.find(c => c.codeId === codeId);
+    if (!code || !code.secretCode) { showToast('非保密商品无卡密', '⚠️'); return; }
+
+    // 模拟链下 API 校验流程
+    showToast('链下 API 校验中...', '⏳');
+    setTimeout(() => {
+        // 1. 调 orderCodes(refId) 拿到 codeId 列表，校验 codeId 在列表中
+        // 2. 调 codeOwner(codeId) == buyer && codeStatus(codeId) == 2
+        // 3. 查 db.secret_codes where codeHash == codeId 拿到 realCode
+        code.realCode = 'ABCD-' + Math.random().toString(36).slice(2,6).toUpperCase() + '-EFGH-' + Date.now().toString().slice(-4);
+        code.businessStatus = 'redeemed';
+        showToast('卡密已领取（链下 API）', '✅');
+        // 弹出一次性展示
+        showRealCodeModal(code.realCode, code.realCodeExpiresAt);
+        renderMyCodes();
+    }, 1500);
+}
+
+function showRealCodeModal(realCode, expiresAt) {
+    // 复用通用遮罩弹窗
+    const overlay = document.createElement('div');
+    overlay.className = 'view';
+    overlay.style.cssText = 'position:absolute; top:0; left:0; right:0; bottom:0; z-index:60; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center;';
+    overlay.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 mx-6 w-full max-w-sm">
+            <div class="text-center">
+                <div class="text-3xl mb-2">🎫</div>
+                <div class="text-sm font-bold text-slate-900">卡密已领取</div>
+                <div class="text-[10px] text-red-500 mt-1">⚠️ 卡密仅展示一次，请立即保存</div>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3">
+                <div class="text-[9px] text-amber-700">真实卡密</div>
+                <div class="text-lg font-mono font-bold text-slate-900 break-all">${realCode}</div>
+                ${expiresAt ? `<div class="text-[10px] text-amber-600 mt-1">有效期至 ${expiresAt}</div>` : ''}
+            </div>
+            <div class="flex gap-2 mt-3">
+                <button onclick="copyText('${realCode}')" class="btn-secondary flex-1 text-xs py-2">复制</button>
+                <button onclick="this.closest('.view').remove()" class="btn-primary flex-1 text-xs py-2">我已保存</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+// ---------- 持有码流转历史 ----------
+function renderCodeHistory(codeId) {
+    const code = MY_CODES.find(c => c.codeId === codeId);
+    const view = document.getElementById('view-code-history');
+    if (!code) {
+        view.innerHTML = '<div class="p-8 text-center text-slate-400 text-sm">码不存在</div>';
+        return;
+    }
+    // 模拟流转记录（实际从 TradeLedger.ordersOfSku 拉取）
+    const history = [
+        { time: code.acquiredAt + ' 10:30', type: 'purchase', from: '0x71C7...D7e6', to: '0x71C7...D7e6', note: '购买 · refId ' + (code.refId || '').slice(0,12) },
+    ];
+    if (code.listing && code.listing.active) {
+        history.push({ time: code.listing.listedAt + ' 14:00', type: 'list', from: '', to: '', note: '挂单 · ' + code.listing.price + ' USDR' });
+    }
+
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openMyCodes()" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">流转历史</span>
+        </div>
+        <div class="p-3 space-y-3">
+            <!-- 码信息 -->
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${code.emoji}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-bold">${code.productName}</div>
+                        <div class="text-[9px] text-slate-400 font-mono break-all">${code.secretCode ? 'codeHash' : 'codeId'}: ${code.codeId.slice(0, 30)}...</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">获取时间: ${code.acquiredAt} · 来源: ${acquiredFromLabel(code.acquiredFrom)}</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 流转记录 -->
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-2">📋 流转记录</div>
+                ${history.map((h, i) => {
+                    const isLast = i === history.length - 1;
+                    const icon = {purchase:'💎', list:'📌', transfer:'📤', gift:'🎀', resale:'🛒'}[h.type] || '·';
+                    return `
+                        <div class="flex items-start gap-2 ${isLast ? '' : 'mb-3'}">
+                            <div class="w-2 h-2 rounded-full ${isLast ? 'bg-brand' : 'bg-slate-300'} mt-1.5"></div>
+                            <div class="flex-1">
+                                <div class="text-[10px] font-bold text-slate-700">${icon} ${h.note}</div>
+                                <div class="text-[9px] text-slate-400">${h.time}</div>
+                                ${h.from ? `<div class="text-[9px] text-slate-400 font-mono">${h.type === 'transfer' || h.type === 'resale' ? '← ' + h.from : 'from ' + h.from}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            <!-- 当前状态 -->
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-1">📊 当前状态</div>
+                <div class="text-xs text-slate-700">codeStatus: ${code.codeStatus} (${['未设','可售','已售','已退'][code.codeStatus]})</div>
+                <div class="text-xs text-slate-700 mt-0.5">businessStatus: ${code.businessStatus}</div>
+                ${code.listing && code.listing.active ? `<div class="text-xs text-purple-600 mt-0.5">挂单中: ${code.listing.price} ${code.listing.payToken}</div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// ---------- 流转市场 ----------
+let resaleTab = 'market';
+function openResale() {
+    resaleTab = 'market';
+    renderResale();
+    openView('view-resale');
+}
+
+function renderResale() {
+    const view = document.getElementById('view-resale');
+    const myListings = MY_CODES.filter(c => c.listing && c.listing.active);
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openView('view-mall')" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">流转市场</span>
+        </div>
+        <div class="px-3 py-2 flex gap-2">
+            <button onclick="resaleTab='market'; renderResale()" class="tab-btn ${resaleTab === 'market' ? 'active' : ''} text-xs font-bold px-3 py-1.5">市场大厅</button>
+            <button onclick="resaleTab='mine'; renderResale()" class="tab-btn ${resaleTab === 'mine' ? 'active' : ''} text-xs font-bold px-3 py-1.5">我的挂单</button>
+            <button onclick="resaleTab='trades'; renderResale()" class="tab-btn ${resaleTab === 'trades' ? 'active' : ''} text-xs font-bold px-3 py-1.5">交易记录</button>
+        </div>
+        <div class="p-3">
+            ${resaleTab === 'market' ? renderMarketList() : ''}
+            ${resaleTab === 'mine' ? renderMyListings(myListings) : ''}
+            ${resaleTab === 'trades' ? renderTrades() : ''}
+        </div>
+    `;
+}
+
+function renderMarketList() {
+    if (RESALE_LISTINGS.length === 0) return '<div class="text-center text-slate-400 text-sm py-8">暂无在售商品</div>';
+    return RESALE_LISTINGS.map(l => {
+        const p = PRODUCTS.find(x => x.id === l.productId);
+        const fee = l.price * p.resaleFeeBps / 10000;
+        const toSeller = l.price - fee;
+        return `
+            <div class="bg-white rounded-xl p-3 card-shadow mb-2">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${p.emoji}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-bold">${p.name}</div>
+                        <div class="text-[10px] text-slate-400">卖家: ${l.sellerName} (${l.seller})</div>
+                        <div class="text-[9px] text-slate-400 font-mono">codeId: ${l.codeId.slice(0,18)}...</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">挂单时间: ${l.listedAt}</div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2 mt-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-500">挂单价</span>
+                        <span class="font-mono font-bold">${l.price} ${l.payToken}</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] mt-1">
+                        <span class="text-slate-500">手续费 (${p.resaleFeeBps/100}%)</span>
+                        <span class="font-mono text-red-500">-${fee.toFixed(2)}</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] mt-1 pt-1 border-t border-slate-200">
+                        <span class="text-slate-500">卖家到手</span>
+                        <span class="font-mono text-emerald-600">${toSeller.toFixed(2)}</span>
+                    </div>
+                </div>
+                <button onclick="openBuyListed('${l.codeId}')" class="btn-primary mt-2 text-xs py-2 w-full">立即购买</button>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderMyListings(myListings) {
+    if (myListings.length === 0) return '<div class="text-center text-slate-400 text-sm py-8">暂无挂单<br><button onclick="openMyCodes()" class="text-brand text-xs mt-2">去持有码挂单</button></div>';
+    return myListings.map(c => {
+        const p = PRODUCTS.find(x => x.id === c.productId);
+        const fee = c.listing.price * p.resaleFeeBps / 10000;
+        const toSeller = c.listing.price - fee;
+        return `
+            <div class="bg-white rounded-xl p-3 card-shadow mb-2">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${c.emoji}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-bold">${c.productName}</div>
+                        <div class="text-[9px] text-slate-400 font-mono">codeId: ${c.codeId.slice(0,18)}...</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">挂单时间: ${c.listing.listedAt}</div>
+                    </div>
+                    <span class="badge-warn">在售中</span>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2 mt-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-500">挂单价</span>
+                        <span class="font-mono font-bold">${c.listing.price} ${c.listing.payToken}</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] mt-1">
+                        <span class="text-slate-500">手续费</span>
+                        <span class="font-mono text-red-500">-${fee.toFixed(2)}</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] mt-1 pt-1 border-t border-slate-200">
+                        <span class="text-slate-500">到手</span>
+                        <span class="font-mono text-emerald-600">${toSeller.toFixed(2)}</span>
+                    </div>
+                </div>
+                <button onclick="openCancelListing('${c.codeId}')" class="btn-danger w-full mt-2 text-xs py-2">撤单</button>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderTrades() {
+    if (RESALE_TRADES.length === 0) return '<div class="text-center text-slate-400 text-sm py-8">暂无交易记录</div>';
+    return RESALE_TRADES.map(t => `
+        <div class="bg-white rounded-xl p-3 card-shadow mb-2">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${t.emoji}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold">${t.productName}</span>
+                        <span class="${t.type === 'sell' ? 'text-amber-600' : 'text-emerald-600'} text-[10px] font-bold">${t.type === 'sell' ? '📤 卖出' : '📥 买入'}</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">${t.counterparty}</div>
+                    <div class="text-[9px] text-slate-400 font-mono">codeId: ${t.codeId.slice(0,18)}... · txHash: ${t.txHash.slice(0,12)}... <span onclick="copyText('${t.txHash}')" class="text-brand">复制</span></div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">${t.time}</div>
+                </div>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-2 mt-2">
+                <div class="flex justify-between text-xs">
+                    <span class="text-slate-500">成交价</span>
+                    <span class="font-mono">${t.price} ${t.payToken}</span>
+                </div>
+                ${t.fee > 0 ? `
+                    <div class="flex justify-between text-[10px] mt-1">
+                        <span class="text-slate-500">手续费</span>
+                        <span class="font-mono text-red-500">-${t.fee}</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] mt-1 pt-1 border-t border-slate-200">
+                        <span class="text-slate-500">${t.type === 'sell' ? '到手' : '实付'}</span>
+                        <span class="font-mono ${t.type === 'sell' ? 'text-emerald-600' : 'text-brand'}">${t.type === 'sell' ? t.toSeller : t.price}</span>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// ---------- 挂单表单 ----------
+let listingPendingCodeId = null;
+function openListItem(codeId) {
+    listingPendingCodeId = codeId;
+    const c = MY_CODES.find(x => x.codeId === codeId);
+    if (!c) return;
+    const p = PRODUCTS.find(x => x.id === c.productId);
+    const view = document.getElementById('view-list-item');
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openMyCodes()" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">挂单出售</span>
+        </div>
+        <div class="p-3 space-y-3">
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-1">📦 挂单商品</div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${c.emoji}</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-bold">${c.productName}</div>
+                        <div class="text-[10px] text-slate-400 font-mono">codeId: ${c.codeId.slice(0,20)}...</div>
+                        <div class="text-[10px] text-slate-400">原购价: ${p.price} USDR</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-2">💰 定价</div>
+                <div class="mb-2">
+                    <label class="text-[10px] text-slate-500 font-bold block mb-1">支付代币</label>
+                    <select id="list-pay-token" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg">
+                        <option value="USDR">USDR</option>
+                        <option value="USDT">USDT</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] text-slate-500 font-bold block mb-1">挂单价</label>
+                    <input type="number" id="list-price" value="${p.price}" oninput="updateListingPreview()" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-mono">
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2 mt-2" id="listing-preview"></div>
+            </div>
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-1">📋 链上调用预览</div>
+                <div class="text-[10px] font-mono text-slate-600">① listItem(codeId, payToken, priceAmount)</div>
+                <div class="text-[9px] text-slate-400 mt-0.5">涉及合约: GoodsMarket</div>
+                <div class="text-[9px] text-slate-400">调用钱包: 0x71C7...D7e6</div>
+            </div>
+            <button onclick="submitListItem()" class="btn-primary w-full text-xs py-2">确认挂单</button>
+        </div>
+    `;
+    updateListingPreview();
+    openView('view-list-item');
+}
+
+function updateListingPreview() {
+    const price = parseFloat(document.getElementById('list-price').value) || 0;
+    const c = MY_CODES.find(x => x.codeId === listingPendingCodeId);
+    if (!c) return;
+    const p = PRODUCTS.find(x => x.id === c.productId);
+    const fee = price * p.resaleFeeBps / 10000;
+    const toSeller = price - fee;
+    const profit = toSeller - p.price;
+    const el = document.getElementById('listing-preview');
+    if (!el) return;
+    el.innerHTML = `
+        <div class="text-[10px] font-bold text-slate-700 mb-1">手续费预览</div>
+        <div class="flex justify-between text-[10px]">
+            <span class="text-slate-500">商品配置</span>
+            <span>${p.resaleFeeBps/100}% (resaleFeeBps=${p.resaleFeeBps})</span>
+        </div>
+        <div class="flex justify-between text-[10px] mt-1">
+            <span class="text-slate-500">手续费</span>
+            <span class="font-mono text-red-500">-${fee.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between text-[10px] mt-1">
+            <span class="text-slate-500">您的到手</span>
+            <span class="font-mono text-emerald-600">${toSeller.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between text-[10px] mt-1 pt-1 border-t border-slate-200">
+            <span class="text-slate-500">利润</span>
+            <span class="font-mono ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}">${profit >= 0 ? '+' : ''}${profit.toFixed(2)}</span>
+        </div>
+    `;
+}
+
+function submitListItem() {
+    const price = parseFloat(document.getElementById('list-price').value);
+    const payToken = document.getElementById('list-pay-token').value;
+    if (!price || price <= 0) { showToast('请输入有效价格', '⚠️'); return; }
+    const c = MY_CODES.find(x => x.codeId === listingPendingCodeId);
+    if (!c) return;
+    showToast('签名广播中...', '⏳');
+    setTimeout(() => {
+        c.listing = { payToken, price, active: true, listedAt: new Date().toISOString().slice(0,10) };
+        c.businessStatus = 'listed';
+        RESALE_LISTINGS.push({
+            codeId: c.codeId, productId: c.productId,
+            seller: '#100068', sellerName: '我',
+            payToken, price, active: true, listedAt: new Date().toISOString().slice(0,10),
+        });
+        showToast('挂单成功', '✅');
+        openMyCodes();
+    }, 1500);
+}
+
+// ---------- 购买确认弹窗 ----------
+let buyPendingCodeId = null;
+function openBuyListed(codeId) {
+    buyPendingCodeId = codeId;
+    const l = RESALE_LISTINGS.find(x => x.codeId === codeId);
+    if (!l) return;
+    const p = PRODUCTS.find(x => x.id === l.productId);
+    const fee = l.price * p.resaleFeeBps / 10000;
+    const toSeller = l.price - fee;
+    const body = document.getElementById('buy-listed-body');
+    body.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <div class="text-sm font-bold">确认购买</div>
+            <button onclick="closeBuyListed()" class="text-slate-400 text-lg">✕</button>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3 mb-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${p.emoji}</div>
+                <div class="flex-1">
+                    <div class="text-sm font-bold">${p.name}</div>
+                    <div class="text-[10px] text-slate-400">卖家: ${l.sellerName} (${l.seller})</div>
+                    <div class="text-[9px] text-slate-400 font-mono">codeId: ${l.codeId.slice(0,18)}...</div>
+                </div>
+            </div>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3 mb-3">
+            <div class="text-[9px] text-slate-500 mb-1">💰 支付明细</div>
+            <div class="flex justify-between text-xs">
+                <span class="text-slate-500">挂单价</span>
+                <span class="font-mono">${l.price} ${l.payToken}</span>
+            </div>
+            <div class="flex justify-between text-[10px] mt-1">
+                <span class="text-slate-500">手续费 (${p.resaleFeeBps/100}%)</span>
+                <span class="font-mono text-red-500">${fee.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between text-xs mt-1 pt-1 border-t border-slate-200">
+                <span class="font-bold text-slate-700">实付</span>
+                <span class="font-mono font-bold text-brand">${l.price} ${l.payToken}</span>
+            </div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
+            <div class="text-[10px] font-bold text-amber-700 mb-1">⚠️ 需先授权 GoodsMarket 合约扣款</div>
+            <div class="text-[10px] text-slate-600">授权金额: ${l.price} ${l.payToken}</div>
+            <div class="text-[10px] text-slate-600">当前授权: 0 ${l.payToken}</div>
+            <button onclick="approveForBuy()" class="btn-secondary mt-2 text-[10px] py-1.5 w-full">一键授权</button>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3 mb-3">
+            <div class="text-[9px] text-slate-500 mb-1">📋 链上调用预览</div>
+            <div class="text-[10px] font-mono text-slate-600">① approve(${l.payToken}, GoodsMarket, ${l.price})</div>
+            <div class="text-[10px] font-mono text-slate-600 mt-0.5">② buyListed(codeId)</div>
+            <div class="text-[9px] text-slate-400 mt-1">- transferFrom(买家→卖家, ${toSeller.toFixed(2)})</div>
+            <div class="text-[9px] text-slate-400">- transferFrom(买家→treasury, ${fee.toFixed(2)})</div>
+            <div class="text-[9px] text-slate-400">- 码从卖家→买家</div>
+            <div class="text-[9px] text-slate-400 mt-1">钱包余额: 2400 ${l.payToken}</div>
+        </div>
+        <button onclick="submitBuyListed()" class="btn-primary w-full text-xs py-2">确认购买</button>
+    `;
+    document.getElementById('view-buy-listed').style.display = 'flex';
+}
+
+function closeBuyListed() {
+    document.getElementById('view-buy-listed').style.display = 'none';
+    buyPendingCodeId = null;
+}
+
+function approveForBuy() { showToast('授权成功', '✓'); }
+
+function submitBuyListed() {
+    const l = RESALE_LISTINGS.find(x => x.codeId === buyPendingCodeId);
+    if (!l) return;
+    const p = PRODUCTS.find(x => x.id === l.productId);
+    const fee = l.price * p.resaleFeeBps / 10000;
+    const toSeller = l.price - fee;
+    showToast('签名广播中...', '⏳');
+    setTimeout(() => {
+        l.active = false;
+        RESALE_LISTINGS = RESALE_LISTINGS.filter(x => x.codeId !== buyPendingCodeId);
+        MY_CODES.push({
+            codeId: l.codeId, productId: l.productId, productName: p.name, emoji: p.emoji,
+            productType: p.category, secretCode: p.secretCode,
+            codeStatus: 2, businessStatus: p.secretCode ? 'pending_redeem' : 'active',
+            acquiredAt: new Date().toISOString().slice(0,10), acquiredFrom: 'resale', acquiredFromAddr: '',
+            refId: '', realCode: null, realCodeExpiresAt: null, listing: null,
+            actions: p.secretCode ? ['redeem', 'view_history'] : ['list', 'transfer', 'view_history'],
+        });
+        RESALE_TRADES.unshift({
+            type: 'buy', codeId: l.codeId, productName: p.name, emoji: p.emoji,
+            counterparty: l.sellerName + ' (' + l.seller + ')', counterpartyAddr: l.seller,
+            price: l.price, fee: fee, toSeller: toSeller, payToken: l.payToken,
+            time: new Date().toISOString().slice(0,16).replace('T',' '),
+            txHash: '0x' + Math.random().toString(16).slice(2, 14) + '...',
+        });
+        closeBuyListed();
+        showToast('购买成功', '✅');
+        renderResale();
+    }, 1500);
+}
+
+// ---------- 转赠表单 ----------
+let transferItemCodeId = null;
+function openTransferItem(codeId) {
+    transferItemCodeId = codeId;
+    const c = MY_CODES.find(x => x.codeId === codeId);
+    if (!c) return;
+    const p = PRODUCTS.find(x => x.id === c.productId);
+    const view = document.getElementById('view-transfer-item');
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openMyCodes()" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">转赠商品</span>
+        </div>
+        <div class="p-3 space-y-3">
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-1">📦 转赠商品</div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${c.emoji}</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-bold">${c.productName}</div>
+                        <div class="text-[10px] text-slate-400 font-mono">codeId: ${c.codeId.slice(0,20)}...</div>
+                        <div class="text-[10px] text-slate-400">原购价: ${p.price} USDR</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-2">👤 接收方</div>
+                <label class="text-[10px] text-slate-500 font-bold block mb-1">接收地址</label>
+                <div class="flex gap-2">
+                    <input type="text" id="transfer-addr-input" placeholder="0x..." class="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-lg font-mono">
+                    <button onclick="scanTransferAddr()" class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-base">📷</button>
+                </div>
+                <div class="text-[9px] text-slate-400 mt-1">输入接收方钱包地址，或扫码识别</div>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <div class="text-[10px] font-bold text-blue-700 mb-1">⚠️ 转赠须知</div>
+                <div class="text-[10px] text-slate-600">· 直转无手续费（transferItem）</div>
+                <div class="text-[10px] text-slate-600">· 转赠后码所有权归对方，不可撤销</div>
+                <div class="text-[10px] text-slate-600">· 转赠不触发分润，不触发归因</div>
+            </div>
+            <div class="bg-white rounded-xl p-3 card-shadow">
+                <div class="text-[9px] text-slate-400 mb-1">📋 链上调用预览</div>
+                <div class="text-[10px] font-mono text-slate-600">① transferItem(codeId, 接收地址)</div>
+                <div class="text-[9px] text-slate-400 mt-0.5">涉及合约: GoodsMarket</div>
+            </div>
+            <button onclick="submitTransferItem()" class="btn-primary w-full text-xs py-2">确认转赠</button>
+        </div>
+    `;
+    openView('view-transfer-item');
+}
+
+function scanTransferAddr() {
+    showToast('扫码识别中...', '📷');
+    setTimeout(() => {
+        document.getElementById('transfer-addr-input').value = '0x9e3f5A7b9c1D2e3F4a5B6c7D8e9F0a1B2c3D4e5F';
+        showToast('已识别地址', '✓');
+    }, 1200);
+}
+
+function submitTransferItem() {
+    const addr = document.getElementById('transfer-addr-input').value.trim();
+    if (!addr) { showToast('请输入接收地址', '⚠️'); return; }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) { showToast('地址格式不正确', '⚠️'); return; }
+    showToast('签名广播中...', '⏳');
+    setTimeout(() => {
+        MY_CODES = MY_CODES.filter(c => c.codeId !== transferItemCodeId);
+        showToast('转赠成功', '🎁');
+        openMyCodes();
+    }, 1500);
+}
+
+// ---------- 撤单确认弹窗 ----------
+let cancelCodeId = null;
+function openCancelListing(codeId) {
+    cancelCodeId = codeId;
+    const c = MY_CODES.find(x => x.codeId === codeId);
+    if (!c || !c.listing) return;
+    const body = document.getElementById('cancel-listing-body');
+    body.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <div class="text-sm font-bold">确认撤单</div>
+            <button onclick="closeCancelListing()" class="text-slate-400 text-lg">✕</button>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3 mb-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 product-img-fade rounded-lg flex items-center justify-center text-xl">${c.emoji}</div>
+                <div class="flex-1">
+                    <div class="text-sm font-bold">${c.productName}</div>
+                    <div class="text-[10px] text-slate-400">挂单价: ${c.listing.price} ${c.listing.payToken}</div>
+                    <div class="text-[10px] text-slate-400">挂单时间: ${c.listing.listedAt}</div>
+                </div>
+            </div>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+            <div class="text-[10px] font-bold text-blue-700 mb-1">⚠️ 撤单说明</div>
+            <div class="text-[10px] text-slate-600">· 撤单后码回到持有中状态，可再次挂单或转赠</div>
+            <div class="text-[10px] text-slate-600">· 撤单不收取费用</div>
+            <div class="text-[10px] text-slate-600">· 撤单不改变码的 codeStatus</div>
+        </div>
+        <div class="bg-white rounded-xl p-3 mb-3">
+            <div class="text-[9px] text-slate-400 mb-1">📋 链上调用预览</div>
+            <div class="text-[10px] font-mono text-slate-600">① cancelListing(codeId)</div>
+            <div class="text-[9px] text-slate-400 mt-0.5">涉及合约: GoodsMarket</div>
+        </div>
+        <button onclick="submitCancelListing()" class="btn-danger w-full text-xs py-2">确认撤单</button>
+    `;
+    document.getElementById('view-cancel-listing').style.display = 'flex';
+}
+
+function closeCancelListing() {
+    document.getElementById('view-cancel-listing').style.display = 'none';
+    cancelCodeId = null;
+}
+
+function submitCancelListing() {
+    const c = MY_CODES.find(x => x.codeId === cancelCodeId);
+    if (!c) return;
+    showToast('签名广播中...', '⏳');
+    setTimeout(() => {
+        c.listing = null;
+        c.businessStatus = 'active';
+        RESALE_LISTINGS = RESALE_LISTINGS.filter(x => x.codeId !== cancelCodeId);
+        closeCancelListing();
+        showToast('撤单成功', '✓');
+        renderResale();
+    }, 1500);
+}
+
+// ==================== 短号中心 ====================
+
+function openShortCenter() {
+    renderShortCenter();
+    openView('view-short-center');
+}
+
+// 同步更新商城首页短号入口（当前为简单入口卡片，无需同步展示内容）
+function updateMallShortCard() {
+    // 入口卡片样式固定，切换展示短号时无需更新首页
+}
+
+function renderShortCenter() {
+    const view = document.getElementById('view-short-center');
+    view.innerHTML = `
+        <!-- Header -->
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openView('view-mall')" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">短号中心</span>
+            <button onclick="openHistoryModal()" class="ml-auto w-8 h-8 rounded-lg flex items-center justify-center text-base active-scale" title="操作记录">📋</button>
+        </div>
+
+        <!-- 说明区 -->
+        <div class="px-3 pt-3">
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+                <div class="text-[10px] text-indigo-700 font-bold mb-1">📋 短号说明</div>
+                <div class="text-[9px] text-slate-600 leading-relaxed">
+                    · 短号按网络隔离，仅展示当前地址所属链(OBChain)的短号<br>
+                    · 💎 靓号支持跨链付款（OBChain/Ethereum/Arbitrum）<br>
+                    · 一个身份可绑定多个短号，同一时间仅一个设为展示<br>
+                    · 已绑定短号不可删除，切换展示不影响链上绑定关系
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 切换 -->
+        <div class="px-3 pt-3">
+            <div class="bg-white rounded-xl p-1 flex gap-1 card-shadow">
+                <button onclick="switchShortTab('premium')" id="short-tab-premium" class="flex-1 py-2 rounded-lg text-xs font-bold transition ${shortManageTab==='premium'?'gradient-brand text-white':'text-slate-500'}">💎 购买靓号</button>
+                <button onclick="switchShortTab('free')" id="short-tab-free" class="flex-1 py-2 rounded-lg text-xs font-bold transition ${shortManageTab==='free'?'gradient-brand text-white':'text-slate-500'}">🎁 免费号</button>
+                <button onclick="switchShortTab('my')" id="short-tab-my" class="flex-1 py-2 rounded-lg text-xs font-bold transition ${shortManageTab==='my'?'gradient-brand text-white':'text-slate-500'}">💾 我的短号</button>
+            </div>
+        </div>
+
+        <!-- 内容区 -->
+        <div id="short-content" class="p-3"></div>
+        <div class="h-4"></div>
+    `;
+    // 渲染当前 Tab 内容
+    if (shortManageTab === 'my') renderShortMyList();
+    else if (shortManageTab === 'premium') renderPremiumTab();
+    else if (shortManageTab === 'free') renderFreeTab();
+}
+
+function switchShortTab(tab) {
+    shortManageTab = tab;
+    // 更新按钮样式
+    ['my','premium','free'].forEach(t => {
+        const el = document.getElementById('short-tab-' + t);
+        if (el) el.className = 'flex-1 py-2 rounded-lg text-xs font-bold transition ' + (t===tab ? 'gradient-brand text-white' : 'text-slate-500');
+    });
+    // 渲染内容
+    if (tab === 'my') renderShortMyList();
+    else if (tab === 'premium') renderPremiumTab();
+    else if (tab === 'free') renderFreeTab();
+}
+
+// ---------- Tab1: 我的短号 ----------
+function renderShortMyList() {
+    const container = document.getElementById('short-content');
+    if (myShortNumbers.length === 0) {
+        container.innerHTML = '<div class="text-center py-12 text-slate-400 text-xs">暂无短号，请购买或领取</div>';
+        return;
+    }
+    container.innerHTML = myShortNumbers.map(s => {
+        const isPremium = s.type === 'premium';
+        const badgeClass = isPremium ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200';
+        const icon = isPremium ? '💎' : '🎁';
+        // 展示中短号不可转移/赠送（需先切换展示到其他短号）
+        const canTransfer = !s.isDisplaying;
+        return `
+            <div class="bg-white rounded-xl p-3 card-shadow mb-2 ${s.isDisplaying ? 'ring-2 ring-brand' : ''}">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl ${isPremium ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-slate-100'} flex items-center justify-center text-lg">${icon}</div>
+                        <div>
+                            <div class="text-base font-bold font-mono text-slate-900">${s.number}</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="px-1.5 py-0.5 ${badgeClass} border rounded text-[9px] font-bold">${s.subType}</span>
+                                <span class="text-[9px] text-slate-400">${s.acquiredAt}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        ${s.isDisplaying ? '<span class="badge-success">✓ 展示中</span>' : '<button onclick="switchDisplayCode(\'' + s.number + '\')" class="text-[10px] text-brand font-bold active-scale">设为展示</button>'}
+                    </div>
+                </div>
+                ${canTransfer ? `
+                    <div class="flex gap-2 mt-2 pt-2 border-t border-slate-100">
+                        <button onclick="openTransferModal('${s.number}')" class="flex-1 py-1.5 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-lg active-scale">📤 转移</button>
+                        <button onclick="openGiftModal('${s.number}')" class="flex-1 py-1.5 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-lg active-scale">🎁 赠送</button>
+                    </div>
+                ` : '<div class="text-[8px] text-slate-300 mt-2 pt-2 border-t border-slate-100 text-center">展示中短号不可转移/赠送，请先切换展示</div>'}
+            </div>
+        `;
+    }).join('');
+}
+
+function switchDisplayCode(number) {
+    myShortNumbers.forEach(s => { s.isDisplaying = (s.number === number); });
+    renderShortMyList();
+    updateMallShortCard();
+    showToast('已切换展示短号 ' + number, '✓');
+}
+
+// ---------- Tab2: 购买靓号 ----------
+function renderPremiumTab() {
+    const container = document.getElementById('short-content');
+    container.innerHTML = `
+        <!-- 位数筛选 -->
+        <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+            <div class="text-[10px] font-bold text-slate-700 mb-2">位数筛选</div>
+            <div class="flex gap-2">
+                ${[5,6,7,8].map(d => `
+                    <button onclick="selectDigitLen(${d})" class="flex-1 py-2 rounded-lg text-xs font-bold ${selectedDigitLength===d?'gradient-brand text-white':'bg-slate-100 text-slate-600'}">${d}位</button>
+                `).join('')}
+            </div>
+        </div>
+
+        <!-- 自助查价 -->
+        <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+            <div class="text-[10px] font-bold text-slate-700 mb-2">自助查价</div>
+            <div class="flex gap-2">
+                <input type="text" id="premium-search-input" placeholder="输入 5-8 位数字" class="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-lg font-mono focus:border-brand focus:outline-none">
+                <button onclick="searchPremiumNumber()" class="px-4 py-2 gradient-brand text-white text-xs font-bold rounded-lg">查价</button>
+            </div>
+            <div id="premium-search-result" class="mt-2"></div>
+        </div>
+
+        <!-- 随机推荐 -->
+        <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-bold text-slate-700">随机推荐</span>
+                <button onclick="triggerRandomNumbers()" class="text-[10px] text-brand font-bold">换一批 ↻</button>
+            </div>
+            <div id="premium-random-list" class="grid grid-cols-2 gap-2"></div>
+        </div>
+
+        <!-- 定价规则 -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+            <div class="text-[10px] font-bold text-indigo-700 mb-1">💎 靓号定价规则</div>
+            <div class="text-[9px] text-slate-600 leading-relaxed">
+                基价：5位=1000 / 6位=900 / 7位=810 / 8位=729 USDT（每多一位×0.9）<br>
+                倍率：豹子号×50 / 顺子号×20 / 四连同×10 / 葫芦号×8 / 双对子×5 / 吉尾号×3 / 普通×1
+            </div>
+        </div>
+    `;
+    triggerRandomNumbers();
+}
+
+function selectDigitLen(d) {
+    selectedDigitLength = d;
+    renderPremiumTab();
+}
+
+// 靓号判定与定价
+function analyzeNumberPattern(num) {
+    const digits = num.split('').map(Number);
+    const len = digits.length;
+    const basePrice = Math.round(1000 * Math.pow(0.9, len - 5));
+
+    // 豹子号：全部相同
+    if (digits.every(d => d === digits[0])) return { type: '豹子号', multiplier: 50, price: basePrice * 50 };
+
+    // 顺子号：严格递增或递减
+    let isAsc = true, isDesc = true;
+    for (let i = 1; i < digits.length; i++) {
+        if (digits[i] !== digits[i-1] + 1) isAsc = false;
+        if (digits[i] !== digits[i-1] - 1) isDesc = false;
+    }
+    if (isAsc || isDesc) return { type: '顺子号', multiplier: 20, price: basePrice * 20 };
+
+    // 四连同
+    for (let i = 0; i <= digits.length - 4; i++) {
+        if (digits[i]===digits[i+1] && digits[i+1]===digits[i+2] && digits[i+2]===digits[i+3])
+            return { type: '四连同', multiplier: 10, price: basePrice * 10 };
+    }
+
+    // 葫芦号：三连+对（频次 [3,2]）
+    const freq = {};
+    digits.forEach(d => freq[d] = (freq[d]||0)+1);
+    const counts = Object.values(freq).sort((a,b)=>b-a);
+    if (counts[0]===3 && counts[1]===2) return { type: '葫芦号', multiplier: 8, price: basePrice * 8 };
+
+    // 双对子：至少两对
+    const pairCount = counts.filter(c => c === 2).length;
+    if (pairCount >= 2) return { type: '双对子', multiplier: 5, price: basePrice * 5 };
+
+    // 吉尾号：尾数为 6/8/66/88
+    const last = digits.slice(-1)[0];
+    const last2 = digits.slice(-2);
+    if ((last2.length===2 && last2[0]===6 && last2[1]===6) || (last2.length===2 && last2[0]===8 && last2[1]===8))
+        return { type: '吉尾号', multiplier: 3, price: basePrice * 3 };
+    if (last===6 || last===8) return { type: '吉尾号', multiplier: 3, price: basePrice * 3 };
+
+    return { type: '普通号', multiplier: 1, price: basePrice };
+}
+
+function searchPremiumNumber() {
+    const input = document.getElementById('premium-search-input');
+    const val = input.value.trim();
+    if (!/^\d{5,8}$/.test(val)) { showToast('请输入 5-8 位纯数字', '⚠️'); return; }
+    const result = analyzeNumberPattern(val);
+    const resultEl = document.getElementById('premium-search-result');
+    const badgeClass = result.multiplier > 1 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200';
+    resultEl.innerHTML = `
+        <div class="flex items-center justify-between bg-slate-50 rounded-lg p-2 mt-2">
+            <div>
+                <span class="text-sm font-bold font-mono">#${val}</span>
+                <span class="px-1.5 py-0.5 ${badgeClass} border rounded text-[9px] font-bold ml-2">${result.type}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-mono font-bold text-brand">${result.price} USDT</span>
+                <button onclick="openShortPayModal('#${val}', '${result.type}', ${result.price})" class="px-3 py-1.5 gradient-brand text-white text-[10px] font-bold rounded-lg">立即购买</button>
+            </div>
+        </div>
+    `;
+}
+
+function triggerRandomNumbers() {
+    const list = document.getElementById('premium-random-list');
+    if (!list) return;
+    const candidates = [];
+    for (let i = 0; i < 8; i++) {
+        let num = '';
+        for (let j = 0; j < selectedDigitLength; j++) num += Math.floor(Math.random()*10);
+        // 10% 豹子 / 10% 顺子 / 20% 吉尾 / 20% 双对子 / 40% 普通
+        const r = Math.random();
+        if (r < 0.1) { const d = Math.floor(Math.random()*10); num = String(d).repeat(selectedDigitLength); }
+        else if (r < 0.2) { const start = Math.floor(Math.random()*(10-selectedDigitLength)); num = ''; for (let j=0;j<selectedDigitLength;j++) num += (start+j); }
+        else if (r < 0.4) { num = num.slice(0,-1) + (Math.random()<0.5?'6':'8'); }
+        const result = analyzeNumberPattern(num);
+        candidates.push({ num, ...result });
+    }
+    list.innerHTML = candidates.map(c => {
+        const isHot = c.multiplier >= 10;
+        const badgeClass = c.multiplier > 1 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200';
+        return `
+            <div class="bg-slate-50 rounded-lg p-2 text-center ${isHot?'ring-1 ring-amber-300':''}">
+                <div class="text-sm font-bold font-mono">#${c.num}</div>
+                <span class="px-1 py-0.5 ${badgeClass} border rounded text-[8px] font-bold mt-1 inline-block">${c.type}</span>
+                <div class="text-[10px] font-mono text-brand font-bold mt-1">${c.price} USDT</div>
+                <button onclick="openShortPayModal('#${c.num}', '${c.type}', ${c.price})" class="mt-1 px-2 py-1 gradient-brand text-white text-[9px] font-bold rounded">购买</button>
+            </div>
+        `;
+    }).join('');
+}
+
+// ---------- Tab3: 免费号 ----------
+function renderFreeTab() {
+    const container = document.getElementById('short-content');
+    // 检查是否已领取免费号
+    const claimed = myShortNumbers.find(s => s.type === 'free');
+    if (claimed) {
+        container.innerHTML = `
+            <div class="bg-white rounded-xl p-4 card-shadow text-center">
+                <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl mx-auto mb-2">🎁</div>
+                <div class="text-sm font-bold text-slate-900 mb-1">已领取免费号</div>
+                <div class="text-lg font-bold font-mono text-brand mb-1">${claimed.number}</div>
+                <div class="text-[10px] text-slate-400">领取于 ${claimed.acquiredAt}</div>
+                <span class="badge-info mt-2 inline-block">每身份限领 1 个</span>
+            </div>
+        `;
+        return;
+    }
+    // 生成候选
+    if (shortFreeCandidates.length === 0) {
+        shortFreeCandidates = [];
+        for (let i = 0; i < 10; i++) {
+            const len = 10 + Math.floor(Math.random()*3);
+            let num = '';
+            for (let j = 0; j < len; j++) num += Math.floor(Math.random()*10);
+            shortFreeCandidates.push({ number: num, length: len });
+        }
+    }
+    container.innerHTML = `
+        <div class="bg-white rounded-xl p-3 card-shadow mb-3">
+            <div class="text-[10px] font-bold text-slate-700 mb-2">免费号候选（10-12 位随机）</div>
+            <div class="text-[9px] text-slate-400 mb-2">每个身份仅可免费领取 1 个短号，领取后不可更换</div>
+            <div class="grid grid-cols-2 gap-2">
+                ${shortFreeCandidates.map((c, i) => `
+                    <div onclick="selectFreeNumber(${i})" class="bg-slate-50 rounded-lg p-2 text-center cursor-pointer border-2 ${shortFreeSelected===i?'border-brand bg-brand bg-opacity-5':'border-transparent'}">
+                        <div class="text-xs font-mono font-bold">#${c.number}</div>
+                        <div class="text-[9px] text-slate-400 mt-0.5">${c.length}位</div>
+                    </div>
+                `).join('')}
+            </div>
+            <button onclick="refreshFreeCandidates()" class="w-full py-2 mt-2 text-[10px] text-brand font-bold">换一批 ↻</button>
+        </div>
+        <button onclick="claimFreeNumber()" ${shortFreeSelected===null?'disabled':''} class="btn-primary w-full ${shortFreeSelected===null?'opacity-50 pointer-events-none':''}">领取选中号</button>
+    `;
+}
+
+function selectFreeNumber(idx) {
+    shortFreeSelected = idx;
+    renderFreeTab();
+}
+
+function refreshFreeCandidates() {
+    shortFreeCandidates = [];
+    shortFreeSelected = null;
+    renderFreeTab();
+}
+
+function claimFreeNumber() {
+    if (shortFreeSelected === null) return;
+    const c = shortFreeCandidates[shortFreeSelected];
+    // 移除原有免费号（如有）
+    myShortNumbers = myShortNumbers.filter(s => s.type !== 'free');
+    // 所有短号置为非展示
+    myShortNumbers.forEach(s => { s.isDisplaying = false; });
+    // 添加新免费号
+    myShortNumbers.push({
+        number: '#' + c.number,
+        type: 'free',
+        subType: '免费号',
+        acquiredAt: new Date().toISOString().slice(0,10),
+        chain: 'OBChain',
+        isDisplaying: false
+    });
+    // 追加操作记录（🎁领取）
+    addShortHistory('free_claim', '#' + c.number, '');
+    shortFreeCandidates = [];
+    shortFreeSelected = null;
+    updateMallShortCard();
+    showToast('免费号领取成功', '🎁');
+    // 切换到我的短号 Tab
+    switchShortTab('my');
+}
+
+// ---------- 短号支付弹窗 ----------
+function openShortPayModal(number, type, price) {
+    payPendingNumber = number;
+    payPendingType = type;
+    payPendingPrice = price;
+    const body = document.getElementById('short-pay-body');
+    body.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-bold">购买短号 ${number}</span>
+            <button onclick="closeShortPay()" class="text-slate-400 text-lg">✕</button>
+        </div>
+        <!-- 订单账单 -->
+        <div class="bg-slate-50 rounded-xl p-3 mb-3">
+            <div class="flex justify-between text-xs py-1">
+                <span class="text-slate-500">所购靓号</span>
+                <span class="font-mono font-bold">${number}</span>
+            </div>
+            <div class="flex justify-between text-xs py-1">
+                <span class="text-slate-500">靓号类型</span>
+                <span class="font-bold">${type}</span>
+            </div>
+            <div class="flex justify-between text-sm py-1 mt-1 pt-1 border-t border-slate-200">
+                <span class="font-bold">最终价格</span>
+                <span class="font-mono font-bold text-brand">${price} USDT</span>
+            </div>
+            <div class="text-[9px] text-slate-400 mt-1 text-center">永久买断 · 不可退款</div>
+        </div>
+        <!-- 付款网络 -->
+        <div class="mb-3">
+            <label class="text-[10px] text-slate-500 font-bold block mb-1">付款网络（可跨链）</label>
+            <select id="short-pay-network" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white">
+                <option value="OBChain">OBChain</option>
+                <option value="Ethereum">Ethereum</option>
+                <option value="Arbitrum">Arbitrum</option>
+            </select>
+        </div>
+        <!-- 支付币种 -->
+        <div class="mb-3">
+            <label class="text-[10px] text-slate-500 font-bold block mb-1">支付币种</label>
+            <select id="short-pay-token" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white">
+                <option value="USDT">USDT</option>
+                <option value="USDRs">USDRs</option>
+            </select>
+        </div>
+        <!-- 收款国库 -->
+        <div class="mb-3 text-[9px] text-slate-400">
+            收款国库合约：0xaf5cd2...76b66d
+        </div>
+        <!-- PIN 验证 -->
+        <div class="mb-3">
+            <label class="text-[10px] text-slate-500 font-bold block mb-1">PIN 主密码</label>
+            <input type="password" id="short-pay-pin" placeholder="输入 PIN" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-mono">
+        </div>
+        <button onclick="submitPremiumPurchase()" class="btn-primary w-full">确认购买 · ${price} USDT</button>
+    `;
+    document.getElementById('view-short-pay').style.display = 'flex';
+}
+
+function closeShortPay() {
+    document.getElementById('view-short-pay').style.display = 'none';
+    payPendingNumber = null;
+}
+
+function submitPremiumPurchase() {
+    const pin = document.getElementById('short-pay-pin').value;
+    if (!pin) { showToast('请输入 PIN', '⚠️'); return; }
+    // 模拟签名广播
+    showToast('签名广播中...', '⏳');
+    setTimeout(() => {
+        // 新短号入库
+        myShortNumbers.forEach(s => { s.isDisplaying = false; });
+        myShortNumbers.push({
+            number: payPendingNumber,
+            type: 'premium',
+            subType: payPendingType,
+            acquiredAt: new Date().toISOString().slice(0,10),
+            chain: 'OBChain',
+            isDisplaying: true
+        });
+        // 追加操作记录（💎购买）
+        addShortHistory('purchase', payPendingNumber, '');
+        closeShortPay();
+        updateMallShortCard();
+        showToast('购买成功，已设为展示短号', '✅');
+        // 切换到我的短号 Tab
+        switchShortTab('my');
+    }, 1800);
+}
+
+// ---------- 短号转移弹窗（底部抽屉，仅同网络钱包列表） ----------
+function openTransferModal(number) {
+    transferPendingNumber = number;
+    const body = document.getElementById('short-transfer-body');
+    const walletsHtml = SAME_NETWORK_WALLETS.map((w, i) => `
+        <div onclick="selectTransferTarget(${i})" class="flex items-center justify-between p-3 bg-slate-50 rounded-xl mb-2 cursor-pointer border-2 border-transparent active-scale hover:border-brand" id="transfer-target-${i}">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-600 font-mono">${w.shortCode.slice(-2)}</div>
+                <div>
+                    <div class="text-xs font-bold text-slate-900">${w.name} <span class="text-slate-400 font-mono">${w.shortCode}</span></div>
+                    <div class="text-[9px] text-slate-400 font-mono">${w.addr.slice(0,10)}...${w.addr.slice(-6)}</div>
+                </div>
+            </div>
+            <div class="text-[9px] text-slate-400">${w.lastActive}</div>
+        </div>
+    `).join('');
+    body.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <div class="text-sm font-bold">转移短号</div>
+                <div class="text-[10px] text-slate-400">转移后短号所有权归对方，不可撤销</div>
+            </div>
+            <button onclick="closeTransferModal()" class="text-slate-400 text-lg">✕</button>
+        </div>
+        <!-- 待转移短号 -->
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
+            <div class="text-[9px] text-amber-700 font-bold">待转移短号</div>
+            <div class="text-base font-bold font-mono text-slate-900 mt-0.5">${number}</div>
+        </div>
+        <!-- 同网络钱包列表 -->
+        <div class="mb-3">
+            <div class="text-[10px] font-bold text-slate-700 mb-2">选择接收钱包（同网络 OBChain）</div>
+            ${walletsHtml}
+        </div>
+        <!-- PIN 验证 -->
+        <div class="mb-3">
+            <label class="text-[10px] text-slate-500 font-bold block mb-1">PIN 主密码</label>
+            <input type="password" id="transfer-pin" placeholder="输入 PIN" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-mono">
+        </div>
+        <button onclick="submitTransfer()" id="transfer-submit" disabled class="btn-primary w-full opacity-50 pointer-events-none">确认转移</button>
+    `;
+    document.getElementById('view-short-transfer').style.display = 'flex';
+}
+
+let selectedTransferIdx = null;
+function selectTransferTarget(idx) {
+    selectedTransferIdx = idx;
+    // 更新高亮
+    SAME_NETWORK_WALLETS.forEach((w, i) => {
+        const el = document.getElementById('transfer-target-' + i);
+        if (el) el.className = 'flex items-center justify-between p-3 bg-slate-50 rounded-xl mb-2 cursor-pointer border-2 ' + (i === idx ? 'border-brand bg-brand bg-opacity-5' : 'border-transparent') + ' active-scale hover:border-brand';
+    });
+    // 启用提交按钮
+    const btn = document.getElementById('transfer-submit');
+    btn.disabled = false;
+    btn.classList.remove('opacity-50', 'pointer-events-none');
+}
+
+function closeTransferModal() {
+    document.getElementById('view-short-transfer').style.display = 'none';
+    transferPendingNumber = null;
+    selectedTransferIdx = null;
+}
+
+function submitTransfer() {
+    if (selectedTransferIdx === null) { showToast('请选择接收钱包', '⚠️'); return; }
+    const pin = document.getElementById('transfer-pin').value;
+    if (!pin) { showToast('请输入 PIN', '⚠️'); return; }
+    const target = SAME_NETWORK_WALLETS[selectedTransferIdx];
+    showToast('转移签名中...', '⏳');
+    setTimeout(() => {
+        const num = transferPendingNumber;
+        // 从我的短号列表移除
+        myShortNumbers = myShortNumbers.filter(s => s.number !== num);
+        // 追加操作记录（📤转出）
+        addShortHistory('transfer_out', num, shortAddr(target.addr));
+        closeTransferModal();
+        updateMallShortCard();
+        renderShortMyList();
+        showToast(`已转移 ${num} 给 ${target.name}`, '📤');
+    }, 1500);
+}
+
+// ---------- 短号赠送弹窗（底部抽屉，地址输入 + 扫码） ----------
+function openGiftModal(number) {
+    giftPendingNumber = number;
+    const body = document.getElementById('short-gift-body');
+    body.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <div class="text-sm font-bold">赠送短号</div>
+                <div class="text-[10px] text-slate-400">赠送后短号所有权归对方，不可撤销</div>
+            </div>
+            <button onclick="closeGiftModal()" class="text-slate-400 text-lg">✕</button>
+        </div>
+        <!-- 待赠送短号 -->
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-3">
+            <div class="text-[9px] text-emerald-700 font-bold">待赠送短号</div>
+            <div class="text-base font-bold font-mono text-slate-900 mt-0.5">${number}</div>
+        </div>
+        <!-- 接收地址 -->
+        <div class="mb-3">
+            <label class="text-[10px] text-slate-500 font-bold block mb-1">接收钱包地址</label>
+            <div class="flex gap-2">
+                <input type="text" id="gift-addr-input" placeholder="0x..." class="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-lg font-mono focus:border-brand focus:outline-none">
+                <button onclick="scanGiftAddress()" class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-base">📷</button>
+            </div>
+            <div class="text-[9px] text-slate-400 mt-1">可输入任意地址，或扫码识别二维码</div>
+        </div>
+        <!-- PIN 验证 -->
+        <div class="mb-3">
+            <label class="text-[10px] text-slate-500 font-bold block mb-1">PIN 主密码</label>
+            <input type="password" id="gift-pin" placeholder="输入 PIN" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-mono">
+        </div>
+        <button onclick="submitGift()" class="btn-primary w-full">确认赠送</button>
+    `;
+    document.getElementById('view-short-gift').style.display = 'flex';
+}
+
+function closeGiftModal() {
+    document.getElementById('view-short-gift').style.display = 'none';
+    giftPendingNumber = null;
+}
+
+function scanGiftAddress() {
+    // 模拟扫码识别（实际调用原生扫码 SDK）
+    showToast('扫码识别中...', '📷');
+    setTimeout(() => {
+        const addr = '0x9e3f5A7b9c1D2e3F4a5B6c7D8e9F0a1B2c3D4e5F';
+        document.getElementById('gift-addr-input').value = addr;
+        showToast('已识别地址', '✓');
+    }, 1200);
+}
+
+function submitGift() {
+    const addr = document.getElementById('gift-addr-input').value.trim();
+    const pin = document.getElementById('gift-pin').value;
+    if (!addr) { showToast('请输入或扫码识别接收地址', '⚠️'); return; }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) { showToast('地址格式不正确', '⚠️'); return; }
+    if (!pin) { showToast('请输入 PIN', '⚠️'); return; }
+    showToast('赠送签名中...', '⏳');
+    setTimeout(() => {
+        const num = giftPendingNumber;
+        // 从我的短号列表移除
+        myShortNumbers = myShortNumbers.filter(s => s.number !== num);
+        // 追加操作记录（🎀赠出）
+        addShortHistory('gift_out', num, shortAddr(addr));
+        closeGiftModal();
+        updateMallShortCard();
+        renderShortMyList();
+        showToast(`已赠送 ${num} 给 ${addr.slice(0,6)}...${addr.slice(-4)}`, '🎁');
+    }, 1500);
+}
+
+// ---------- 短号操作记录（对齐方案文档 4.4 节） ----------
+// 5 种类型: free_claim(🎁领取) / purchase(💎购买) / transfer_in(📥转入) / transfer_out(📤转出) / gift_out(🎀赠出)
+
+function shortAddr(addr) {
+    return addr.slice(0, 6) + '...' + addr.slice(-4);
+}
+
+function addShortHistory(type, number, addr = '') {
+    // date 格式：MM-DD
+    const today = new Date();
+    const date = String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    shortHistory.unshift({ date, type, number, addr });
+}
+
+function openHistoryModal() {
+    renderHistory();
+    document.getElementById('view-short-history').style.display = 'flex';
+}
+
+function closeHistoryModal() {
+    document.getElementById('view-short-history').style.display = 'none';
+}
+
+function renderHistory() {
+    const list = document.getElementById('history-list');
+    const icons = { 'free_claim': '🎁', 'purchase': '💎', 'transfer_in': '📥', 'transfer_out': '📤', 'gift_out': '🎀' };
+    const labels = { 'free_claim': '领取', 'purchase': '购买', 'transfer_in': '转入', 'transfer_out': '转出', 'gift_out': '赠出' };
+
+    if (shortHistory.length === 0) {
+        list.innerHTML = '<div class="text-center py-12 text-slate-400 text-xs">暂无操作记录</div>';
+        return;
+    }
+
+    list.innerHTML = shortHistory.map((h, i) => {
+        const isLast = i === shortHistory.length - 1;
+        const dir = h.addr ? (h.type === 'transfer_in' ? '← ' + h.addr : '→ ' + h.addr) : '';
+        return '<div class="flex items-center justify-between px-3 py-3 ' + (isLast ? '' : 'border-b border-slate-50') + '">' +
+            '<div class="flex items-center space-x-2.5">' +
+                '<span class="text-sm">' + (icons[h.type] || '·') + '</span>' +
+                '<div>' +
+                    '<p class="text-xs font-bold text-slate-700">' + (labels[h.type] || h.type) + ' <span class="font-mono text-slate-500">' + h.number + '</span></p>' +
+                    (dir ? '<p class="text-[9px] text-slate-400 font-mono mt-0.5">' + dir + '</p>' : '') +
+                '</div>' +
+            '</div>' +
+            '<span class="text-[10px] text-slate-400 font-mono">' + h.date + '</span>' +
+        '</div>';
+    }).join('');
+}
+
+// ---------- 地址管理 ----------
+// fromCheckout=true 表示从结算页进入，点击地址卡回填到结算页
+function openAddress(fromCheckout = false) {
+    userState._addressFromCheckout = fromCheckout;
+    renderAddress();
+    openView('view-address');
+}
+
+function renderAddress() {
+    const fromCheckout = userState._addressFromCheckout;
+    const view = document.getElementById('view-address');
+    const selectedId = userState.selectedAddressId;
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="${fromCheckout ? "openView('view-checkout')" : "openView('view-mall')"}" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">${fromCheckout ? '选择收货地址' : '收货地址'}</span>
+            <button onclick="addAddress()" class="ml-auto text-xs text-brand font-bold">+ 新增</button>
+        </div>
+        <div class="p-3">
+            ${MY_ADDRESSES.length === 0 ? `
+                <div class="text-center py-12">
+                    <div class="text-4xl mb-3">📭</div>
+                    <div class="text-sm text-slate-500 mb-3">暂无收货地址</div>
+                    <button onclick="addAddress()" class="btn-primary inline-block px-6">新增地址</button>
+                </div>
+            ` : MY_ADDRESSES.map(a => `
+                <div onclick="${fromCheckout ? `selectAddress(${a.id})` : ''}" class="bg-white rounded-xl p-3 card-shadow mb-2 ${fromCheckout ? 'cursor-pointer active-scale' : ''} ${selectedId === a.id ? 'ring-2 ring-brand' : ''}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold">${a.name}</span>
+                            <span class="text-[10px] text-slate-400">${a.phone}</span>
+                            ${a.isDefault ? '<span class="badge-info">默认</span>' : ''}
+                            ${selectedId === a.id ? '<span class="badge-success">已选</span>' : ''}
+                        </div>
+                        ${!fromCheckout ? `
+                        <div class="flex gap-2">
+                            <button onclick="event.stopPropagation();editAddress(${a.id})" class="text-[10px] text-brand">编辑</button>
+                            ${!a.isDefault ? `<button onclick="event.stopPropagation();setDefault(${a.id})" class="text-[10px] text-slate-500">设为默认</button>` : ''}
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="text-xs text-slate-600 mt-1">${a.address}</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// 从结算页选择地址后回填
+function selectAddress(id) {
+    userState.selectedAddressId = id;
+    userState._addressFromCheckout = false;
+    renderCheckout();
+    openView('view-checkout');
+    showToast('地址已选择', '📍');
+}
+
+// ---------- 新增/编辑地址 ----------
+// 临时编辑态：null=新增，对象=编辑
+let _editingAddress = null;
+
+function addAddress() {
+    _editingAddress = null;
+    renderAddressEdit();
+    openView('view-address-edit');
+}
+
+function editAddress(id) {
+    const a = MY_ADDRESSES.find(x => x.id === id);
+    if (!a) return;
+    _editingAddress = { ...a };
+    renderAddressEdit();
+    openView('view-address-edit');
+}
+
+function renderAddressEdit() {
+    const view = document.getElementById('view-address-edit');
+    const isEdit = _editingAddress !== null;
+    const a = _editingAddress || { name: '', phone: '', address: '', isDefault: false };
+    const fromCheckout = userState._addressFromCheckout;
+
+    view.innerHTML = `
+        <div class="bg-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openView('view-address')" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">${isEdit ? '编辑地址' : '新增地址'}</span>
+        </div>
+        <div class="p-3 space-y-3">
+            <div class="bg-white rounded-xl p-3 card-shadow space-y-3">
+                <div>
+                    <label class="text-[10px] text-slate-500 font-bold">收货人</label>
+                    <input id="addr-name" type="text" placeholder="请输入收货人姓名" value="${a.name}" class="input-field mt-1" maxlength="20">
+                </div>
+                <div>
+                    <label class="text-[10px] text-slate-500 font-bold">手机号</label>
+                    <input id="addr-phone" type="tel" placeholder="请输入手机号" value="${a.phone}" class="input-field mt-1" maxlength="11">
+                </div>
+                <div>
+                    <label class="text-[10px] text-slate-500 font-bold">详细地址</label>
+                    <textarea id="addr-detail" placeholder="省/市/区 + 详细地址" rows="3" class="input-field mt-1" maxlength="100">${a.address}</textarea>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <span class="text-xs text-slate-700">设为默认地址</span>
+                    <button id="addr-default-toggle" onclick="toggleDefaultAddr()" class="relative w-10 h-5 rounded-full transition-all ${a.isDefault ? 'bg-brand' : 'bg-slate-300'}">
+                        <span class="absolute top-0.5 ${a.isDefault ? 'left-5' : 'left-0.5'} w-4 h-4 rounded-full bg-white shadow transition-all"></span>
+                    </button>
+                </div>
+            </div>
+
+            ${isEdit ? `
+                <button onclick="deleteAddress(${a.id})" class="w-full bg-red-50 text-red-600 text-xs font-bold py-2.5 rounded-xl active-scale">删除该地址</button>
+            ` : ''}
+
+            <div class="flex gap-2">
+                <button onclick="openView('view-address')" class="btn-secondary flex-1">取消</button>
+                <button onclick="saveAddress(${isEdit ? a.id : 'null'})" class="btn-primary flex-1">保存</button>
+            </div>
+            ${fromCheckout ? '<div class="text-[10px] text-slate-400 text-center">保存后将自动选回结算页</div>' : ''}
+        </div>
+    `;
+}
+
+// 切换默认地址开关
+function toggleDefaultAddr() {
+    if (_editingAddress === null) _editingAddress = { name: '', phone: '', address: '', isDefault: false };
+    _editingAddress.isDefault = !_editingAddress.isDefault;
+    renderAddressEdit();
+}
+
+// 保存地址（新增/编辑）
+function saveAddress(id) {
+    const name = document.getElementById('addr-name').value.trim();
+    const phone = document.getElementById('addr-phone').value.trim();
+    const address = document.getElementById('addr-detail').value.trim();
+
+    // 基础校验
+    if (!name) { showToast('请输入收货人姓名', '⚠️'); return; }
+    if (!/^1\d{10}$/.test(phone)) { showToast('请输入正确的11位手机号', '⚠️'); return; }
+    if (address.length < 5) { showToast('请输入详细收货地址', '⚠️'); return; }
+
+    const isDefault = _editingAddress ? _editingAddress.isDefault : false;
+
+    if (id === null || id === 'null') {
+        // 新增
+        const newId = Math.max(0, ...MY_ADDRESSES.map(a => a.id)) + 1;
+        // 如果新增的是默认，清除其他默认
+        if (isDefault) MY_ADDRESSES.forEach(a => a.isDefault = false);
+        MY_ADDRESSES.push({ id: newId, name, phone, address, isDefault });
+        showToast('地址已添加', '✅');
+    } else {
+        // 编辑
+        const a = MY_ADDRESSES.find(x => x.id === id);
+        if (!a) return;
+        a.name = name; a.phone = phone; a.address = address;
+        if (isDefault && !a.isDefault) {
+            MY_ADDRESSES.forEach(x => x.isDefault = false);
+            a.isDefault = true;
+        } else if (!isDefault && a.isDefault) {
+            a.isDefault = false;
+        }
+        showToast('地址已更新', '✅');
+    }
+
+    _editingAddress = null;
+    renderAddress();
+
+    // 若是从结算页进入，保存后回填到结算页
+    if (userState._addressFromCheckout) {
+        const newSelected = MY_ADDRESSES.find(a => a.isDefault) || MY_ADDRESSES[MY_ADDRESSES.length - 1];
+        if (newSelected) userState.selectedAddressId = newSelected.id;
+        userState._addressFromCheckout = false;
+        renderCheckout();
+        openView('view-checkout');
+    } else {
+        openView('view-address');
+    }
+}
+
+// 删除地址
+function deleteAddress(id) {
+    if (!confirm('确认删除该地址？')) return;
+    const idx = MY_ADDRESSES.findIndex(a => a.id === id);
+    if (idx === -1) return;
+    const wasDefault = MY_ADDRESSES[idx].isDefault;
+    MY_ADDRESSES.splice(idx, 1);
+    // 若删除的是默认地址，自动将第一个设为默认
+    if (wasDefault && MY_ADDRESSES.length > 0) MY_ADDRESSES[0].isDefault = true;
+    // 清除已选地址
+    if (userState.selectedAddressId === id) userState.selectedAddressId = null;
+    _editingAddress = null;
+    renderAddress();
+    showToast('地址已删除', '🗑️');
+    openView('view-address');
+}
+
+function setDefault(id) {
+    MY_ADDRESSES.forEach(a => a.isDefault = (a.id === id));
+    renderAddress();
+    showToast('已设为默认', '✓');
+}
+
+// ---------- 矿工后台（r9-admin）----------
+function openAdmin() {
+    renderAdmin();
+    openView('view-admin');
+}
+
+function renderAdmin(tab = 'return') {
+    const view = document.getElementById('view-admin');
+    const pending = ADMIN_DATA.pendingReturns;
+    const alerts = ADMIN_DATA.reconcileAlerts;
+    const risks = ADMIN_DATA.riskAlerts;
+
+    view.innerHTML = `
+        <div class="bg-slate-900 text-white px-3 py-2 flex items-center gap-2 sticky top-0 z-10">
+            <button onclick="openView('view-mall')" class="text-slate-400">←</button>
+            <span class="text-sm font-bold">⚙️ 矿工后台 r9-admin</span>
+            <span class="badge-p1 ml-auto">需多签</span>
+        </div>
+
+        <!-- Tab 切换 -->
+        <div class="bg-slate-800 px-3 py-2 flex gap-3">
+            <button onclick="renderAdmin('return')" class="tab-btn ${tab === 'return' ? 'active' : ''} text-xs font-bold text-slate-400 px-2 py-1">退货审核</button>
+            <button onclick="renderAdmin('reconcile')" class="tab-btn ${tab === 'reconcile' ? 'active' : ''} text-xs font-bold text-slate-400 px-2 py-1">对账告警</button>
+            <button onclick="renderAdmin('risk')" class="tab-btn ${tab === 'risk' ? 'active' : ''} text-xs font-bold text-slate-400 px-2 py-1">风控</button>
+            <button onclick="renderAdmin('config')" class="tab-btn ${tab === 'config' ? 'active' : ''} text-xs font-bold text-slate-400 px-2 py-1">配置</button>
+        </div>
+
+        <div class="p-3">
+        ${tab === 'return' ? `
+            <!-- 退货审核（含 P0/P1 防护） -->
+            <div class="bg-amber-900 bg-opacity-30 border border-amber-600 rounded-xl p-3 mb-3">
+                <div class="text-[10px] font-bold text-amber-400 mb-1">⚠️ P0/P1 防护提示</div>
+                <div class="text-[10px] text-slate-300">approveReturn 不校验奖励已退回状态，必须前端硬编码校验。refundAmount 无上限，必须多签。</div>
+            </div>
+
+            ${pending.map(r => {
+                const allDirectRevoked = r.directRewards.every(dr => dr.revoked || dr.returnedAmount >= dr.amount);
+                const allLayerRevoked = r.layerRewards.every(lr => lr.revoked || lr.returnedAmount >= lr.amount);
+                const canApprove = allDirectRevoked && allLayerRevoked;
+
+                return `
+                    <div class="bg-slate-800 rounded-xl p-3 mb-3">
+                        <div class="text-sm font-bold text-white mb-2">退货申请 #${r.id}</div>
+                        <div class="text-[10px] text-slate-400">买家: ${r.buyerName} (${r.buyer.slice(0, 10)}...)</div>
+                        <div class="text-[10px] text-slate-400">商品: ${r.productName}</div>
+                        <div class="text-[10px] text-slate-400">实付: ${r.paid} ${r.payToken}</div>
+                        <div class="text-[10px] text-slate-400">申请时间: ${r.requestedAt}</div>
+
+                        <!-- P0 校验：直写奖励 -->
+                        <div class="mt-2 pt-2 border-t border-slate-700">
+                            <div class="text-[10px] font-bold text-amber-400 mb-1">P0 校验：直写奖励</div>
+                            ${r.directRewards.map(dr => `
+                                <div class="flex items-center justify-between text-[10px] text-slate-300">
+                                    <span>#${dr.index}: ${dr.amount} ${r.payToken}</span>
+                                    <span class="${dr.revoked ? 'check-passed' : (dr.status === 'claimed' && dr.returnedAmount < dr.amount ? 'check-failed' : 'check-pending')}">
+                                        ${dr.revoked ? '✓ 已撤销' : (dr.status === 'claimed' ? (dr.returnedAmount >= dr.amount ? '✓ 已退回' : '❌ 已领未退') : '⏳ 未领可撤销')}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <!-- P1 校验：级差返利 -->
+                        <div class="mt-2 pt-2 border-t border-slate-700">
+                            <div class="text-[10px] font-bold text-amber-400 mb-1">P1 校验：级差返利</div>
+                            ${r.layerRewards.map(lr => `
+                                <div class="flex items-center justify-between text-[10px] text-slate-300">
+                                    <span>L${lr.layer}: ${lr.amount} ${r.payToken}</span>
+                                    <span class="${lr.revoked ? 'check-passed' : (lr.status === 'claimed' && lr.returnedAmount < lr.amount ? 'check-failed' : 'check-pending')}">
+                                        ${lr.revoked ? '✓ 已撤销' : (lr.status === 'claimed' ? (lr.returnedAmount >= lr.amount ? '✓ 已退回' : '❌ 已领未退') : '⏳ 未领可撤销')}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <!-- 审核操作 -->
+                        <div class="mt-2 pt-2 border-t border-slate-700">
+                            <div class="text-[10px] font-bold text-slate-400 mb-1">退款金额（refundAmount）</div>
+                            <input id="refund-amount-${r.id}" class="input-field text-white" style="background:#1e293b; border-color:#334155;" value="${r.paid}" />
+                            <div class="text-[9px] text-slate-500 mt-1">⚠️ 合约不校验上限，建议 ≤ ${r.paid * 1.5}（订单金额 1.5 倍）</div>
+                        </div>
+
+                        <button onclick="approveReturn(${r.id})" class="btn-primary mt-2 w-full" ${canApprove ? '' : 'disabled'}>
+                            ${canApprove ? '审核通过（需多签）' : '❌ 禁止审核（奖励未处理）'}
+                        </button>
+                        <button onclick="rejectReturn(${r.id})" class="btn-secondary mt-1 w-full">驳回</button>
+                    </div>
+                `;
+            }).join('')}
+        ` : ''}
+
+        ${tab === 'reconcile' ? `
+            <!-- 对账告警（P1 漏洞 3：积分静默失败） -->
+            <div class="bg-amber-900 bg-opacity-30 border border-amber-600 rounded-xl p-3 mb-3">
+                <div class="text-[10px] font-bold text-amber-400 mb-1">⚠️ P1 漏洞 3：积分静默失败</div>
+                <div class="text-[10px] text-slate-300">AgentPoints.mint / AgentLevel.recordPoints 的 try/catch 无 emit，需后端异步对账。</div>
+            </div>
+
+            ${alerts.map(a => `
+                <div class="bg-slate-800 rounded-xl p-3 mb-2">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="badge-${a.severity === 'P1' ? 'p1' : 'info'}">${a.severity}</span>
+                        <span class="text-[10px] text-slate-400">${a.time}</span>
+                    </div>
+                    <div class="text-xs text-white font-bold">${a.message}</div>
+                    <div class="text-[10px] text-slate-400 mt-1">refId: ${a.refId?.slice(0, 18)}...</div>
+                    ${a.type === 'points_silent_fail' ? `
+                        <div class="text-[10px] text-slate-300 mt-1">
+                            预期积分: ${a.expectedPts} <br/>
+                            AgentPoints.mint: ${a.agentPointsMinted ? '✓' : '❌'}<br/>
+                            AgentLevel.recordPoints: ${a.agentLevelRecorded ? '✓' : '❌'}
+                        </div>
+                        <button onclick="reissuePoints(${a.id})" class="btn-primary mt-2 text-[10px] py-1.5">手动补发</button>
+                    ` : ''}
+                    ${a.type === 'rebate_hook_failed' ? `
+                        <button onclick="reissueRebate(${a.id})" class="btn-primary mt-2 text-[10px] py-1.5">补打返利</button>
+                    ` : ''}
+                </div>
+            `).join('')}
+        ` : ''}
+
+        ${tab === 'risk' ? `
+            <!-- 风控（刷单识别） -->
+            <div class="bg-amber-900 bg-opacity-30 border border-amber-600 rounded-xl p-3 mb-3">
+                <div class="text-[10px] font-bold text-amber-400 mb-1">⚠️ 刷单攻击防护</div>
+                <div class="text-[10px] text-slate-300">teamPoints 不扣减，需后台识别"高退货率+高 teamPoints"异常地址。</div>
+            </div>
+
+            ${risks.map(r => `
+                <div class="bg-slate-800 rounded-xl p-3 mb-2">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-white">${r.label}</span>
+                        <span class="badge-${r.severity === 'high' ? 'p0' : 'p1'}">${r.severity}</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 font-mono">${r.address.slice(0, 18)}...</div>
+                    <div class="grid grid-cols-2 gap-2 mt-2 text-[10px]">
+                        <div class="text-slate-300">团队人数: ${r.teamSize}</div>
+                        <div class="text-slate-300">退货率: ${(r.returnRate * 100).toFixed(0)}%</div>
+                        <div class="text-slate-300">teamPoints: ${r.teamPoints}</div>
+                        <div class="text-slate-300">实际消费: ${r.actualSpent}</div>
+                    </div>
+                    <div class="text-[10px] text-amber-400 mt-2">${r.action}</div>
+                    <button onclick="downgradeSybil(${r.id})" class="btn-danger mt-2 text-[10px] py-1.5">强制降级为 L0</button>
+                </div>
+            `).join('')}
+        ` : ''}
+
+        ${tab === 'config' ? `
+            <!-- 配置 -->
+            <div class="bg-slate-800 rounded-xl p-3 mb-2">
+                <div class="text-xs font-bold text-white mb-2">合约地址</div>
+                ${Object.entries(CONTRACTS).map(([k, v]) => `
+                    <div class="flex items-center justify-between text-[10px] py-1">
+                        <span class="text-slate-400">${k}</span>
+                        <span class="font-mono text-slate-300">${v.slice(0, 14)}...</span>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="bg-slate-800 rounded-xl p-3 mb-2">
+                <div class="text-xs font-bold text-white mb-2">返利矩阵（rebateBps）</div>
+                <div class="text-[10px] text-slate-400 mb-1">rank × layer（示例）</div>
+                <div class="grid grid-cols-4 gap-1 text-[10px]">
+                    <div class="text-slate-400">rank</div><div class="text-slate-400 text-center">L1</div><div class="text-slate-400 text-center">L2</div><div class="text-slate-400 text-center">L3</div>
+                    ${Object.entries(REBATE_MATRIX).slice(0, 5).map(([rank, layers]) => `
+                        <div class="text-slate-300">L${rank}</div>
+                        <div class="text-center text-white">${(layers[1] * 100).toFixed(1)}%</div>
+                        <div class="text-center text-white">${(layers[2] * 100).toFixed(1)}%</div>
+                        <div class="text-center text-white">${(layers[3] * 100).toFixed(1)}%</div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-xl p-3 mb-2">
+                <div class="text-xs font-bold text-white mb-2">升级门槛</div>
+                ${UPGRADE_THRESHOLDS.map(t => `
+                    <div class="flex items-center justify-between text-[10px] py-0.5">
+                        <span class="text-slate-400">L${t.level}</span>
+                        <span class="text-slate-300">${t.threshold} ${t.basis === 1 ? '团队' : '个人'}</span>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="alert-p1 rounded-xl p-3 mb-2">
+                <div class="text-[10px] font-bold text-amber-400">⚠️ 多签钱包要求</div>
+                <div class="text-[10px] text-slate-300 mt-1">miner 地址必须是 Gnosis Safe 2/3 多签钱包，避免 approveReturn 抽干合约攻击。</div>
+            </div>
+        ` : ''}
+        </div>
+    `;
+}
+
+function approveReturn(id) {
+    const refundAmount = parseFloat(document.getElementById(`refund-amount-${id}`).value);
+    if (refundAmount > 500) {
+        showToast('金额超阈值，需第二 miner 复核', '⚠️');
+        return;
+    }
+    ADMIN_DATA.pendingReturns = ADMIN_DATA.pendingReturns.filter(r => r.id !== id);
+    showToast('退货已审核通过（多签）', '✅');
+    renderAdmin('return');
+}
+
+function rejectReturn(id) {
+    ADMIN_DATA.pendingReturns = ADMIN_DATA.pendingReturns.filter(r => r.id !== id);
+    showToast('退货已驳回', '✓');
+    renderAdmin('return');
+}
+
+function reissuePoints(id) {
+    const alert = ADMIN_DATA.reconcileAlerts.find(a => a.id === id);
+    if (alert) { alert.agentPointsMinted = true; showToast('积分已手动补发', '✅'); }
+    renderAdmin('reconcile');
+}
+
+function reissueRebate(id) {
+    const alert = ADMIN_DATA.reconcileAlerts.find(a => a.id === id);
+    if (alert) { alert.resolved = true; showToast('返利已补打', '✅'); }
+    renderAdmin('reconcile');
+}
+
+function downgradeSybil(id) {
+    const risk = ADMIN_DATA.riskAlerts.find(r => r.id === id);
+    if (risk) { risk.resolved = true; showToast('已调用 minerSetLevel 降级为 L0', '✅'); }
+    renderAdmin('risk');
+}
+
+// ---------- 初始化 ----------
+function init() {
+    console.log('🚀 Node 商城 v4.0.1 启动');
+    console.log('📋 基于 v1.5 方案，含 P0/P1 漏洞防护');
+    console.log('📌 三大决策：1) 仅官方上架 2) 全平台统一商品池 3) 取消代销概念');
+    console.log('📌 v4.0.1: 移除首页身份卡，4 大功能入口上移至 Banner 下方');
+
+    renderRoleDetail();
+    renderHotProducts();
+    renderProductGrid('all');
+
+    // 默认代理角色
+    switchRole('agent');
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+</script>
+
+</body>
+</html>

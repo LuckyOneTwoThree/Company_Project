@@ -1,0 +1,3098 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>数字身份通行证与登录原型 - v1.8 (Bulletproof Tab Switching)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Premium Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        // Helper to toggle element visibility safely with both classes and inline styles
+        function toggleElement(id, show, val = 'flex') {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (show) {
+                el.classList.remove('hidden');
+                el.style.display = val;
+            } else {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+        }
+        // Wallets Array State
+        let wallets = [
+            { id: 'web3_a', name: '自管钱包 - 地址A (自主链)', address: '0x71C7656EC7ab88b098defB751B7401B5f6d898A5', chain: '自主链', privateKey: '0xab88d1ef7c9e0d1a49f51b7401b5f6d898a56b5c4d3e2f1a0b', membership: { status: 'active', plan: '终身会员', expireDate: '永久有效' }, shortNumber: { number: '9573326140', type: 'free', acquiredAt: '2026-07-10' } },
+            { id: 'web3_b', name: '自管钱包 - 地址B (Ethereum)', address: '0x3a5b28F0e62fB125C98DE501B7401B5f6d898d1a2', chain: 'Ethereum', privateKey: '0x3b2a1c0d9e98defb751b7401b5f6d898d1a28f7e6d5c4b3a2a', membership: null, shortNumber: null }
+        ];
+
+        // Keychain list
+        let deviceKeychain = [
+            { id: 'web3_kc1', name: '设备自管密钥 #3 (Arbitrum)', address: '0x9fC299A50aB42de34F12f9e4c198A5eB667382c4', chain: 'Arbitrum', privateKey: '0x9fc299a50ab42de34f12f9e4c198a5eb667382c4f7e6d5c4b3a2a' },
+            { id: 'web3_kc2', name: '设备自管密钥 #4 (Polygon)', address: '0x5E8C11A9bB9C9DEe34Fd12c1988d1A28f7e6d5c4', chain: 'Polygon', privateKey: '0x5e8c11a9bb9c9dee34fd12c1988d1A28f7e6d5c4f7e6d5c4f7e6d5c4' }
+        ];
+
+        // Linked Web2 credentials
+        let boundWeb2Accounts = [
+            { type: 'phone', account: '138****5678', label: '手机号码', membership: { status: 'active', plan: '年度会员', expireDate: '2027-03-15' }, shortNumber: { number: '7281930', type: 'premium', acquiredAt: '2026-06-20' } },
+            { type: 'email', account: 'u***@r9lab.org', label: '电子邮箱', membership: null, shortNumber: null }
+        ];
+
+        // App Authorized Identity Maps
+        let appAuthorizations = {
+            'r9lab_im': {
+                name: 'R9Lab IM',
+                icon: '💬',
+                web3: ['web3_a'],
+                web2: ['phone']
+            },
+            'xx_im': {
+                name: 'XX IM',
+                icon: '✉️',
+                web3: ['web3_b'],
+                web2: ['email']
+            },
+            'other_app': {
+                name: '其他第三方 App',
+                icon: '🎮',
+                web3: [],
+                web2: []
+            }
+        };
+
+        // App Core States
+        let hasWallet = false;
+        let loginType = 'web3';      // Always 'web3' for Node shell status
+        let currentWeb3Account = 'web3_a'; // ID of active wallet
+        let currentActiveIdentityType = 'web3'; // 'web3' or 'web2' for current identity passport main item
+        let currentActiveWeb2Account = 'phone'; // 'phone' or 'email' if Web2 identity selected
+        let pinCount = 0;
+        let isBalanceMasked = false;
+        let managingWalletId = null; 
+        
+        let web2ActionMode = 'link'; 
+        let tempLoginTargetWeb2 = null;
+
+        // Identity Injection States
+        let tempInjectAppId = null;
+        let tempInjectType = 'web3';
+
+        // External App Auth Simulation States
+        let authPinCode = "";
+        let authSelectedIdentityId = null;
+        let authSelectedIdentityType = "web3";
+
+        // Reset to first boot screen
+        function resetToNewUser() {
+            hasWallet = false;
+            pinCount = 0;
+            loginType = 'web3';
+            currentWeb3Account = 'web3_a';
+            currentActiveIdentityType = 'web3';
+            currentActiveWeb2Account = 'phone';
+            
+            // Re-setup initial wallets
+            wallets = [
+                { id: 'web3_a', name: '自管钱包 - 地址A (自主链)', address: '0x71C7656EC7ab88b098defB751B7401B5f6d898A5', chain: '自主链', privateKey: '0xab88d1ef7c9e0d1a49f51b7401b5f6d898a56b5c4d3e2f1a0b', membership: { status: 'active', plan: '终身会员', expireDate: '永久有效' }, shortNumber: { number: '9573326140', type: 'free', acquiredAt: '2026-07-10' } },
+                { id: 'web3_b', name: '自管钱包 - 地址B (Ethereum)', address: '0x3a5b28F0e62fB125C98DE501B7401B5f6d898d1a2', chain: 'Ethereum', privateKey: '0x3b2a1c0d9e98defb751b7401b5f6d898d1a28f7e6d5c4b3a2a', membership: null, shortNumber: null }
+            ];
+
+            // Re-setup keychain
+            deviceKeychain = [
+                { id: 'web3_kc1', name: '设备自管密钥 #3 (Arbitrum)', address: '0x9fC299A50aB42de34F12f9e4c198A5eB667382c4', chain: 'Arbitrum', privateKey: '0x9fc299a50ab42de34f12f9e4c198a5eb667382c4f7e6d5c4b3a2a' },
+                { id: 'web3_kc2', name: '设备自管密钥 #4 (Polygon)', address: '0x5E8C11A9bB9C9DEe34Fd12c1988d1A28f7e6d5c4', chain: 'Polygon', privateKey: '0x5e8c11a9bb9c9dee34fd12c1988d1A28f7e6d5c4f7e6d5c4f7e6d5c4' }
+            ];
+
+            // Re-setup Web2
+            boundWeb2Accounts = [
+                { type: 'phone', account: '138****5678', label: '手机号码', membership: { status: 'active', plan: '年度会员', expireDate: '2027-03-15' }, shortNumber: { number: '7281930', type: 'premium', acquiredAt: '2026-06-20' } },
+                { type: 'email', account: 'u***@r9lab.org', label: '电子邮箱', membership: null, shortNumber: null }
+            ];
+
+            // Re-setup App Authorizations
+            appAuthorizations = {
+                'r9lab_im': {
+                    name: 'R9Lab IM',
+                    icon: '💬',
+                    web3: ['web3_a'],
+                    web2: ['phone']
+                },
+                'xx_im': {
+                    name: 'XX IM',
+                    icon: '✉️',
+                    web3: ['web3_b'],
+                    web2: ['email']
+                },
+                'other_app': {
+                    name: '其他第三方 App',
+                    icon: '🎮',
+                    web3: [],
+                    web2: []
+                }
+            };
+
+            // UI Hide and Seek
+            document.getElementById('view-onboarding').classList.remove('hidden');
+            document.getElementById('view-wallet-wizard').classList.add('hidden');
+            document.getElementById('app-main-layout').classList.add('hidden');
+            document.getElementById('view-identity-pass').classList.add('hidden');
+            document.getElementById('view-wallet-manage').classList.add('hidden');
+            document.getElementById('view-wallet-mock').classList.add('hidden');
+            
+            // Close modals
+            document.getElementById('modal-add-wallet').classList.add('hidden');
+            document.getElementById('modal-link-web2').classList.add('hidden');
+            document.getElementById('modal-inject-identity').classList.add('hidden');
+            document.getElementById('view-app-connect-modal').classList.add('hidden');
+            
+            // Hide bottom capsule nav
+            document.getElementById('pill-nav-outer').classList.add('hidden');
+            
+            resetWizard();
+            updateDebugStatus("未激活冷钱包");
+            showToast("✨ 系统已重置为新用户状态", "✅");
+        }
+
+        // Switch to Web3 Login Directly
+        function switchToWeb3Direct() {
+            console.log('>>> switchToWeb3Direct called!');
+            hasWallet = true;
+            loginType = 'web3';
+            currentActiveIdentityType = 'web3';
+            
+            document.getElementById('view-onboarding').classList.add('hidden');
+            document.getElementById('view-wallet-wizard').classList.add('hidden');
+            document.getElementById('app-main-layout').classList.remove('hidden');
+            document.getElementById('view-identity-pass').classList.add('hidden');
+            document.getElementById('view-wallet-manage').classList.add('hidden');
+            
+            document.getElementById('pill-nav-outer').classList.remove('hidden');
+            
+            switchTab('service');
+            applyIdentityStyles();
+            
+            updateDebugStatus("自管钱包：已开通");
+            showToast("🔑 切换至 Web3 身份模式", "🚀");
+        }
+
+        // Switch to Web2 Login Directly
+        function switchToWeb2Direct() {
+            hasWallet = true;
+            loginType = 'web3'; // Node shell is always Web3
+            currentActiveIdentityType = 'web2';
+            currentActiveWeb2Account = 'phone';
+            
+            document.getElementById('view-onboarding').classList.add('hidden');
+            document.getElementById('view-wallet-wizard').classList.add('hidden');
+            document.getElementById('app-main-layout').classList.remove('hidden');
+            document.getElementById('view-identity-pass').classList.add('hidden');
+            document.getElementById('view-wallet-manage').classList.add('hidden');
+            
+            document.getElementById('pill-nav-outer').classList.remove('hidden');
+            
+            switchTab('service');
+            openIdentityPass();
+            applyIdentityStyles();
+            
+            updateDebugStatus("关联Web2：已开通");
+            showToast("📱 历史 Web2 身份设为主通行证", "🟢");
+        }
+
+        function updateDebugStatus(text) {
+            const btn = document.getElementById('debug-wallet-btn');
+            if (btn) btn.innerText = "状态: " + text;
+        }
+
+        // Wizard actions
+        function startCreateWalletFlow() {
+            document.getElementById('view-wallet-wizard').classList.remove('hidden');
+            document.getElementById('wizard-wallet-address').innerText = "0x71C7656EC7ab88b098defB751B7401B5f6d898A5";
+            resetWizard();
+        }
+
+        function closeWalletWizard() {
+            document.getElementById('view-wallet-wizard').classList.add('hidden');
+        }
+
+        // Pin helper
+        function pressPinNum() {
+            if (pinCount < 6) {
+                pinCount++;
+                updatePinDots();
+                if (pinCount === 6) {
+                    setTimeout(goToWizardStep3, 300);
+                }
+            }
+        }
+
+        function clearPin() {
+            pinCount = 0;
+            updatePinDots();
+        }
+
+        function updatePinDots() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, index) => {
+                if (index < pinCount) {
+                    dot.className = "w-4 h-4 rounded-full border-2 border-indigo-600 bg-indigo-600 pin-dot";
+                } else {
+                    dot.className = "w-4 h-4 rounded-full border-2 border-slate-300 bg-transparent pin-dot";
+                }
+            });
+        }
+
+        function resetWizard() {
+            pinCount = 0;
+            clearPin();
+            document.getElementById('wizard-step-1').classList.remove('hidden');
+            document.getElementById('wizard-step-2').classList.add('hidden');
+            document.getElementById('wizard-step-3').classList.add('hidden');
+            
+            document.getElementById('step-dot-1').className = "w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center";
+            document.getElementById('step-dot-2').className = "w-7 h-7 rounded-full bg-slate-100 text-slate-400 text-xs font-bold flex items-center justify-center";
+            document.getElementById('step-dot-3').className = "w-7 h-7 rounded-full bg-slate-100 text-slate-400 text-xs font-bold flex items-center justify-center";
+        }
+
+        function goToWizardStep2() {
+            document.getElementById('wizard-step-1').classList.add('hidden');
+            document.getElementById('wizard-step-2').classList.remove('hidden');
+            
+            document.getElementById('step-dot-1').className = "w-7 h-7 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center";
+            document.getElementById('step-dot-2').className = "w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center";
+        }
+
+        function goToWizardStep3() {
+            document.getElementById('wizard-step-2').classList.add('hidden');
+            document.getElementById('wizard-step-3').classList.remove('hidden');
+            
+            document.getElementById('step-dot-2').className = "w-7 h-7 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center";
+            document.getElementById('step-dot-3').className = "w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center";
+        }
+
+        function finishWalletCreateFlow() {
+            console.log('>>> finishWalletCreateFlow called!');
+            showToast("正在本地安全生成助记词密钥...", "🔄");
+            setTimeout(() => {
+                hasWallet = true;
+                loginType = 'web3';
+                currentActiveIdentityType = 'web3';
+                
+                let newId = 'web3_' + Date.now();
+                let newAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d898A5';
+                
+                let exists = wallets.some(w => w.address.toLowerCase() === newAddress.toLowerCase());
+                if (!exists) {
+                    wallets.push({
+                        id: newId,
+                        name: '自管钱包 - 新生成的账户',
+                        address: newAddress,
+                        chain: '自主链',
+                        privateKey: '0x' + Math.random().toString(16).substr(2, 40)
+                    });
+                    currentWeb3Account = newId;
+                } else {
+                    currentWeb3Account = 'web3_a';
+                }
+                
+                document.getElementById('view-onboarding').classList.add('hidden');
+                document.getElementById('app-main-layout').classList.remove('hidden');
+                document.getElementById('pill-nav-outer').classList.remove('hidden');
+                
+                applyIdentityStyles();
+                switchTab('service');
+                updateDebugStatus("自管钱包：已开通");
+                showToast("🔑 冷钱包创建并自动登录", "🎉");
+            }, 1000);
+        }
+
+        function simulateWeb2LoginOnboarding() {
+            hasWallet = true; 
+            loginType = 'web3'; // Node shell is always Web3
+            currentActiveIdentityType = 'web2';
+            currentActiveWeb2Account = 'phone';
+            
+            document.getElementById('view-onboarding').classList.add('hidden');
+            document.getElementById('app-main-layout').classList.remove('hidden');
+            document.getElementById('pill-nav-outer').classList.remove('hidden');
+            
+            switchTab('service');
+            openIdentityPass();
+            applyIdentityStyles();
+            updateDebugStatus("关联Web2：已导入");
+            showToast("📱 历史 Web2 凭证已导入通行证", "🟢");
+        }
+
+        // Render wallets list
+        function renderWalletsList() {
+            // Deprecated flat renderer, redirect to chain-grouped generator
+            renderGlobalWalletsList();
+        }
+
+        // Render application authorization connections (App列表 - 展示简略信息)
+        function renderAppAuthorizationsList() {
+            const container = document.getElementById('app-auth-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            Object.keys(appAuthorizations).forEach(appId => {
+                const app = appAuthorizations[appId];
+                const web3Count = app.web3.length;
+                const web2Count = app.web2.length;
+                const totalCount = web3Count + web2Count;
+
+                // 简略信息：账号分布标签
+                let tagsHtml = '';
+                if (web3Count > 0) {
+                    tagsHtml += `<span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-bold rounded border border-indigo-100">💳 ${web3Count}</span>`;
+                }
+                if (web2Count > 0) {
+                    tagsHtml += `<span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 text-[8px] font-bold rounded border border-emerald-100">📱 ${web2Count}</span>`;
+                }
+                if (totalCount === 0) {
+                    tagsHtml = `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-400 text-[8px] font-bold rounded">未绑定</span>`;
+                }
+
+                const card = document.createElement('div');
+                card.className = "p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm cursor-pointer hover:bg-slate-50/80 hover:border-slate-300 transition-all active:scale-[0.98]";
+                card.onclick = function() { openAppIdentityDetail(appId); };
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-3 flex-1 min-w-0">
+                            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0">${app.icon}</div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center space-x-2">
+                                    <h4 class="text-xs font-extrabold text-slate-800 font-display truncate">${app.name}</h4>
+                                    <span class="text-[9px] text-slate-400 font-bold flex-shrink-0">${totalCount}个账号</span>
+                                </div>
+                                <div class="flex items-center space-x-1.5 mt-1.5">
+                                    ${tagsHtml}
+                                </div>
+                            </div>
+                        </div>
+                        <span class="text-slate-300 text-sm flex-shrink-0 ml-2">›</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // ========== App Identity Detail (身份管理页) ==========
+        let currentDetailAppId = null;
+        let currentDetailTab = 'web3';        // 'web3' | 'web2'
+        let currentDetailNetwork = 'all';     // 'all' | 具体链名
+        let currentDetailWeb2Type = 'all';    // 'all' | 'phone' | 'email'
+
+        function openAppIdentityDetail(appId) {
+            currentDetailAppId = appId;
+            currentDetailTab = 'web3';
+            currentDetailNetwork = 'all';
+            currentDetailWeb2Type = 'all';
+            const el = document.getElementById('view-app-identity-detail');
+            if (el) {
+                el.classList.remove('hidden');
+                el.style.display = 'flex';
+            }
+            renderAppIdentityDetail();
+        }
+
+        function closeAppIdentityDetail() {
+            const el = document.getElementById('view-app-identity-detail');
+            if (el) {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+            currentDetailAppId = null;
+            applyIdentityStyles();
+        }
+
+        function switchDetailTab(tab) {
+            currentDetailTab = tab;
+            currentDetailNetwork = 'all';
+            currentDetailWeb2Type = 'all';
+            renderAppIdentityDetail();
+        }
+
+        function switchDetailWeb2Type(type) {
+            currentDetailWeb2Type = type;
+            renderAppIdentityDetail();
+        }
+
+        function switchDetailNetwork(network) {
+            currentDetailNetwork = network;
+            renderAppIdentityDetail();
+        }
+
+        function renderAppIdentityDetail() {
+            if (!currentDetailAppId) return;
+            const app = appAuthorizations[currentDetailAppId];
+            if (!app) return;
+
+            document.getElementById('detail-app-title').innerText = app.name;
+
+            const container = document.getElementById('app-identity-detail-content');
+            container.innerHTML = '';
+
+            // --- Summary Card ---
+            const web3Count = app.web3.length;
+            const web2Count = app.web2.length;
+            const totalCount = web3Count + web2Count;
+            let summaryHtml = `
+                <div class="p-4 bg-gradient-to-r from-slate-50 to-slate-100/50 border border-slate-200 rounded-2xl">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-2xl">${app.icon}</div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-black text-slate-900 font-display">${app.name}</h3>
+                            <p class="text-[10px] text-slate-400 mt-0.5">共 <b class="text-indigo-600">${totalCount}</b> 个账号 · 💳 ${web3Count} · 📱 ${web2Count}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // --- Tab 栏（Web3 / Web2）---
+            const tabWeb3Active = currentDetailTab === 'web3';
+            let tabHtml = `
+                <div class="flex bg-slate-100 p-1 rounded-xl">
+                    <button onclick="switchDetailTab('web3')" class="flex-1 py-2 text-xs font-bold rounded-lg ${tabWeb3Active ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'} transition-all">
+                        💳 Web3 钱包 <span class="text-[9px] opacity-70">(${web3Count})</span>
+                    </button>
+                    <button onclick="switchDetailTab('web2')" class="flex-1 py-2 text-xs font-bold rounded-lg ${!tabWeb3Active ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'} transition-all">
+                        📱 Web2 账号 <span class="text-[9px] opacity-70">(${web2Count})</span>
+                    </button>
+                </div>
+            `;
+
+            // --- 网络下拉筛选（仅 Web3 Tab）+ 层级添加按钮 ---
+            let filterHtml = '';
+            if (tabWeb3Active) {
+                // 收集该 App 已绑定的 Web3 钱包所在的所有网络
+                let networks = [];
+                app.web3.forEach(walletId => {
+                    let w = wallets.find(x => x.id === walletId);
+                    if (w && !networks.includes(w.chain)) {
+                        networks.push(w.chain);
+                    }
+                });
+
+                let optionsHtml = `<option value="all">全部网络 (${app.web3.length})</option>`;
+                networks.forEach(net => {
+                    let count = app.web3.filter(wId => {
+                        let w = wallets.find(x => x.id === wId);
+                        return w && w.chain === net;
+                    }).length;
+                    optionsHtml += `<option value="${net}" ${currentDetailNetwork === net ? 'selected' : ''}>${net} (${count})</option>`;
+                });
+
+                filterHtml = `
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2 flex-1">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">网络</span>
+                            <select onchange="switchDetailNetwork(this.value)" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 cursor-pointer">
+                                ${optionsHtml}
+                            </select>
+                        </div>
+                        <button onclick="openInjectModal('${currentDetailAppId}', 'web3')" class="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg border border-indigo-100/50 active-scale flex-shrink-0">➕ 添加钱包</button>
+                    </div>
+                `;
+            } else {
+                // Web2 类型筛选
+                let phoneCount = app.web2.filter(t => t === 'phone').length;
+                let emailCount = app.web2.filter(t => t === 'email').length;
+                filterHtml = `
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2 flex-1">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">类型</span>
+                            <select onchange="switchDetailWeb2Type(this.value)" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:border-emerald-500 cursor-pointer">
+                                <option value="all" ${currentDetailWeb2Type === 'all' ? 'selected' : ''}>全部 (${app.web2.length})</option>
+                                <option value="phone" ${currentDetailWeb2Type === 'phone' ? 'selected' : ''}>手机 (${phoneCount})</option>
+                                <option value="email" ${currentDetailWeb2Type === 'email' ? 'selected' : ''}>邮箱 (${emailCount})</option>
+                            </select>
+                        </div>
+                        <button onclick="openInjectModal('${currentDetailAppId}', 'web2')" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-[10px] font-black rounded-lg border border-emerald-100/50 active-scale flex-shrink-0">➕ 添加账号</button>
+                    </div>
+                `;
+            }
+
+            // --- 列表区 ---
+            let listHtml = '';
+            if (tabWeb3Active) {
+                // Web3 列表（根据网络筛选）
+                let filteredWallets = app.web3.filter(wId => {
+                    let w = wallets.find(x => x.id === wId);
+                    if (!w) return false;
+                    return currentDetailNetwork === 'all' || w.chain === currentDetailNetwork;
+                });
+
+                if (filteredWallets.length === 0) {
+                    listHtml = `
+                        <div class="p-6 text-center text-slate-400 text-[10px] bg-white border border-dashed border-slate-200 rounded-xl">
+                            💡 ${currentDetailNetwork === 'all' ? '暂未注入任何 Web3 钱包到此应用' : '该网络下暂无钱包'}
+                        </div>
+                    `;
+                } else {
+                    listHtml = `<div class="space-y-2.5">`;
+                    filteredWallets.forEach(walletId => {
+                        let w = wallets.find(x => x.id === walletId);
+                        if (w) {
+                            let shortAddr = w.address.substring(0, 8) + '...' + w.address.substring(w.address.length - 6);
+                            const isActive = (currentWeb3Account === walletId);
+                            // 服务标签行：会员与短号
+                            let memberTag = '';
+                            if (w.membership && w.membership.status === 'active') {
+                                memberTag = `<span onclick="showVipToast()" class="inline-flex items-center space-x-0.5 px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[8px] font-bold rounded border border-amber-200/50 cursor-pointer active-scale">👑${w.membership.plan}</span>`;
+                            } else {
+                                memberTag = `<span onclick="showVipToast()" class="inline-flex items-center px-1.5 py-0.5 bg-slate-50 text-slate-400 text-[8px] font-bold rounded border border-slate-200/50 cursor-pointer active-scale">👑开通会员</span>`;
+                            }
+                            let shortNumTag = '';
+                            if (w.shortNumber) {
+                                shortNumTag = `<span onclick="openShortNumberModal('${walletId}', 'web3')" class="inline-flex items-center space-x-0.5 px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[8px] font-bold rounded border border-blue-200/50 cursor-pointer active-scale">🔢${w.shortNumber.number}</span>`;
+                            } else {
+                                shortNumTag = `<span onclick="openShortNumberModal('${walletId}', 'web3')" class="inline-flex items-center px-1.5 py-0.5 bg-slate-50 text-slate-400 text-[8px] font-bold rounded border border-slate-200/50 cursor-pointer active-scale">🔢领取短号</span>`;
+                            }
+                            let serviceHtml = `
+                                <div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 flex-wrap">
+                                    ${memberTag}
+                                    ${shortNumTag}
+                                </div>
+                            `;
+                            let vipClass = (w.membership && w.membership.status === 'active') ? 'vip-card-active' : '';
+                            let borderClass = isActive ? 'border-indigo-250 bg-indigo-50/20 shadow-sm shadow-indigo-500/5' : 'border-slate-200';
+                            listHtml += `
+                                <div class="p-3.5 bg-white border ${borderClass} ${vipClass} rounded-xl">
+                                    <div class="flex justify-between items-center">
+                                        <div class="flex items-center space-x-2.5 truncate min-w-0 flex-1">
+                                            <div class="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-base flex-shrink-0">💳</div>
+                                            <div class="truncate min-w-0">
+                                                <div class="flex items-center space-x-1.5">
+                                                    <h5 class="text-xs font-bold text-slate-800 truncate">${w.name}</h5>
+                                                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 text-[8px] font-bold rounded flex-shrink-0">${w.chain}</span>
+                                                </div>
+                                                <p class="text-[9px] text-slate-400 font-mono mt-0.5 truncate">${shortAddr}</p>
+                                            </div>
+                                        </div>
+                                        <button onclick="disconnectIdentity('${currentDetailAppId}', 'web3', '${walletId}')" class="px-2 py-1 text-[10px] text-rose-500 font-semibold hover:text-rose-700 bg-rose-50 border border-rose-100 rounded-lg active-scale flex-shrink-0 ml-2">断开</button>
+                                    </div>
+                                    ${serviceHtml}
+                                </div>
+                            `;
+                        }
+                    });
+                    listHtml += `</div>`;
+                }
+            } else {
+                // Web2 列表（根据类型筛选）
+                let filteredWeb2 = app.web2.filter(t => currentDetailWeb2Type === 'all' || t === currentDetailWeb2Type);
+
+                if (filteredWeb2.length === 0) {
+                    let emptyMsg = app.web2.length === 0
+                        ? '暂未绑定任何 Web2 账号到此应用'
+                        : (currentDetailWeb2Type === 'phone' ? '暂无手机类型账号' : '暂无邮箱类型账号');
+                    listHtml = `
+                        <div class="p-6 text-center text-slate-400 text-[10px] bg-white border border-dashed border-slate-200 rounded-xl">
+                            💡 ${emptyMsg}
+                        </div>
+                    `;
+                } else {
+                    listHtml = `<div class="space-y-2.5">`;
+                    filteredWeb2.forEach(web2Type => {
+                        let acc = boundWeb2Accounts.find(x => x.type === web2Type);
+                        if (acc) {
+                            // 服务标签行：会员
+                            let memberTag = '';
+                            if (acc.membership && acc.membership.status === 'active') {
+                                memberTag = `<span onclick="showVipToast()" class="inline-flex items-center space-x-0.5 px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[8px] font-bold rounded border border-amber-200/50 cursor-pointer active-scale">👑${acc.membership.plan}</span>`;
+                            } else {
+                                memberTag = `<span onclick="showVipToast()" class="inline-flex items-center px-1.5 py-0.5 bg-slate-50 text-slate-400 text-[8px] font-bold rounded border border-slate-200/50 cursor-pointer active-scale">👑开通会员</span>`;
+                            }
+                            let serviceHtml = `
+                                <div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 flex-wrap">
+                                    ${memberTag}
+                                </div>
+                            `;
+                            let vipClass = (acc.membership && acc.membership.status === 'active') ? 'vip-card-active' : '';
+                            listHtml += `
+                                <div class="p-3.5 bg-white border border-slate-200 ${vipClass} rounded-xl">
+                                    <div class="flex justify-between items-center">
+                                        <div class="flex items-center space-x-2.5">
+                                            <div class="w-9 h-9 rounded-lg ${web2Type === 'phone' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'} border flex items-center justify-center text-base flex-shrink-0">${web2Type === 'phone' ? '📱' : '✉️'}</div>
+                                            <div>
+                                                <h5 class="text-xs font-bold text-slate-800">${acc.label}</h5>
+                                                <p class="text-[9px] text-slate-400 font-mono mt-0.5">${acc.account}</p>
+                                            </div>
+                                        </div>
+                                        <button onclick="disconnectIdentity('${currentDetailAppId}', 'web2', '${web2Type}')" class="px-2 py-1 text-[10px] text-rose-500 font-semibold hover:text-rose-700 bg-rose-50 border border-rose-100 rounded-lg active-scale flex-shrink-0 ml-2">断开</button>
+                                    </div>
+                                    ${serviceHtml}
+                                </div>
+                            `;
+                        }
+                    });
+                    listHtml += `</div>`;
+                }
+            }
+            
+            container.innerHTML = summaryHtml + tabHtml + filterHtml + listHtml;
+        }
+
+        // Render global wallets with Chain grouping
+        function renderGlobalWalletsList() {
+            const container = document.getElementById('global-wallets-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (wallets.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-xs text-slate-400 bg-white border border-slate-200/80 rounded-2xl">
+                        💡 暂无可用钱包，请点击右上角添加
+                    </div>
+                `;
+                return;
+            }
+
+            let chainGroups = {};
+            wallets.forEach(w => {
+                if (!chainGroups[w.chain]) {
+                    chainGroups[w.chain] = [];
+                }
+                chainGroups[w.chain].push(w);
+            });
+
+            Object.keys(chainGroups).forEach(chain => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = "space-y-2";
+                
+                let walletsHtml = '';
+                chainGroups[chain].forEach(wallet => {
+                    const isActive = (currentActiveIdentityType === 'web3' && currentWeb3Account === wallet.id);
+                    const displayAddr = wallet.address.substring(0, 10) + '...' + wallet.address.substring(wallet.address.length - 8);
+                    
+                    walletsHtml += `
+                        <div class="p-3 bg-white border border-slate-200 rounded-xl flex justify-between items-center transition-all ${
+                            isActive ? 'bg-indigo-50/20 border-indigo-200' : 'hover:bg-slate-50'
+                        }">
+                            <div class="flex items-center space-x-2.5 truncate max-w-[210px]">
+                                <span class="text-sm">💳</span>
+                                <div class="truncate">
+                                    <h5 class="text-xs font-bold text-slate-800 truncate">${wallet.name}</h5>
+                                    <p class="text-[9px] text-slate-400 font-mono mt-0.5">${displayAddr}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1 flex-shrink-0">
+                                ${
+                                    isActive 
+                                    ? `<span class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[9px] font-bold rounded-lg border border-indigo-100 cursor-default">使用中</span>` 
+                                    : `<button onclick="switchLoginIdentity('${wallet.id}')" class="px-2 py-1 bg-slate-100 border border-slate-200 hover:bg-slate-200/60 text-slate-700 text-[9px] font-bold rounded-lg active-scale">切换</button>`
+                                }
+                                <button onclick="openWalletManage('${wallet.id}')" class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg text-xs">⚙️</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                groupDiv.innerHTML = `
+                    <div class="flex items-center space-x-2 px-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                        <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">${chain}</span>
+                    </div>
+                    <div class="space-y-2">
+                        ${walletsHtml}
+                    </div>
+                `;
+                container.appendChild(groupDiv);
+            });
+        }
+
+        // Apply dynamic UI modifications
+        function applyIdentityStyles() {
+            const statusDot = document.getElementById('active-status-dot');
+            const statusText = document.getElementById('active-status-text');
+            const passCountBadge = document.getElementById('pass-count-badge');
+
+            // Sync total connection count
+            let totalBinds = 0;
+            Object.keys(appAuthorizations).forEach(appId => {
+                totalBinds += appAuthorizations[appId].web3.length + appAuthorizations[appId].web2.length;
+            });
+            if (passCountBadge) {
+                passCountBadge.innerText = totalBinds + "个关联";
+            }
+
+            // Sync active wallet balance display
+            let activeWallet = wallets.find(w => w.id === currentWeb3Account);
+            if (activeWallet) {
+                document.getElementById('wallet-tab-active-addr').innerText = activeWallet.address;
+            } else {
+                document.getElementById('wallet-tab-active-addr').innerText = "未激活/未导入自管账户";
+            }
+
+            if (statusDot) statusDot.className = "w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse";
+            if (activeWallet) {
+                let shortAddr = activeWallet.address.substring(0, 6) + '...' + activeWallet.address.substring(activeWallet.address.length - 4);
+                if (statusText) statusText.innerText = shortAddr;
+            } else {
+                if (statusText) statusText.innerText = "未登录";
+            }
+
+            // Render subpage lists
+            renderAppAuthorizationsList();
+        }
+
+        // Tab switches
+        function switchTab(tabId) {
+            const serviceContent = document.getElementById('view-service-content');
+            const walletMock = document.getElementById('view-wallet-mock');
+            const appHeader = document.getElementById('app-header');
+            const headerTitle = document.getElementById('header-title');
+
+            serviceContent.classList.add('hidden');
+            walletMock.classList.add('hidden');
+
+            appHeader.classList.remove('hidden');
+
+            if (tabId === 'service') {
+                serviceContent.classList.remove('hidden');
+                headerTitle.innerText = "服务大厅";
+            } else if (tabId === 'wallet') {
+                walletMock.classList.remove('hidden');
+                headerTitle.innerText = "自管冷钱包";
+            }
+
+            renderPillTabs(tabId);
+        }
+
+        // Floating Capsule Dynamic Tab Bar Renderer
+        function renderPillTabs(activeTab) {
+            const container = document.getElementById('pill-nav-container');
+            
+            const walletBtn = activeTab === 'wallet'
+                ? `<div class="bg-white text-black font-extrabold rounded-full px-8 py-2 flex items-center space-x-1.5 text-xs active-scale">
+                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                     <span>钱包</span>
+                   </div>`
+                : `<div onclick="switchTab('wallet')" class="text-white/60 hover:text-white cursor-pointer p-2 active-scale">
+                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                   </div>`;
+
+            const serviceBtn = activeTab === 'service'
+                ? `<div class="bg-white text-black font-extrabold rounded-full px-8 py-2 flex items-center space-x-1.5 text-xs active-scale">
+                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                     <span>服务</span>
+                   </div>`
+                : `<div onclick="switchTab('service')" class="text-white/60 hover:text-white cursor-pointer p-2 active-scale">
+                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                   </div>`;
+
+            container.innerHTML = `
+                <div class="flex items-center justify-around w-full px-4">
+                    ${walletBtn}
+                    ${serviceBtn}
+                </div>
+            `;
+        }
+
+        // NAVIGATION: Dedicated transitions for Identity Pass
+        function openIdentityPass() {
+            console.log('>>> openIdentityPass called!');
+            const el = document.getElementById('view-identity-pass');
+            if (el) {
+                el.classList.remove('hidden');
+                el.style.display = 'flex';
+            }
+            applyIdentityStyles();
+        }
+
+        function closeIdentityPass() {
+            const el = document.getElementById('view-identity-pass');
+            if (el) {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+            // 同时关闭身份管理二级页
+            const detail = document.getElementById('view-app-identity-detail');
+            if (detail) {
+                detail.classList.add('hidden');
+                detail.style.display = 'none';
+            }
+            currentDetailAppId = null;
+        }
+
+        // Navigation for Wallet Management Subpage
+        function openWalletManage(walletId) {
+            managingWalletId = walletId;
+            let wallet = wallets.find(w => w.id === walletId);
+            if (!wallet) return;
+
+            closeIdentityPass();
+            const el = document.getElementById('view-wallet-manage');
+            if (el) {
+                el.classList.remove('hidden');
+                el.style.display = 'flex';
+            }
+
+            document.getElementById('manage-wallet-name-title').innerText = wallet.name;
+            document.getElementById('manage-wallet-chain').innerText = "链：" + wallet.chain;
+            document.getElementById('manage-wallet-full-address').innerText = wallet.address;
+            
+            hideSecureKey();
+        }
+
+        function closeWalletManage() {
+            const el = document.getElementById('view-wallet-manage');
+            if (el) {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+            openIdentityPass();
+        }
+
+        // Switch login identity in passport list
+        function switchLoginIdentity(target) {
+            showToast("正在请求设备签名私钥...", "🔄");
+            setTimeout(() => {
+                currentActiveIdentityType = 'web3';
+                currentWeb3Account = target;
+                let wallet = wallets.find(w => w.id === target);
+                showToast(`切换冷钱包账户: ${wallet ? wallet.name : ''}`, "🔑");
+                applyIdentityStyles();
+            }, 800);
+        }
+
+        // Toast Helper
+        function showToast(message, icon = "✨") {
+            const toast = document.getElementById('toast-box');
+            if (toast) {
+                document.getElementById('toast-text').innerText = message;
+                document.getElementById('toast-icon').innerText = icon;
+                
+                toast.className = "absolute top-14 left-1/2 -translate-x-1/2 z-[55] pointer-events-none opacity-100 transition-all duration-300 transform scale-100";
+                
+                setTimeout(() => {
+                    toast.className = "absolute top-14 left-1/2 -translate-x-1/2 z-[55] pointer-events-none opacity-0 transition-all duration-300 transform scale-95";
+                }, 2500);
+            }
+        }
+
+        // Management Actions: RENAME
+        function triggerRenameWallet() {
+            let wallet = wallets.find(w => w.id === managingWalletId);
+            if (!wallet) return;
+
+            let newName = prompt("请输入钱包的新名称:", wallet.name);
+            if (newName && newName.trim() !== "") {
+                wallet.name = newName.trim();
+                document.getElementById('manage-wallet-name-title').innerText = wallet.name;
+                showToast("钱包名称修改成功", "✏️");
+                applyIdentityStyles();
+            }
+        }
+
+        // Management Actions: EXPORT PRIVATE KEY
+        function triggerExportPrivateKey() {
+            let wallet = wallets.find(w => w.id === managingWalletId);
+            if (!wallet) return;
+
+            let enteredPin = prompt("请输入您本地冷钱包的 6 位数字签名密码进行验证:");
+            if (enteredPin === null) return; 
+
+            if (enteredPin.length === 6 && /^\d+$/.test(enteredPin)) {
+                showToast("身份核验通过，私钥已安全导出", "🔑");
+                const secureDisplay = document.getElementById('private-key-secure-display');
+                secureDisplay.classList.remove('hidden');
+                document.getElementById('secure-key-txt').innerText = wallet.privateKey;
+            } else {
+                alert("🔴 签名密码校验失败！请重新输入正确的 6 位数字。");
+            }
+        }
+
+        function hideSecureKey() {
+            document.getElementById('private-key-secure-display').classList.add('hidden');
+            document.getElementById('secure-key-txt').innerText = "0x";
+        }
+
+        // Management Actions: DELETE/UNREGISTER WALLET
+        function triggerDeleteWallet() {
+            let walletIndex = wallets.findIndex(w => w.id === managingWalletId);
+            if (walletIndex === -1) return;
+
+            let confirmText = `⚠️ 警告：注销此钱包将清除本地存储 of 私钥凭据。如果您没有备份助记词，该地址的链上资产将永久丢失！
+
+确定要注销钱包吗？`;
+            if (confirm(confirmText)) {
+                if (wallets.length === 1) {
+                    alert("无法注销唯一钱包，请至少保留一个登录身份主体。");
+                    return;
+                }
+                
+                let deletedId = wallets[walletIndex].id;
+                wallets.splice(walletIndex, 1);
+                showToast("钱包已安全注销删除", "🗑️");
+                
+                if (currentWeb3Account === deletedId) {
+                    currentWeb3Account = wallets[0].id;
+                }
+
+                // Disconnect from all apps
+                Object.keys(appAuthorizations).forEach(appId => {
+                    let app = appAuthorizations[appId];
+                    let idx = app.web3.indexOf(deletedId);
+                    if (idx !== -1) {
+                        app.web3.splice(idx, 1);
+                    }
+                });
+                
+                closeWalletManage();
+            }
+        }
+
+        // MODAL ADD WALLET ACTIONS
+        function openAddWalletModal() {
+            document.getElementById('modal-add-wallet').classList.remove('hidden');
+            renderKeychainList();
+        }
+
+        function closeAddWalletModal() {
+            document.getElementById('modal-add-wallet').classList.add('hidden');
+        }
+
+        function renderKeychainList() {
+            const list = document.getElementById('keychain-list');
+            list.innerHTML = '';
+            
+            if (deviceKeychain.length === 0) {
+                list.innerHTML = `
+                    <div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        🔒 设备上暂未检测到未导出的自管地址
+                    </div>
+                `;
+                return;
+            }
+
+            deviceKeychain.forEach(item => {
+                const row = document.createElement('div');
+                row.className = "p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center";
+                row.innerHTML = `
+                    <div class="flex items-center space-x-3 truncate max-w-[200px]">
+                        <span class="text-lg">💾</span>
+                        <div class="truncate">
+                            <h5 class="text-xs font-bold text-slate-800 truncate">${item.name}</h5>
+                            <p class="text-[9px] text-slate-455 font-mono mt-0.5">${item.address.substring(0,10)}...${item.address.substring(item.address.length-8)} (${item.chain})</p>
+                        </div>
+                    </div>
+                    <button onclick="importFromKeychain('${item.id}')" class="px-2.5 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-755 active-scale">导入选择</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function importFromKeychain(itemId) {
+            let index = deviceKeychain.findIndex(w => w.id === itemId);
+            if (index === -1) return;
+
+            let wallet = deviceKeychain[index];
+            deviceKeychain.splice(index, 1);
+            
+            wallets.push({
+                id: wallet.id,
+                name: wallet.name.replace("设备自管密钥", "自管钱包"),
+                address: wallet.address,
+                chain: wallet.chain,
+                privateKey: wallet.privateKey
+            });
+            
+            showToast("成功导入该自管冷钱包", "✅");
+            closeAddWalletModal();
+            applyIdentityStyles();
+        }
+
+        function triggerCreateWalletWizard() {
+            closeAddWalletModal();
+            closeIdentityPass();
+            startCreateWalletFlow();
+            showToast("已调起新建冷钱包向导流程", "🔐");
+        }
+
+        // MODAL INJECT IDENTITY ACTIONS
+        let tempInjectNetwork = 'all';     // 当前注入弹窗选中的网络
+        let tempInjectSelectedWalletId = null;  // 当前选中待注入的钱包
+
+        function openInjectModal(appId, defaultTab) {
+            tempInjectAppId = appId;
+            tempInjectType = defaultTab || 'web3';
+            tempInjectNetwork = 'all';
+            tempInjectSelectedWalletId = null;
+
+            const app = appAuthorizations[appId];
+            document.getElementById('inject-app-name').innerText = app ? app.name : 'App';
+
+            document.getElementById('input-inject-web2-acc').value = '';
+            document.getElementById('input-inject-web2-pwd').value = '';
+            document.getElementById('inject-verify-loader').classList.add('hidden');
+
+            switchInjectTab(tempInjectType);
+            document.getElementById('modal-inject-identity').classList.remove('hidden');
+        }
+
+        function closeInjectModal() {
+            document.getElementById('modal-inject-identity').classList.add('hidden');
+            tempInjectSelectedWalletId = null;
+            tempInjectNetwork = 'all';
+        }
+
+        function switchInjectTab(type) {
+            tempInjectType = type;
+            const tabWeb3 = document.getElementById('tab-inject-web3');
+            const tabWeb2 = document.getElementById('tab-inject-web2');
+            const contentWeb3 = document.getElementById('inject-content-web3');
+            const contentWeb2 = document.getElementById('inject-content-web2');
+
+            if (type === 'web3') {
+                tabWeb3.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white text-slate-800 shadow-sm transition-all";
+                tabWeb2.className = "flex-1 py-2 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-800 transition-all";
+                contentWeb3.classList.remove('hidden');
+                contentWeb2.classList.add('hidden');
+                renderInjectNetworkSelector();
+                renderInjectWalletsList();
+            } else {
+                tabWeb2.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white text-slate-800 shadow-sm transition-all";
+                tabWeb3.className = "flex-1 py-2 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-800 transition-all";
+                contentWeb3.classList.add('hidden');
+                contentWeb2.classList.remove('hidden');
+            }
+        }
+
+        // 网络选择器渲染（主流钱包风格）
+        function renderInjectNetworkSelector() {
+            const sel = document.getElementById('inject-network-select');
+            if (!sel) return;
+
+            // 收集所有本地钱包涉及的网络
+            let networks = [];
+            wallets.forEach(w => {
+                if (!networks.includes(w.chain)) networks.push(w.chain);
+            });
+
+            let optionsHtml = `<option value="all">全部网络 (${wallets.length})</option>`;
+            networks.forEach(net => {
+                let count = wallets.filter(w => w.chain === net).length;
+                optionsHtml += `<option value="${net}" ${tempInjectNetwork === net ? 'selected' : ''}>${net} (${count})</option>`;
+            });
+            sel.innerHTML = optionsHtml;
+        }
+
+        function switchInjectNetwork(val) {
+            tempInjectNetwork = val;
+            tempInjectSelectedWalletId = null;
+            renderInjectWalletsList();
+            updateInjectConfirmBar();
+        }
+
+        // Web3 钱包列表渲染（根据网络筛选，参考主流钱包选择样式）
+        function renderInjectWalletsList() {
+            const listContainer = document.getElementById('inject-wallets-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
+
+            const app = appAuthorizations[tempInjectAppId];
+            let filtered = wallets.filter(w => tempInjectNetwork === 'all' || w.chain === tempInjectNetwork);
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="p-4 text-center text-slate-400 text-[10px] bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        💡 ${tempInjectNetwork === 'all' ? '暂无可用钱包' : '该网络下暂无钱包'}
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(wallet => {
+                const isAuthorized = app && app.web3.includes(wallet.id);
+                const isSelected = tempInjectSelectedWalletId === wallet.id;
+                const shortAddr = wallet.address.substring(0, 8) + '...' + wallet.address.substring(wallet.address.length - 6);
+
+                const row = document.createElement('div');
+                row.className = `p-3 bg-white border rounded-xl flex justify-between items-center cursor-pointer transition-all ${isSelected ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200 hover:border-slate-300'}`;
+                row.onclick = function() {
+                    if (isAuthorized) return;
+                    tempInjectSelectedWalletId = isSelected ? null : wallet.id;
+                    renderInjectWalletsList();
+                    updateInjectConfirmBar();
+                };
+
+                row.innerHTML = `
+                    <div class="flex items-center space-x-2.5 truncate min-w-0 flex-1">
+                        <div class="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-base flex-shrink-0">💳</div>
+                        <div class="truncate min-w-0">
+                            <div class="flex items-center space-x-1.5">
+                                <h5 class="text-[11px] font-bold text-slate-800 truncate">${wallet.name}</h5>
+                                <span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 text-[8px] font-bold rounded flex-shrink-0">${wallet.chain}</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 font-mono mt-0.5 truncate">${shortAddr}</p>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 ml-2">
+                        ${isAuthorized
+                            ? `<span class="px-2 py-1 bg-slate-100 text-slate-400 text-[9px] font-bold rounded-lg border">已注入</span>`
+                            : (isSelected
+                                ? `<div class="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-black">✓</div>`
+                                : `<div class="w-5 h-5 rounded-full border-2 border-slate-300"></div>`)
+                        }
+                    </div>
+                `;
+                listContainer.appendChild(row);
+            });
+        }
+
+        // 底部确认条：显示选中的钱包地址 + 确认注入按钮
+        function updateInjectConfirmBar() {
+            const bar = document.getElementById('inject-confirm-bar');
+            if (!bar) return;
+            if (tempInjectType !== 'web3' || !tempInjectSelectedWalletId) {
+                bar.classList.add('hidden');
+                return;
+            }
+            const w = wallets.find(x => x.id === tempInjectSelectedWalletId);
+            if (!w) {
+                bar.classList.add('hidden');
+                return;
+            }
+            const shortAddr = w.address.substring(0, 10) + '...' + w.address.substring(w.address.length - 6);
+            bar.classList.remove('hidden');
+            bar.innerHTML = `
+                <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[9px] text-slate-400 font-bold uppercase">已选择</p>
+                        <p class="text-[11px] font-bold text-slate-800 truncate">${w.name}</p>
+                        <p class="text-[9px] text-slate-400 font-mono truncate">${shortAddr}</p>
+                    </div>
+                    <button onclick="confirmInjectWeb3()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl active-scale flex-shrink-0">
+                        确认注入
+                    </button>
+                </div>
+            `;
+        }
+
+        function confirmInjectWeb3() {
+            if (!tempInjectSelectedWalletId) return;
+            injectWeb3Wallet(tempInjectSelectedWalletId);
+        }
+
+        function injectWeb3Wallet(walletId) {
+            const app = appAuthorizations[tempInjectAppId];
+            if (app && !app.web3.includes(walletId)) {
+                app.web3.push(walletId);
+                showToast(`成功将 Web3 钱包注入 ${app.name}`, "✅");
+                closeInjectModal();
+                // 刷新身份管理页
+                if (currentDetailAppId === tempInjectAppId) {
+                    renderAppIdentityDetail();
+                }
+                applyIdentityStyles();
+            }
+        }
+
+        function submitInjectWeb2() {
+            let account = document.getElementById('input-inject-web2-acc').value;
+            let pass = document.getElementById('input-inject-web2-pwd').value;
+
+            if (!account || !pass) {
+                alert("请输入账号及密码进行服务器凭据核验！");
+                return;
+            }
+
+            const loader = document.getElementById('inject-verify-loader');
+            const submitBtn = document.getElementById('btn-inject-web2-submit');
+            
+            loader.classList.remove('hidden');
+            submitBtn.disabled = true;
+
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                submitBtn.disabled = false;
+
+                let type = account.includes("@") ? "email" : "phone";
+                let label = type === 'email' ? '电子邮箱' : '手机号码';
+                
+                let maskedAccount = account;
+                if (type === 'phone' && account.length === 11) {
+                    maskedAccount = account.substring(0, 3) + "****" + account.substring(7);
+                } else if (type === 'email' && account.includes("@")) {
+                    let parts = account.split("@");
+                    maskedAccount = parts[0].substring(0, 1) + "***@" + parts[1];
+                }
+
+                // Bind globally if not already
+                let exists = boundWeb2Accounts.some(w => w.type === type);
+                if (!exists) {
+                    boundWeb2Accounts.push({
+                        type: type,
+                        account: maskedAccount,
+                        label: label
+                    });
+                }
+
+                // Inject relation
+                const app = appAuthorizations[tempInjectAppId];
+                if (app && !app.web2.includes(type)) {
+                    app.web2.push(type);
+                }
+
+                showToast("Web2 凭证安全验证成功并已注入！", "✅");
+                closeInjectModal();
+                // 刷新身份管理页
+                if (currentDetailAppId === tempInjectAppId) {
+                    renderAppIdentityDetail();
+                }
+                applyIdentityStyles();
+            }, 1200);
+        }
+
+        function disconnectIdentity(appId, type, itemId) {
+            const app = appAuthorizations[appId];
+            if (!app) return;
+
+            if (type === 'web3') {
+                let index = app.web3.indexOf(itemId);
+                if (index !== -1) {
+                    app.web3.splice(index, 1);
+                    showToast(`已断开 ${app.name} 的 Web3 钱包关联`, "🔗");
+                }
+            } else {
+                let index = app.web2.indexOf(itemId);
+                if (index !== -1) {
+                    app.web2.splice(index, 1);
+                    showToast(`已断开 ${app.name} 的 Web2 账号关联`, "🔗");
+                }
+            }
+            // 刷新身份管理页（如果在查看中）+ 全局样式
+            if (currentDetailAppId === appId) {
+                renderAppIdentityDetail();
+            }
+            applyIdentityStyles();
+        }
+
+        // Unbind Web2 globally
+        function unbindWeb2(type) {
+            let confirmMsg = `确定要解除当前绑定的 ${type === 'phone' ? '手机号码' : '电子邮箱'} 吗？解绑后所有 App 关联的此 Web2 遗留凭证都将断开。`;
+            if (confirm(confirmMsg)) {
+                let index = boundWeb2Accounts.findIndex(w => w.type === type);
+                if (index !== -1) {
+                    boundWeb2Accounts.splice(index, 1);
+                }
+                
+                // Disconnect from all apps
+                Object.keys(appAuthorizations).forEach(appId => {
+                    let app = appAuthorizations[appId];
+                    let idx = app.web2.indexOf(type);
+                    if (idx !== -1) {
+                        app.web2.splice(idx, 1);
+                    }
+                });
+
+                showToast(`Web2 绑定的${type === 'phone' ? '手机' : '邮箱'}已成功解除`, "🔗");
+                applyIdentityStyles();
+            }
+        }
+
+        // Compatibility Web2 Login Modal prompts (stub)
+        function openLinkWeb2Modal(mode, targetId = null) {}
+        function closeLinkWeb2Modal() {}
+        function triggerWeb2LoginPrompt() {}
+        function submitWeb2Verification() {}
+
+        // ========== 第三方 App 授权登录的交互逻辑 ==========
+        function triggerExternalAppAuth() {
+            authPinCode = "";
+            authSelectedIdentityId = null;
+            updateAuthPinDots();
+            
+            document.getElementById('auth-pin-section').classList.add('hidden');
+            document.getElementById('auth-verify-loader').classList.add('hidden');
+            document.getElementById('btn-auth-confirm').disabled = true;
+            document.getElementById('auth-actions-row').classList.remove('hidden');
+            
+            document.getElementById('view-app-connect-modal').classList.remove('hidden');
+            
+            const selector = document.getElementById('auth-identity-selector');
+            selector.innerHTML = '';
+            
+            // 1. Render currently authorized identities for R9Lab IM
+            const app = appAuthorizations['r9lab_im'];
+            if (app && (app.web3.length > 0 || app.web2.length > 0)) {
+                const header = document.createElement('div');
+                header.className = "text-[8px] font-black text-indigo-600 tracking-wider uppercase pb-1.5 px-1";
+                header.innerText = "已授权的关联身份 (一键连接)";
+                selector.appendChild(header);
+                
+                app.web3.forEach(walletId => {
+                    let w = wallets.find(x => x.id === walletId);
+                    if (w) {
+                        const div = document.createElement('div');
+                        div.className = "p-3 bg-indigo-50/20 border border-indigo-200 hover:border-indigo-400 rounded-xl flex items-center justify-between cursor-pointer transition-all auth-option-item";
+                        div.onclick = () => selectAuthIdentity(walletId, 'web3', div);
+                        div.innerHTML = `
+                            <div class="flex items-center space-x-2.5 truncate max-w-[210px]">
+                                <span class="text-sm">💳</span>
+                                <div class="truncate">
+                                    <h5 class="text-xs font-bold text-slate-800 truncate">${w.name}</h5>
+                                    <p class="text-[9px] text-slate-455 font-mono">${w.address.substring(0,10)}...${w.address.substring(w.address.length-8)}</p>
+                                </div>
+                            </div>
+                            <div class="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center text-[8px] text-white auth-checkbox"></div>
+                        `;
+                        selector.appendChild(div);
+                    }
+                });
+
+                app.web2.forEach(web2Type => {
+                    let acc = boundWeb2Accounts.find(x => x.type === web2Type);
+                    if (acc) {
+                        const div = document.createElement('div');
+                        div.className = "p-3 bg-indigo-50/20 border border-indigo-200 hover:border-indigo-400 rounded-xl flex items-center justify-between cursor-pointer transition-all auth-option-item";
+                        div.onclick = () => selectAuthIdentity(web2Type, 'web2', div);
+                        div.innerHTML = `
+                            <div class="flex items-center space-x-2.5">
+                                <span class="text-sm">${web2Type === 'phone' ? '📱' : '✉️'}</span>
+                                <div>
+                                    <h5 class="text-xs font-bold text-slate-800">${acc.label}</h5>
+                                    <p class="text-[9px] text-slate-455 font-mono">${acc.account}</p>
+                                </div>
+                            </div>
+                            <div class="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center text-[8px] text-white auth-checkbox"></div>
+                        `;
+                        selector.appendChild(div);
+                    }
+                });
+            }
+
+            // 2. Render all other options (Global Wallets)
+            const globalHeader = document.createElement('div');
+            globalHeader.className = "text-[8px] font-black text-slate-400 tracking-wider uppercase pt-3 pb-1.5 px-1";
+            globalHeader.innerText = "从全局冷钱包选择新身份连接";
+            selector.appendChild(globalHeader);
+
+            wallets.forEach(wallet => {
+                // If not already shown in authorized list above to avoid duplicates
+                if (app && app.web3.includes(wallet.id)) return;
+                
+                const div = document.createElement('div');
+                div.className = "p-3 bg-slate-50 border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/20 rounded-xl flex items-center justify-between cursor-pointer transition-all auth-option-item";
+                div.onclick = () => selectAuthIdentity(wallet.id, 'web3', div);
+                div.innerHTML = `
+                    <div class="flex items-center space-x-2.5 truncate max-w-[210px]">
+                        <span class="text-sm">💳</span>
+                        <div class="truncate">
+                            <h5 class="text-xs font-bold text-slate-800 truncate">${wallet.name}</h5>
+                            <p class="text-[9px] text-slate-455 font-mono">${wallet.address.substring(0,10)}...${wallet.address.substring(wallet.address.length-8)}</p>
+                        </div>
+                    </div>
+                    <div class="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center text-[8px] text-white auth-checkbox"></div>
+                `;
+                selector.appendChild(div);
+            });
+        }
+
+        function selectAuthIdentity(id, type, element) {
+            authSelectedIdentityId = id;
+            authSelectedIdentityType = type;
+            
+            const items = document.querySelectorAll('.auth-option-item');
+            items.forEach(item => {
+                item.className = item.className.replace("border-2 border-indigo-500 bg-indigo-50/30", "border border-slate-200 bg-slate-50").replace("border-2 border-indigo-500 bg-indigo-50/20", "border border-indigo-200 bg-indigo-50/20");
+                const cb = item.querySelector('.auth-checkbox');
+                cb.className = "w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center text-[8px] text-white auth-checkbox";
+                cb.style.backgroundColor = "transparent";
+                cb.innerText = "";
+            });
+            
+            element.className = element.className.replace("border border-slate-200 bg-slate-50", "border-2 border-indigo-500 bg-indigo-50/30").replace("border border-indigo-200 bg-indigo-50/20", "border-2 border-indigo-500 bg-indigo-50/30");
+            const cb = element.querySelector('.auth-checkbox');
+            cb.className = "w-4 h-4 rounded-full border-2 border-indigo-600 bg-indigo-600 flex items-center justify-center text-[8px] text-white font-black auth-checkbox";
+            cb.style.backgroundColor = "";
+            cb.innerText = "✓";
+            
+            document.getElementById('btn-auth-confirm').disabled = false;
+        }
+
+        function startPINForAuth() {
+            document.getElementById('auth-pin-section').classList.remove('hidden');
+            document.getElementById('auth-actions-row').classList.add('hidden');
+        }
+
+        function pressAuthPinNum(num) {
+            if (authPinCode.length < 6) {
+                authPinCode += num;
+                updateAuthPinDots();
+                if (authPinCode.length === 6) {
+                    setTimeout(submitAuthPINVerification, 300);
+                }
+            }
+        }
+
+        function clearAuthPin() {
+            authPinCode = "";
+            updateAuthPinDots();
+        }
+
+        function updateAuthPinDots() {
+            const dots = document.querySelectorAll('.auth-pin-dot');
+            dots.forEach((dot, index) => {
+                if (index < authPinCode.length) {
+                    dot.className = "w-3.5 h-3.5 rounded-full border-2 border-indigo-600 bg-indigo-600 auth-pin-dot";
+                } else {
+                    dot.className = "w-3.5 h-3.5 rounded-full border-2 border-slate-300 bg-transparent auth-pin-dot";
+                }
+            });
+        }
+
+        function submitAuthPINVerification() {
+            const loader = document.getElementById('auth-verify-loader');
+            const pinSec = document.getElementById('auth-pin-section');
+            
+            pinSec.classList.add('hidden');
+            loader.classList.remove('hidden');
+            
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                closeAppAuthModal();
+                
+                let name = "";
+                if (authSelectedIdentityType === 'web3') {
+                    let wallet = wallets.find(w => w.id === authSelectedIdentityId);
+                    name = wallet ? wallet.name : "自管冷钱包";
+                    
+                    // Add to R9Lab IM authorized Web3 wallets list if not already there!
+                    const app = appAuthorizations['r9lab_im'];
+                    if (app && !app.web3.includes(authSelectedIdentityId)) {
+                        app.web3.push(authSelectedIdentityId);
+                    }
+                } else {
+                    let acc = boundWeb2Accounts.find(w => w.type === authSelectedIdentityId);
+                    name = acc ? `${acc.label} (${acc.account})` : "Web2 身份";
+                    
+                    // Add to R9Lab IM authorized Web2 accounts list if not already there!
+                    const app = appAuthorizations['r9lab_im'];
+                    if (app && !app.web2.includes(authSelectedIdentityId)) {
+                        app.web2.push(authSelectedIdentityId);
+                    }
+                }
+                
+                showToast("🔌 授权登录成功！Proof凭据已返回第三方 IM", "✅");
+                applyIdentityStyles();
+                
+                document.getElementById('external-auth-result').innerHTML = `
+                    <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+                        <div class="flex items-center space-x-1.5 text-emerald-800 text-xs font-bold">
+                            <span>✅</span>
+                            <span>签名验证成功</span>
+                        </div>
+                        <p class="text-[10px] text-slate-550 leading-normal">
+                            已使用：<strong>${name}</strong> 进行签名授权登录。<br>
+                            Proof Hash: <code class="bg-white px-1 py-0.5 rounded border text-[9px] font-mono text-emerald-600">0x7d3a...f92a</code>
+                        </p>
+                    </div>
+                `;
+            }, 1500);
+        }
+
+        function closeAppAuthModal() {
+            document.getElementById('view-app-connect-modal').classList.add('hidden');
+        }
+
+        function showWelfareToast() { showToast("进入福利特权中心...", "🎁"); }
+        function showVaultToast() { showToast("进入安全保险库 (Vault)...", "🛡️"); }
+        function showVipToast() { showToast("已调起会员续费/升级页面...", "👑"); }
+        function showGenericToast(name) { showToast("打开" + name + "...", "⚙️"); }
+
+                // ========== 短号服务逻辑 ==========
+        let shortNumTargetId = null;    // 目标账号ID（walletId 或 web2Type）
+        let shortNumTargetType = null;  // 'web3' | 'web2'
+        let shortNumTab = 'premium';    // 'premium' | 'free' | 'my'
+        let shortFreeCandidates = [];   // 免费号候选列表
+        let shortFreeSelected = null;   // 当前选中的免费号
+        let selectedDigitLength = 5;    // 当前选中的靓号位数 (5, 6, 7, 8)
+
+        // 订单信息用于确认支付
+        let payPendingNumber = null;
+        let payPendingType = '';
+        let payPendingPrice = 0;
+
+        // 打开短号弹窗
+        function openShortNumberModal(targetId, targetType) {
+            shortNumTargetId = targetId;
+            shortNumTargetType = targetType;
+            shortFreeSelected = null;
+            selectedDigitLength = 5;
+
+            // 获取目标账号信息
+            let target = getShortNumTarget();
+            let chain = 'OBChain';
+            if (target && target.chain) {
+                chain = target.chain;
+            }
+            document.getElementById('short-num-context-chain').innerText = chain;
+
+            // 清空搜索框并隐藏单号查询结果
+            document.getElementById('input-premium-search').value = '';
+            document.getElementById('premium-search-result-box').classList.add('hidden');
+
+            // 初始化位数 Pill 选择器
+            selectDigitLengthPill(5);
+
+            // 生成免费号候选并初始化
+            shortFreeCandidates = generateFreeNumberCandidates();
+            renderFreeNumberGrid();
+            document.getElementById('btn-claim-free').disabled = true;
+
+            // 默认显示买靓号Tab
+            switchShortTab('premium');
+
+            document.getElementById('modal-short-number').classList.remove('hidden');
+        }
+
+        function closeShortNumberModal() {
+            document.getElementById('modal-short-number').classList.add('hidden');
+            shortNumTargetId = null;
+            shortFreeSelected = null;
+        }
+
+        // 获取当前短号目标对象
+        function getShortNumTarget() {
+            if (shortNumTargetType === 'web3') {
+                return wallets.find(w => w.id === shortNumTargetId);
+            } else {
+                return boundWeb2Accounts.find(a => a.type === shortNumTargetId);
+            }
+        }
+
+        // Tab 切换
+        function switchShortTab(tab) {
+            shortNumTab = tab;
+            const tabs = ['premium', 'free', 'my'];
+            tabs.forEach(t => {
+                const tabEl = document.getElementById(`tab-short-${t}`);
+                const contentEl = document.getElementById(`short-content-${t}`);
+                if (t === tab) {
+                    if (tabEl) tabEl.className = "flex-1 py-2.5 text-[10px] sm:text-xs font-bold rounded-xl bg-white text-indigo-650 shadow-sm transition-all active-scale";
+                    if (contentEl) {
+                        contentEl.classList.remove('hidden');
+                        contentEl.style.display = 'flex';
+                    }
+                } else {
+                    if (tabEl) tabEl.className = "flex-1 py-2.5 text-[10px] sm:text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all active-scale";
+                    if (contentEl) {
+                        contentEl.classList.add('hidden');
+                        contentEl.style.display = 'none';
+                    }
+                }
+            });
+
+            let target = getShortNumTarget();
+            if (tab === 'free') {
+                // 检查是否已领取免费号
+                let alreadyClaimedFree = target && target.shortNumber && target.shortNumber.type === 'free';
+                let alreadyClaimedPremium = target && target.shortNumber && target.shortNumber.type === 'premium';
+                
+                if (alreadyClaimedFree) {
+                    document.getElementById('short-free-locked').classList.add('hidden');
+                    document.getElementById('short-free-normal').classList.add('hidden');
+                    document.getElementById('short-free-owned').classList.remove('hidden');
+                    
+                    document.getElementById('short-free-owned-val').innerText = target.shortNumber.number;
+                    document.getElementById('short-free-owned-date').innerText = `已于 ${target.shortNumber.acquiredAt} 免费领取`;
+                } else if (alreadyClaimedPremium) {
+                    document.getElementById('short-free-locked').classList.remove('hidden');
+                    document.getElementById('short-free-normal').classList.add('hidden');
+                    document.getElementById('short-free-owned').classList.add('hidden');
+                } else {
+                    document.getElementById('short-free-locked').classList.add('hidden');
+                    document.getElementById('short-free-normal').classList.remove('hidden');
+                    document.getElementById('short-free-owned').classList.add('hidden');
+                }
+            } else if (tab === 'my') {
+                renderMyShortNumbers();
+            }
+        }
+
+        // 免费号生成规则 (随机 10-12 位)
+        function generateFreeNumberCandidates() {
+            let candidates = [];
+            for (let i = 0; i < 10; i++) {
+                let len = Math.floor(Math.random() * 3) + 10; // 10, 11, 12 位
+                let num = '';
+                for (let j = 0; j < len; j++) {
+                    num += Math.floor(Math.random() * 10);
+                }
+                candidates.push({ number: num, length: len });
+            }
+            return candidates;
+        }
+
+        // 渲染免费号网格
+        function renderFreeNumberGrid() {
+            const grid = document.getElementById('short-free-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            shortFreeCandidates.forEach(item => {
+                const num = item.number;
+                const len = item.length;
+                const isSelected = shortFreeSelected === num;
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-2xl border flex justify-between items-center cursor-pointer transition-all active-scale ${isSelected ? 'border-indigo-600 bg-indigo-50/20 ring-2 ring-indigo-100 font-bold' : 'border-slate-200 bg-white hover:border-slate-350'}`;
+                div.onclick = function() {
+                    shortFreeSelected = isSelected ? null : num;
+                    renderFreeNumberGrid();
+                    document.getElementById('btn-claim-free').disabled = !shortFreeSelected;
+                };
+                div.innerHTML = `
+                    <span class="text-xs font-mono text-slate-800">${num}</span>
+                    <span class="text-[9px] text-slate-400 font-normal">${len}位</span>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        // 换一批免费号
+        function regenerateFreeNumbers() {
+            shortFreeCandidates = generateFreeNumberCandidates();
+            shortFreeSelected = null;
+            renderFreeNumberGrid();
+            document.getElementById('btn-claim-free').disabled = true;
+            showToast("已刷新候选免费号码", "🔄");
+        }
+
+        // 确认领取免费号
+        function claimFreeNumber() {
+            if (!shortFreeSelected) return;
+            let target = getShortNumTarget();
+            if (!target) return;
+
+            target.shortNumber = {
+                number: shortFreeSelected,
+                type: 'free',
+                acquiredAt: new Date().toISOString().split('T')[0]
+            };
+
+            showToast(`免费号 ${shortFreeSelected} 领取成功！`, "🎉");
+            switchShortTab('my');
+            
+            if (currentDetailAppId) {
+                renderAppIdentityDetail();
+            }
+            applyIdentityStyles();
+        }
+
+        // 判定号码类型、倍数、计算最终价格
+        function analyzeNumberPattern(numStr) {
+            const len = numStr.length;
+            let basePrice = 1000;
+            if (len === 5) basePrice = 1000;
+            else if (len === 6) basePrice = 900;
+            else if (len === 7) basePrice = 810;
+            else if (len === 8) basePrice = 729;
+
+            // 1. 豹子（所有字符相同）
+            const isAllSame = new Set(numStr).size === 1;
+            if (isAllSame) {
+                return { type: '豹子 (全同)', multiplier: 50, price: basePrice * 50 };
+            }
+
+            // 2. 顺子 (递增或递减)
+            let asc = true, desc = true;
+            for (let i = 1; i < len; i++) {
+                const diff = numStr.charCodeAt(i) - numStr.charCodeAt(i-1);
+                if (diff !== 1) asc = false;
+                if (diff !== -1) desc = false;
+            }
+            if (asc || desc) {
+                return { type: '顺子', multiplier: 20, price: basePrice * 20 };
+            }
+
+            // 3. 四连同 (包含连续4位相同字符，如 11112 或 21111)
+            let hasFourConsecutive = false;
+            for (let i = 0; i <= len - 4; i++) {
+                if (numStr[i] === numStr[i+1] && numStr[i] === numStr[i+2] && numStr[i] === numStr[i+3]) {
+                    hasFourConsecutive = true;
+                    break;
+                }
+            }
+            if (hasFourConsecutive) {
+                return { type: '四连同', multiplier: 10, price: basePrice * 10 };
+            }
+
+            // 统计字符出现频次
+            const counts = {};
+            for (let char of numStr) {
+                counts[char] = (counts[char] || 0) + 1;
+            }
+            const freqValues = Object.values(counts).sort((a,b) => b-a);
+
+            // 4. 三连+对 (频次排前的是3和2，如 11122)
+            if (freqValues[0] === 3 && freqValues[1] === 2) {
+                return { type: '三连+对', multiplier: 8, price: basePrice * 8 };
+            }
+
+            // 5. 双对子 (包含至少两组对子，如 11223)
+            let pairsCount = 0;
+            for (let val of Object.values(counts)) {
+                if (val >= 2) pairsCount++;
+            }
+            if (pairsCount >= 2) {
+                return { type: '双对子', multiplier: 5, price: basePrice * 5 };
+            }
+
+            // 6. 吉尾号 (以 88、66 或 8、6 结尾)
+            if (numStr.endsWith('88') || numStr.endsWith('66') || numStr.endsWith('8') || numStr.endsWith('6')) {
+                return { type: '吉尾号', multiplier: 3, price: basePrice * 3 };
+            }
+
+            return { type: '普通号', multiplier: 1, price: basePrice };
+        }
+
+        // Pill 位数选择器交互
+        function selectDigitLengthPill(digits) {
+            selectedDigitLength = digits;
+            const pills = [5, 6, 7, 8];
+            pills.forEach(d => {
+                const pill = document.getElementById(`pill-digits-${d}`);
+                if (pill) {
+                    if (d === digits) {
+                        pill.className = "px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full shadow-sm active-scale transition-all";
+                    } else {
+                        pill.className = "px-4 py-2 bg-slate-100 text-slate-655 text-xs font-semibold rounded-full hover:bg-slate-200 active-scale transition-all";
+                    }
+                }
+            });
+            triggerRandomNumbers();
+        }
+
+        // 搜号查价逻辑
+        function searchPremiumNumber() {
+            const input = document.getElementById('input-premium-search').value.trim();
+            const resultBox = document.getElementById('premium-search-result-box');
+            const randomBox = document.getElementById('premium-random-results-box');
+
+            if (!/^\d{5,8}$/.test(input)) {
+                showToast("请输入 5-8 位纯数字靓号进行查价", "⚠️");
+                return;
+            }
+
+            // 分析号码
+            const analysis = analyzeNumberPattern(input);
+
+            // 渲染结果
+            randomBox.classList.add('hidden');
+            resultBox.classList.remove('hidden');
+            resultBox.innerHTML = `
+                <div class="flex flex-col items-center justify-center p-5 text-center space-y-3 bg-indigo-50/10 border border-indigo-100 rounded-2xl shadow-inner animate-fade-in">
+                    <div class="text-3xl font-black font-mono text-slate-800 tracking-widest">${input}</div>
+                    <div class="text-xs text-amber-600 font-bold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100/60">
+                        ${analysis.type} · ${input.length}位 ${analysis.multiplier > 1 ? '×' + analysis.multiplier : ''}
+                    </div>
+                    <div class="text-xl font-black text-emerald-600 font-mono">${analysis.price} USDT</div>
+                    <button onclick="openPaymentModal('${input}', '${analysis.type} ${analysis.multiplier > 1 ? '×' + analysis.multiplier : ''}', ${analysis.price})" class="w-full max-w-[200px] py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-2xl active-scale shadow-lg shadow-indigo-100">
+                        立即购买
+                    </button>
+                </div>
+            `;
+        }
+
+        // 🎲 随机出号逻辑
+        function triggerRandomNumbers() {
+            const digitLen = selectedDigitLength;
+            const grid = document.getElementById('premium-random-grid');
+            const resultBox = document.getElementById('premium-search-result-box');
+            const randomBox = document.getElementById('premium-random-results-box');
+
+            resultBox.classList.add('hidden');
+            randomBox.classList.remove('hidden');
+            grid.innerHTML = '';
+
+            // 常见好记的号码规律生成
+            const candidates = [];
+            for (let i = 0; i < 8; i++) {
+                let numStr = '';
+                const randType = Math.random();
+                if (randType < 0.1) {
+                    const digit = Math.floor(Math.random() * 9) + 1;
+                    numStr = String(digit).repeat(digitLen);
+                } else if (randType < 0.2) {
+                    const start = Math.floor(Math.random() * (10 - digitLen));
+                    for (let j = 0; j < digitLen; j++) {
+                        numStr += (start + j);
+                    }
+                } else if (randType < 0.4) {
+                    for (let j = 0; j < digitLen - 2; j++) {
+                        numStr += Math.floor(Math.random() * 10);
+                    }
+                    numStr += (Math.random() > 0.5 ? '88' : '66');
+                } else if (randType < 0.6) {
+                    const d1 = Math.floor(Math.random() * 10);
+                    const d2 = (d1 + 1) % 10;
+                    numStr = String(d1).repeat(2) + String(d2).repeat(2);
+                    for (let j = 4; j < digitLen; j++) {
+                        numStr += Math.floor(Math.random() * 10);
+                    }
+                } else {
+                    for (let j = 0; j < digitLen; j++) {
+                        numStr += Math.floor(Math.random() * 10);
+                    }
+                }
+                candidates.push(numStr);
+            }
+
+            // 渲染
+            candidates.forEach(num => {
+                const analysis = analyzeNumberPattern(num);
+                const isPremium = analysis.multiplier > 1;
+                const borderClass = isPremium ? 'border-amber-200 bg-amber-50/15' : 'border-slate-200 bg-white';
+                
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border flex flex-col items-center justify-between text-center space-y-2.5 transition-all hover:border-indigo-300 shadow-sm ${borderClass}`;
+                card.innerHTML = `
+                    <div class="text-sm font-bold font-mono text-slate-800">${num}</div>
+                    <div class="text-[9px] text-amber-600 font-bold bg-amber-50/60 px-1.5 py-0.5 rounded border border-amber-100/40">
+                        ${analysis.type} ${analysis.multiplier > 1 ? '×' + analysis.multiplier : ''}
+                    </div>
+                    <div class="text-xs font-black text-emerald-600 font-mono">${analysis.price} USDT</div>
+                    <button onclick="openPaymentModal('${num}', '${analysis.type} ${analysis.multiplier > 1 ? '×' + analysis.multiplier : ''}', ${analysis.price})" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg active-scale shadow-sm">
+                        购买
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // 打开支付确认二级模态框 (C端 Bottom Sheet 体验)
+        function openPaymentModal(number, type, price) {
+            payPendingNumber = number;
+            payPendingType = type;
+            payPendingPrice = price;
+
+            document.getElementById('pay-short-num-title').innerText = number;
+            document.getElementById('pay-short-num-val').innerText = number;
+            document.getElementById('pay-short-num-type').innerText = type;
+            document.getElementById('pay-short-num-price').innerText = price + ' USDT';
+
+            document.getElementById('pay-password').value = '';
+            document.getElementById('pay-loading-text').classList.add('hidden');
+
+            const walletSelect = document.getElementById('pay-wallet');
+            walletSelect.innerHTML = '';
+            if (wallets.length === 0) {
+                walletSelect.innerHTML = `<option value="">没有可用的冷钱包</option>`;
+            } else {
+                wallets.forEach(w => {
+                    const shortAddr = w.address.substring(0, 8) + '...' + w.address.substring(w.address.length - 6);
+                    walletSelect.innerHTML += `<option value="${w.id}">${w.name} - ${shortAddr}</option>`;
+                });
+            }
+
+            document.getElementById('modal-short-number-payment').classList.remove('hidden');
+        }
+
+        // 关闭支付确认二级模态框
+        function closePaymentModal() {
+            document.getElementById('modal-short-number-payment').classList.add('hidden');
+            payPendingNumber = null;
+        }
+
+        // 提交购买靓号支付
+        function submitPremiumPurchase() {
+            const password = document.getElementById('pay-password').value.trim();
+            const loader = document.getElementById('pay-loading-text');
+
+            if (!password) {
+                showToast("请输入本地主密码验证交易", "⚠️");
+                return;
+            }
+
+            loader.classList.remove('hidden');
+            
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                
+                let target = getShortNumTarget();
+                if (target) {
+                    target.shortNumber = {
+                        number: payPendingNumber,
+                        type: 'premium',
+                        acquiredAt: new Date().toISOString().split('T')[0]
+                    };
+                }
+
+                showToast(`短号 ${payPendingNumber} 购买并注册成功！`, "💎");
+                closePaymentModal();
+                switchShortTab('my');
+
+                if (currentDetailAppId) {
+                    renderAppIdentityDetail();
+                }
+                applyIdentityStyles();
+            }, 1800);
+        }
+
+        // 我的短号渲染
+        function renderMyShortNumbers() {
+            const list = document.getElementById('short-my-list');
+            if (!list) return;
+            list.innerHTML = '';
+            
+            let target = getShortNumTarget();
+            if (target && target.shortNumber) {
+                const isPremium = target.shortNumber.type === 'premium';
+                const badge = isPremium ? '<span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-lg border border-amber-200">靓号</span>' : '<span class="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg border border-blue-200">免费号</span>';
+                const icon = isPremium ? '💎' : '🎁';
+                
+                list.innerHTML = `
+                    <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 flex items-center justify-between shadow-sm">
+                        <div class="flex items-center space-x-3">
+                            <div class="text-2xl">${icon}</div>
+                            <div>
+                                <p class="text-sm font-extrabold font-mono text-slate-800 tracking-wider">${target.shortNumber.number}</p>
+                                <p class="text-[9px] text-slate-400 mt-0.5">获取于 ${target.shortNumber.acquiredAt}</p>
+                            </div>
+                        </div>
+                        ${badge}
+                    </div>
+                `;
+            } else {
+                list.innerHTML = `
+                    <div class="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        暂无绑定的短号，请前往买靓号或领取免费号
+                    </div>
+                `;
+            }
+        }
+
+        // Rules Accordion
+        let rulesAccordionOpen = true;
+        function toggleRulesAccordion() {
+            rulesAccordionOpen = !rulesAccordionOpen;
+            const content = document.getElementById('rules-accordion-content');
+            const arrow = document.getElementById('rules-accordion-arrow');
+            if (rulesAccordionOpen) {
+                content.classList.remove('hidden');
+                arrow.innerText = '▼';
+            } else {
+                content.classList.add('hidden');
+                arrow.innerText = '►';
+            }
+        }
+        function triggerLeftNav(dest) {
+            console.log('>>> triggerLeftNav called with destination:', dest);
+            if (!hasWallet) {
+                switchToWeb3Direct();
+            }
+            
+            closeIdentityPass();
+            closeWalletManage();
+            closeInjectModal();
+            closeAddWalletModal();
+            closeLinkWeb2Modal();
+            closeAppAuthModal();
+
+            if (dest === 'wallet') {
+                switchTab('wallet');
+                showToast("已自动定位到自管钱包核心舱", "👛");
+            } else if (dest === 'passport') {
+                switchTab('service');
+                openIdentityPass();
+                showToast("已自动展示数字身份通行证 (DID)", "🔑");
+            } else if (dest === 'external') {
+                switchTab('service');
+                triggerExternalAppAuth();
+                showToast("已模拟拉起外部 App 授权签名登录挑战", "🔌");
+            }
+        }
+
+        // Initialize state on load
+        window.addEventListener('load', () => {
+            resetToNewUser();
+        });
+</script>
+    <!-- Premium Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        // Helper to toggle element visibility safely with both classes and inline styles
+        function toggleElement(id, show, val = 'flex') {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (show) {
+                el.classList.remove('hidden');
+                el.style.display = val;
+            } else {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+        }
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', '-apple-system', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        lightbg: '#F8FAFC',
+                        lightcard: '#FFFFFF',
+                        web3accent: '#4F46E5', // Indigo-600
+                        web3success: '#10B981', // Emerald-500
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Premium Font Smoothing & Smooth Scroll */
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Ambient Blob Lightings for Desktop Background */
+        body {
+            position: relative;
+            z-index: 1;
+        }
+        body::before {
+            content: "";
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0) 70%);
+            top: 5%;
+            left: 5%;
+            z-index: -1;
+            pointer-events: none;
+            filter: blur(60px);
+        }
+        body::after {
+            content: "";
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.08) 0%, rgba(168, 85, 247, 0) 70%);
+            bottom: 5%;
+            right: 5%;
+            z-index: -1;
+            pointer-events: none;
+            filter: blur(60px);
+        }
+
+        /* Modern Scrollbar Hide */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Premium Soft Shadows & Borders */
+        .premium-card {
+            background: #FFFFFF;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 12px -1px rgba(15, 23, 42, 0.03), 0 2px 4px -1px rgba(15, 23, 42, 0.01);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .premium-card:hover {
+            border-color: rgba(99, 102, 241, 0.25);
+            box-shadow: 0 16px 24px -6px rgba(99, 102, 241, 0.08), 0 6px 10px -4px rgba(99, 102, 241, 0.03);
+            transform: translateY(-1px);
+        }
+
+        /* VIP Card Premium Metallic Light Shine */
+        .vip-card-active {
+            background: linear-gradient(135deg, #FFFDF7 0%, #FFF8E5 100%);
+            border: 1px solid rgba(217, 119, 6, 0.25) !important;
+            box-shadow: 0 4px 15px -3px rgba(217, 119, 6, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+            position: relative;
+            overflow: hidden;
+        }
+        .vip-card-active::after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0) 40%,
+                rgba(255, 255, 255, 0.6) 50%,
+                rgba(255, 255, 255, 0) 60%
+            );
+            transform: rotate(45deg);
+            transition: all 0.5s ease;
+            opacity: 0.45;
+            pointer-events: none;
+            animation: vipShine 8s infinite linear;
+        }
+        @keyframes vipShine {
+            0% { transform: translate(-30%, -30%) rotate(45deg); }
+            100% { transform: translate(30%, 30%) rotate(45deg); }
+        }
+
+        /* Micro-Animations */
+        .active-scale {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .active-scale:active {
+            transform: scale(0.96);
+        }
+
+        /* simulated home indicator for iphone */
+        .home-indicator {
+            width: 134px;
+            height: 5px;
+            background-color: #E2E8F0; /* slate-200 */
+            border-radius: 100px;
+            margin: 8px auto 0 auto;
+            opacity: 0.8;
+        }
+
+        /* Overlay blur */
+        .overlay-blur {
+            backdrop-filter: blur(12px);
+            background-color: rgba(15, 23, 42, 0.35);
+        }
+    </style>
+</head>
+<body class="flex flex-col lg:flex-row justify-center items-center min-h-screen bg-[#F1F5F9] text-slate-800 p-4 md:p-8 font-sans gap-8 overflow-y-auto">
+
+    <!-- ========== 左侧说明面板 (Desktop Only) ========== -->
+    <div class="w-full lg:w-96 bg-white border border-slate-200 rounded-3xl p-6 flex flex-col justify-between self-stretch shadow-xl shadow-slate-200/50 max-h-[844px]">
+        <div>
+            <div class="flex items-center space-x-2 mb-4">
+                <span class="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-lg tracking-wider uppercase font-display border border-indigo-100">Node Ecosystem</span>
+                <span class="text-xs text-slate-400 font-mono">v2.5 Standalone</span>
+            </div>
+            <h1 class="text-2xl font-extrabold text-slate-900 font-display mb-3">Node 独立钱包与身份中心</h1>
+            <p class="text-sm text-slate-500 leading-relaxed mb-6">
+                冷钱包服务已与原 IM 消息工具拆分，独立命名为 <b>Node</b>：作为一个纯粹的 Web3 自管冷钱包与数字身份管理器。外部应用（如已拆分的 IM 聊天应用）可以通过连接 Node，调起数字身份凭证进行签名授权以实现安全免密登录。
+            </p>
+
+            <div class="space-y-3.5">
+                <div onclick="triggerLeftNav('wallet')" class="flex items-start space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-200/50 cursor-pointer hover:bg-slate-100 hover:border-slate-350 transition-all active:scale-[0.98]">
+                    <span class="text-lg">👛</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800">自管钱包核心舱</h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5">创建、导入多链冷钱包地址，纯本地加密私钥管理与资产看板，完全隔离云端数据库。</p>
+                    </div>
+                </div>
+                <div onclick="triggerLeftNav('passport')" class="flex items-start space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-200/50 cursor-pointer hover:bg-slate-100 hover:border-slate-350 transition-all active:scale-[0.98]">
+                    <span class="text-lg">🔑</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800">数字通行证 (DID Pass)</h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5">管理多链钱包与本地 Web2 辅助登录凭证，绑定关系仅加密存于本地 Keychain。</p>
+                    </div>
+                </div>
+                <div onclick="triggerLeftNav('external')" class="flex items-start space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-200/50 cursor-pointer hover:bg-slate-100 hover:border-slate-350 transition-all active:scale-[0.98]">
+                    <span class="text-lg">🔌</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800">外部 App 签名鉴权枢纽</h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5">对外提供标准签名验证接口，第三方 App 发起挑战后调起 Node 键盘进行 6 位 PIN 安全签名登录。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-slate-100 space-y-3">
+            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">快捷辅助控制（调试面板）</h4>
+            <div class="flex flex-col space-y-2">
+                <button onclick="resetToNewUser()" class="w-full py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/60 text-xs font-bold rounded-xl active-scale">
+                    🔄 重置为全新用户
+                </button>
+                <button onclick="triggerExternalAppAuth()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl active-scale shadow-md shadow-indigo-100">
+                    🔌 模拟第三方 IM 请求授权登录
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 中央模拟手机壳 (Phone Frame) ========== -->
+    <div class="relative w-[390px] h-[844px] bg-[#F8FAFC] rounded-[50px] border-[12px] border-slate-900 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.22)] ring-4 ring-slate-800/10 overflow-hidden flex flex-col select-none">
+        
+        <!-- 手机顶部状态栏 -->
+        <div class="h-10 w-full bg-[#F8FAFC] flex justify-between items-center px-8 z-40 relative text-slate-800 text-xs font-medium flex-shrink-0">
+            <div class="font-display">3:02</div>
+            <!-- Dynamic Island Notch -->
+            <div class="absolute left-1/2 -translate-x-1/2 top-2 h-5 w-24 bg-black rounded-full flex items-center justify-end px-3.5 z-50 shadow-[inset_0_1px_2px_rgba(255,255,255,0.25)]">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#080d1a] border border-slate-900/50 flex-shrink-0 flex items-center justify-center mr-1">
+                    <span class="w-1 h-1 rounded-full bg-[#1e293b] opacity-80"></span>
+                </span>
+                <span class="w-1.5 h-1.5 rounded-full bg-[#030712] border border-slate-900/50 flex-shrink-0"></span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-[9.5px] font-bold bg-slate-200/80 text-slate-700 px-1 py-0.5 rounded">5G</span>
+                <span>🔋 57%</span>
+            </div>
+        </div>
+
+        <!-- 吐司通知 (Toast Alert) -->
+        <div id="toast-box" class="absolute top-14 left-1/2 -translate-x-1/2 z-[55] pointer-events-none opacity-0 transition-all duration-300 transform scale-95">
+            <div class="px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center space-x-2 shadow-xl">
+                <span id="toast-icon">✨</span>
+                <span id="toast-text">通知消息</span>
+            </div>
+        </div>
+
+        <!-- ========== 视图 1：Web3 强制引导开通冷钱包页 (z-[45]) ========== -->
+        <div id="view-onboarding" class="absolute inset-0 w-full h-full bg-lightbg flex flex-col justify-between p-6 z-[45]" style="background-color: #f8fafc;">
+            <div class="flex-1 flex flex-col justify-center items-center text-center mt-6">
+                <div class="relative w-28 h-28 mb-8 flex items-center justify-center">
+                    <div class="absolute inset-0 bg-indigo-100 rounded-full blur-2xl animate-pulse"></div>
+                    <div class="w-24 h-24 rounded-[28px] bg-gradient-to-tr from-indigo-500 to-indigo-650 shadow-lg flex items-center justify-center text-5xl">
+                        🔐
+                    </div>
+                </div>
+                <h2 class="text-2xl font-black text-slate-900 font-display tracking-tight">Node 自管 Web3 服务舱</h2>
+                <p class="text-xs text-slate-400 max-w-xs mt-3 leading-relaxed">
+                    以您的自管钱包作为身份锚点，在本地存储密钥以安全授权登录外部应用。
+                </p>
+            </div>
+
+            <div class="space-y-3 mb-6">
+                <button onclick="finishWalletCreateFlow()" class="w-full py-4 bg-gradient-to-r from-indigo-500 to-indigo-650 text-white font-bold text-sm rounded-2xl shadow-md active-scale">
+                    🆕 一键创建并开通冷钱包
+                </button>
+                <button onclick="openAddWalletModal()" class="w-full py-4 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-2xl active-scale hover:bg-slate-50">
+                    📥 导入本地/已有自管钱包
+                </button>
+            </div>
+        </div>
+
+        <!-- ========== 视图 2：创建自管冷钱包向导页 (z-[46]) ========== -->
+        <div id="view-wallet-wizard" class="absolute inset-0 w-full h-full bg-white z-[46] hidden flex flex-col justify-between p-6">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <button onclick="closeWalletWizard()" class="text-slate-400 hover:text-slate-655 text-lg">✕</button>
+                <h3 class="text-sm font-bold text-slate-900 font-display">创建自管冷钱包</h3>
+                <div class="w-4"></div>
+            </div>
+
+            <div class="flex justify-between items-center px-6 mt-4">
+                <div class="flex flex-col items-center">
+                    <div id="step-dot-1" class="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</div>
+                    <span class="text-[9px] text-indigo-655 mt-1.5 font-bold">备份助记词</span>
+                </div>
+                <div class="flex-1 h-[2px] bg-slate-100 mx-2 -translate-y-2.5"></div>
+                <div class="flex flex-col items-center">
+                    <div id="step-dot-2" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 text-xs font-bold flex items-center justify-center">2</div>
+                    <span class="text-[9px] text-slate-400 mt-1.5 font-medium">设置密码</span>
+                </div>
+                <div class="flex-1 h-[2px] bg-slate-100 mx-2 -translate-y-2.5"></div>
+                <div class="flex flex-col items-center">
+                    <div id="step-dot-3" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 text-xs font-bold flex items-center justify-center">3</div>
+                    <span class="text-[9px] text-slate-400 mt-1.5 font-medium">创建完成</span>
+                </div>
+            </div>
+
+            <!-- Step 1 Content -->
+            <div id="wizard-step-1" class="flex-1 flex flex-col justify-between mt-6">
+                <div>
+                    <h4 class="text-sm font-bold text-slate-900">请手抄并备份您的 12 个助记词</h4>
+                    <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                        助记词是控制您自管钱包的唯一凭证，遗失无法恢复，请勿截图。
+                    </p>
+                    <div class="grid grid-cols-3 gap-2 mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 font-mono text-xs">
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">1.</span> orbit</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">2.</span> search</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">3.</span> matrix</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">4.</span> logic</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">5.</span> safety</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">6.</span> token</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">7.</span> engine</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">8.</span> virtual</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">9.</span> digital</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">10.</span> shield</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">11.</span> security</div>
+                        <div class="p-2 bg-white text-slate-700 rounded-lg border border-slate-200/50 text-center"><span class="text-[8px] text-slate-400">12.</span> trust</div>
+                    </div>
+                </div>
+                <button onclick="goToWizardStep2()" class="w-full py-3.5 bg-indigo-600 text-white font-bold text-xs rounded-xl active-scale mt-4">
+                    我已经安全手抄，下一步
+                </button>
+            </div>
+
+            <!-- Step 2 Content -->
+            <div id="wizard-step-2" class="flex-1 flex flex-col justify-between mt-6 hidden">
+                <div>
+                    <h4 class="text-sm font-bold text-slate-900">设置本地钱包签名密码</h4>
+                    <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                        当您在聊天或者提取特权时，该密码用于解密签名以确权。
+                    </p>
+                    <div class="flex justify-center space-x-3 mt-8">
+                        <div class="w-4 h-4 rounded-full border-2 border-slate-350 bg-transparent pin-dot"></div>
+                        <div class="w-4 h-4 rounded-full border-2 border-slate-350 bg-transparent pin-dot"></div>
+                        <div class="w-4 h-4 rounded-full border-2 border-slate-350 bg-transparent pin-dot"></div>
+                        <div class="w-4 h-4 rounded-full border-2 border-slate-350 bg-transparent pin-dot"></div>
+                        <div class="w-4 h-4 rounded-full border-2 border-slate-350 bg-transparent pin-dot"></div>
+                        <div class="w-4 h-4 rounded-full border-2 border-slate-350 bg-transparent pin-dot"></div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3 px-6 mt-8 font-display text-lg font-bold">
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">1</button>
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">2</button>
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">3</button>
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">4</button>
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">5</button>
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">6</button>
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">7</button>
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">8</button>
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">9</button>
+                        <div class="w-12"></div>
+                        <button onclick="pressPinNum()" class="w-12 h-12 rounded-full bg-slate-50 border border-slate-200/60 text-slate-800 flex items-center justify-center mx-auto active-scale">0</button>
+                        <button onclick="clearPin()" class="w-12 h-12 rounded-full bg-transparent text-slate-400 text-xs flex items-center justify-center mx-auto">清除</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3 Content -->
+            <div id="wizard-step-3" class="flex-1 flex flex-col justify-between mt-6 hidden">
+                <div class="flex-1 flex flex-col justify-center items-center text-center">
+                    <div class="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-4xl mb-4 border border-emerald-250 animate-bounce">✓</div>
+                    <h4 class="text-lg font-bold text-slate-900 font-display">自管冷钱包创建成功</h4>
+                    <p class="text-[11px] text-slate-455 mt-2 max-w-[240px] leading-relaxed">
+                        自管钱包已在本地安全开通。
+                    </p>
+                    <div class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 mt-6 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xl">💳</span>
+                            <div class="text-left">
+                                <p class="text-[10px] text-slate-455 font-bold">新自管钱包</p>
+                                <p id="wizard-wallet-address" class="text-xs text-slate-800 font-mono mt-0.5">0x71C76...50A6</p>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded">Active</span>
+                    </div>
+                </div>
+                <button onclick="finishWalletCreateFlow()" class="w-full py-4 bg-indigo-650 text-white font-bold text-xs rounded-xl active-scale">
+                    开启 Web3 身份服务
+                </button>
+            </div>
+        </div>
+
+        <!-- ========== 视图 3：App 主框架容器 (z-10) ========== -->
+        <div id="app-main-layout" class="absolute inset-0 w-full h-full flex flex-col justify-between bg-lightbg overflow-hidden z-10 hidden" style="background-color: #f8fafc;">
+            
+            <!-- A. 顶部 Header (供服务、聊天、冷钱包共用，在切换到我的页面时将被隐藏) -->
+            <header id="app-header" class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100 flex-shrink-0">
+                <h1 id="header-title" class="text-lg font-black text-slate-900 font-display">服务</h1>
+                <div onclick="openIdentityPass()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 active-scale">
+                    <span id="active-status-dot" class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                    <span id="active-status-text" class="text-[10px] font-bold text-slate-700 font-mono">0x71C7...50A6</span>
+                </div>
+            </header>
+
+            <!-- B. 视图内容区：这里收归了所有的 Tab 内容，物理隐藏，不再使用 overlapping z-indices -->
+            
+            <!-- B1. 服务主页内容 -->
+            <div id="view-service-content" class="flex-1 overflow-y-auto hide-scrollbar px-6 py-5 space-y-5 pb-28">
+                <!-- 福利特权模块 -->
+                <div class="premium-card rounded-2xl p-5 relative overflow-hidden">
+                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-full blur-2xl"></div>
+                    <div class="relative z-10">
+                        <div onclick="showWelfareToast()" class="flex items-center justify-between mb-4 cursor-pointer group">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-11 h-11 rounded-xl bg-indigo-55 border border-indigo-100 flex items-center justify-center text-xl">🎁</div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-800">福利特权中心</h4>
+                                    <p class="text-[10px] text-slate-400 mt-0.5">空投代币 · 持仓返利 · 生态特权</p>
+                                </div>
+                            </div>
+                            <span class="text-lg font-black text-slate-350 group-hover:text-slate-505">›</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 pt-3.5 border-t border-slate-100">
+                            <div onclick="showWelfareToast()" class="flex flex-col items-center p-3.5 rounded-xl bg-slate-50/50 hover:bg-slate-50 border border-slate-200/40 cursor-pointer active-scale">
+                                <div class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-650 flex items-center justify-center text-sm mb-1.5">🪂</div>
+                                <span class="text-[10px] font-bold text-slate-655">空投激励</span>
+                                <span class="text-[9px] font-black text-indigo-600 mt-0.5">0 待领</span>
+                            </div>
+                            <div onclick="showWelfareToast()" class="flex flex-col items-center p-3.5 rounded-xl bg-slate-50/50 hover:bg-slate-50 border border-slate-200/40 cursor-pointer active-scale">
+                                <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-655 flex items-center justify-center text-sm mb-1.5">💎</div>
+                                <span class="text-[10px] font-bold text-slate-655">持仓返利</span>
+                                <span class="text-[9px] font-black text-emerald-600 mt-0.5">1 待领</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 安全与保障 -->
+                <div class="premium-card rounded-2xl p-5">
+                    <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3.5">安全与保障</h3>
+                    <div class="space-y-3">
+                        <div onclick="showVaultToast()" class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50/50 hover:bg-slate-50 border border-slate-200/40 cursor-pointer active-scale">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg bg-teal-50 text-teal-655 flex items-center justify-center text-base">🛡️</div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">Goose 保险库 (Vault)</h4>
+                                    <p class="text-[9px] text-slate-400 mt-0.5">绑定设备指纹，已激活安全芯片保护</p>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 bg-teal-50 text-teal-600 text-[8px] font-bold rounded">已激活</span>
+                        </div>
+                        
+                        <!-- 通行证入口 -->
+                        <div onclick="openIdentityPass()" class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50/50 hover:bg-slate-50 border border-slate-200/40 cursor-pointer active-scale">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-655 flex items-center justify-center text-base">🔑</div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">数字身份通行证 (DID Pass)</h4>
+                                    <p class="text-[9px] text-slate-400 mt-0.5">管理多链钱包与历史 Web2 身份</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                                <span id="pass-count-badge" class="text-[9px] text-indigo-600 font-bold">2个关联</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- B2. 自管钱包舱页面 -->
+            <div id="view-wallet-mock" class="flex-1 p-5 overflow-y-auto hide-scrollbar space-y-4 pb-28 hidden">
+                <!-- Wallet Balance Card -->
+                <div class="p-5 bg-slate-900 text-white rounded-3xl relative overflow-hidden shadow-lg">
+                    <div class="absolute -right-10 -bottom-10 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">自管冷钱包总资产 (估值)</span>
+                    <h2 class="text-3xl font-black font-mono tracking-tight mt-1">$2,450.80</h2>
+                    
+                    <div class="flex items-center space-x-2 mt-4 pt-3 border-t border-white/10 text-[9px] text-slate-300 font-mono">
+                        <span class="text-slate-500">地址:</span>
+                        <span id="wallet-tab-active-addr">0x71C7656EC7ab88b098defB751B7401B5f6d898A5</span>
+                    </div>
+                </div>
+
+                <!-- Swap / Faucet Actions -->
+                <div class="grid grid-cols-4 gap-2 pt-1">
+                    <div onclick="showToast('冷钱包 Swap 兑换 - 占位','🔄')" class="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200/80 rounded-xl cursor-pointer hover:bg-slate-50 active-scale">
+                        <span class="text-lg">🔄</span>
+                        <span class="text-[8px] font-bold text-slate-650 mt-1">Swap兑换</span>
+                    </div>
+                    <div onclick="showToast('冷钱包 Faucet 测试币领取 - 占位','🎁')" class="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200/80 rounded-xl cursor-pointer hover:bg-slate-50 active-scale">
+                        <span class="text-lg">🪂</span>
+                        <span class="text-[8px] font-bold text-slate-655 mt-1">测试币</span>
+                    </div>
+                    <div onclick="showToast('发送资产 - 功能占位','📤')" class="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200/80 rounded-xl cursor-pointer hover:bg-slate-50 active-scale">
+                        <span class="text-lg">📤</span>
+                        <span class="text-[8px] font-bold text-slate-650 mt-1">发送</span>
+                    </div>
+                    <div onclick="showToast('接收资产 - 功能占位','📥')" class="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200/80 rounded-xl cursor-pointer hover:bg-slate-50 active-scale">
+                        <span class="text-lg">📥</span>
+                        <span class="text-[8px] font-bold text-slate-650 mt-1">接收</span>
+                    </div>
+                </div>
+
+                <!-- holdings list -->
+                <div class="premium-card rounded-2xl p-4">
+                    <h3 class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-3">资产持仓明细</h3>
+                    <div class="space-y-3.5">
+                        <div class="flex justify-between items-center text-xs">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-800 font-bold flex items-center justify-center text-xs border border-slate-200">RC</div>
+                                <div>
+                                    <p class="font-bold">RC Token</p>
+                                    <p class="text-[8px] text-slate-400">Gas 原生代币</p>
+                                </div>
+                            </div>
+                            <div class="text-right font-mono">
+                                <p class="font-bold text-slate-800">125.00 RC</p>
+                                <p class="text-[8px] text-slate-400">≈ $2.50 USD</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center text-xs">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-650 font-bold flex items-center justify-center text-xs border border-indigo-100">USDR</div>
+                                <div>
+                                    <p class="font-bold">USDR Stable</p>
+                                    <p class="text-[8px] text-slate-400">生态结算代币</p>
+                                </div>
+                            </div>
+                            <div class="text-right font-mono">
+                                <p class="font-bold text-slate-800">2,448.30 USDR</p>
+                                <p class="text-[8px] text-slate-400">≈ $2,448.30 USD</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- C. 底部悬浮黑色胶囊导航底栏 (Pill Tab Bar - z-40) -->
+            <nav id="pill-nav-outer" class="absolute bottom-6 inset-x-6 h-16 bg-black rounded-full flex items-center justify-between px-6 shadow-[0_8px_30px_rgba(0,0,0,0.35)] z-40">
+                <div id="pill-nav-container" class="w-full flex items-center justify-between">
+                    <!-- Javascript dynamic render -->
+                </div>
+            </nav>
+        </div><!-- Close app-main-layout here to move overlays outside its stacking context -->
+
+        <!-- ========== 视图 4：数字身份通行证 (z-[45] - 绝对定位遮罩) ========== -->
+        <div id="view-identity-pass" class="absolute inset-0 bg-lightbg z-[45] hidden flex flex-col justify-between pt-10" style="background-color: #f8fafc;">
+            <header class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100 flex-shrink-0">
+                <button onclick="closeIdentityPass()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center hover:text-slate-800 active-scale">
+                    ‹
+                </button>
+                <h1 class="text-sm font-black text-slate-900 font-display">数字通行证 (DID)</h1>
+                <div class="w-8"></div>
+            </header>
+
+            <div class="flex-grow overflow-y-auto hide-scrollbar p-5 space-y-5">
+                <!-- Identity Summary -->
+                <div class="p-4 bg-gradient-to-br from-indigo-50/80 to-slate-50 border border-indigo-100/60 rounded-2xl">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-11 h-11 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xl">🔑</div>
+                        <div>
+                            <h3 class="text-xs font-black text-slate-900 font-display">身份凭证中心</h3>
+                            <p class="text-[9px] text-slate-400 mt-0.5">点击应用进入身份管理，按 Web3 / Web2 与网络分类查看</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- App List -->
+                <div class="space-y-3">
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">应用身份管理</h4>
+                    <div id="app-auth-list-container" class="space-y-3">
+                        <!-- Dynamic rendering of App summary cards -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 视图 4：单个App身份管理页 (z-[47]) ========== -->
+        <div id="view-app-identity-detail" class="absolute inset-0 bg-lightbg z-[47] hidden flex flex-col justify-between pt-10" style="background-color: #f8fafc;">
+            <header class="px-5 py-3.5 flex justify-between items-center bg-white border-b border-slate-100 flex-shrink-0">
+                <button onclick="closeAppIdentityDetail()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center hover:text-slate-800 active-scale flex-shrink-0">
+                    ‹
+                </button>
+                <h1 id="detail-app-title" class="text-sm font-black text-slate-900 font-display truncate mx-2">身份管理</h1>
+                <button onclick="openInjectModal(currentDetailAppId)" class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 active-scale flex-shrink-0 text-base font-bold">
+                    ＋
+                </button>
+            </header>
+
+            <div id="app-identity-detail-content" class="flex-grow overflow-y-auto hide-scrollbar p-5 space-y-4">
+                <!-- 动态渲染：Summary + Tab + 网络筛选 + 列表 -->
+            </div>
+        </div>
+
+        <!-- ========== 视图 5：自管钱包管理二级页面 (z-[46] - 绝对定位遮罩) ========== -->
+<div id="view-wallet-manage" class="absolute inset-0 bg-lightbg z-[46] hidden flex flex-col justify-between pt-10" style="background-color: #f8fafc;">
+    <header class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100 flex-shrink-0">
+        <button onclick="closeWalletManage()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center hover:text-slate-800 active-scale">
+            ‹
+        </button>
+        <h1 class="text-sm font-black text-slate-900 font-display">自管钱包管理</h1>
+        <div class="w-8"></div>
+    </header>
+
+    <div class="flex-1 p-6 space-y-6 overflow-y-auto hide-scrollbar">
+        <div class="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">💳</span>
+                <div>
+                    <h4 id="manage-wallet-name-title" class="text-xs font-bold text-slate-955">自管钱包 - 地址A</h4>
+                    <p id="manage-wallet-chain" class="text-[10px] text-indigo-600 mt-0.5 font-bold">链：自主链</p>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-100">
+                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">钱包完整公钥地址</span>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-[10px] font-mono text-slate-600 break-all select-text mt-1">
+                    <span id="manage-wallet-full-address">0x71C7656EC7ab88b098defB751B7401B5f6d898A5</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="premium-card rounded-2xl p-4 space-y-1">
+            <div onclick="triggerRenameWallet()" class="flex justify-between items-center p-3.5 rounded-xl hover:bg-slate-50 cursor-pointer text-xs font-semibold text-slate-800">
+                <span>✏️ 修改钱包名称</span>
+                <span class="text-slate-350">›</span>
+            </div>
+            <div onclick="triggerExportPrivateKey()" class="flex justify-between items-center p-3.5 rounded-xl hover:bg-slate-50 cursor-pointer text-xs font-semibold text-slate-800">
+                <span>🔑 导出明文私钥 / 助记词</span>
+                <span class="text-slate-350">›</span>
+            </div>
+        </div>
+
+        <div id="private-key-secure-display" class="hidden p-4 bg-rose-50/50 border border-rose-200 rounded-2xl space-y-2.5">
+            <span class="text-[9px] text-rose-500 font-bold uppercase tracking-wider">⚠️ 高风险警告：明文私钥</span>
+            <p class="text-[10px] text-slate-500 leading-relaxed">
+                私钥拥有您该地址的绝对资产支配权。请确认周围环境安全，切勿复制传输！
+            </p>
+            <div class="bg-white p-3 rounded-lg border border-rose-200 text-[10px] font-mono text-rose-650 break-all select-text mt-1.5 shadow-inner">
+                <span id="secure-key-txt">0x</span>
+            </div>
+            <button onclick="hideSecureKey()" class="w-full py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-[10px] rounded-lg">
+                关闭隐私显示
+            </button>
+        </div>
+
+        <div class="pt-6 border-t border-slate-100">
+            <button onclick="triggerDeleteWallet()" class="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/60 font-bold text-xs rounded-2xl active-scale">
+                🗑️ 销毁注销此钱包
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== 弹窗组件 1：添加 Web3 钱包弹窗 ========== -->
+<div id="modal-add-wallet" class="absolute inset-0 z-50 overlay-blur flex items-end justify-center hidden">
+    <div class="w-full bg-white rounded-t-[32px] p-6 space-y-5 slide-up shadow-2xl">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+            <h4 class="text-sm font-bold text-slate-900 font-display">添加自管 Web3 钱包</h4>
+            <button onclick="closeAddWalletModal()" class="text-slate-400 text-sm hover:text-slate-800">✕</button>
+        </div>
+
+        <!-- Device Key Enclave List -->
+        <div class="space-y-3">
+            <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold text-slate-400 tracking-wider uppercase">设备 Keychain 检测到可用地址</span>
+                <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-mono rounded border border-indigo-100">Secure Enclave</span>
+            </div>
+
+            <div id="keychain-list" class="space-y-2.5">
+                <!-- Key items render here -->
+            </div>
+        </div>
+
+        <!-- Fallback to wizard creation -->
+        <div class="pt-4 border-t border-slate-100 flex flex-col space-y-2">
+            <button onclick="triggerCreateWalletWizard()" class="w-full py-3.5 bg-indigo-600 text-white text-xs font-bold rounded-xl active-scale">
+                🔐 手动生成全新助记词冷钱包
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== 弹窗组件 2：绑定/登录 Web2 验证弹窗 ========== -->
+<div id="modal-link-web2" class="absolute inset-0 z-50 overlay-blur flex items-center justify-center p-6 hidden">
+    <div class="w-full bg-white rounded-3xl p-6 space-y-4 shadow-2xl border border-slate-100">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+            <h4 id="modal-web2-title" class="text-sm font-bold text-slate-900 font-display">关联历史 Web2 账号</h4>
+            <button onclick="closeLinkWeb2Modal()" class="text-slate-400 text-sm hover:text-slate-800">✕</button>
+        </div>
+
+        <!-- Inputs -->
+        <div class="space-y-3">
+            <div>
+                <label class="text-[9px] font-bold text-slate-400 uppercase">账号 (手机号或邮箱)</label>
+                <input id="input-web2-account" type="text" placeholder="例: 13912345678 或 mail@r9lab.org" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500 font-mono">
+            </div>
+            <div>
+                <label class="text-[9px] font-bold text-slate-400 uppercase">登录密码</label>
+                <input id="input-web2-password" type="password" placeholder="请输入密码" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500">
+            </div>
+        </div>
+
+        <!-- Simulated Server Verification Loader -->
+        <div id="web2-verify-loader" class="hidden py-2 flex items-center justify-center space-x-2 text-indigo-650 text-xs font-semibold animate-pulse">
+            <span>🔄 正在连接服务器进行登录验证...</span>
+        </div>
+
+        <div class="pt-2 flex space-x-2">
+            <button onclick="closeLinkWeb2Modal()" class="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold text-xs rounded-xl active-scale">
+                取消
+            </button>
+            <button id="btn-web2-submit" onclick="submitWeb2Verification()" class="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs rounded-xl active-scale">
+                确认验证并登录
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== 弹窗组件 3：第三方 App 授权签名登录弹窗 (z-50) ========== -->
+<div id="view-app-connect-modal" class="absolute inset-0 z-50 overlay-blur flex items-center justify-center p-6 hidden">
+    <div class="w-full bg-white rounded-3xl p-6 space-y-4 shadow-2xl border border-slate-100">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div class="flex items-center space-x-2">
+                <span class="text-base">🔌</span>
+                <h4 class="text-sm font-bold text-slate-900 font-display">第三方登录授权请求</h4>
+            </div>
+            <button onclick="closeAppAuthModal()" class="text-slate-400 text-sm hover:text-slate-800">✕</button>
+        </div>
+
+        <!-- Request Info -->
+        <div class="p-3.5 bg-indigo-50/40 border border-indigo-100 rounded-2xl">
+            <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">请求应用</span>
+            <div class="flex items-center space-x-2.5 mt-1.5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-black shadow-sm font-display">IM</div>
+                <div>
+                    <h5 class="text-xs font-bold text-slate-800">R9 IM Chat</h5>
+                    <p class="text-[9px] text-slate-400">im.r9lab.org (Web3 独立即时通讯应用)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Identity Selector -->
+        <div class="space-y-2">
+            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">选择要授权的数字身份</span>
+            <div id="auth-identity-selector" class="space-y-2 max-h-[160px] overflow-y-auto hide-scrollbar">
+                <!-- Identities will render dynamically here -->
+            </div>
+        </div>
+
+        <!-- PIN input section -->
+        <div id="auth-pin-section" class="hidden space-y-2.5 pt-3 border-t border-slate-100">
+            <div class="flex justify-between items-center">
+                <span class="text-[9px] text-rose-500 font-bold uppercase">请输入本地 PIN 签名密码进行授权</span>
+                <span class="text-[8px] text-slate-400">Node Secure Sign</span>
+            </div>
+            <div class="flex justify-center space-x-3 my-2.5">
+                <div class="w-3.5 h-3.5 rounded-full border-2 border-slate-300 bg-transparent auth-pin-dot"></div>
+                <div class="w-3.5 h-3.5 rounded-full border-2 border-slate-300 bg-transparent auth-pin-dot"></div>
+                <div class="w-3.5 h-3.5 rounded-full border-2 border-slate-300 bg-transparent auth-pin-dot"></div>
+                <div class="w-3.5 h-3.5 rounded-full border-2 border-slate-300 bg-transparent auth-pin-dot"></div>
+                <div class="w-3.5 h-3.5 rounded-full border-2 border-slate-300 bg-transparent auth-pin-dot"></div>
+                <div class="w-3.5 h-3.5 rounded-full border-2 border-slate-300 bg-transparent auth-pin-dot"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-2.5 px-6 font-display text-base font-bold">
+                <button onclick="pressAuthPinNum('1')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">1</button>
+                <button onclick="pressAuthPinNum('2')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">2</button>
+                <button onclick="pressAuthPinNum('3')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">3</button>
+                <button onclick="pressAuthPinNum('4')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">4</button>
+                <button onclick="pressAuthPinNum('5')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">5</button>
+                <button onclick="pressAuthPinNum('6')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">6</button>
+                <button onclick="pressAuthPinNum('7')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">7</button>
+                <button onclick="pressAuthPinNum('8')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">8</button>
+                <button onclick="pressAuthPinNum('9')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">9</button>
+                <button onclick="clearAuthPin()" class="w-9 h-9 rounded-full bg-transparent text-slate-400 text-xs flex items-center justify-center mx-auto">清除</button>
+                <button onclick="pressAuthPinNum('0')" class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center mx-auto active-scale">0</button>
+                <div class="w-9"></div>
+            </div>
+        </div>
+
+        <!-- Simulated Server Verification Loader -->
+        <div id="auth-verify-loader" class="hidden py-2 flex items-center justify-center space-x-2 text-indigo-650 text-xs font-semibold animate-pulse">
+            <span>🔄 正在生成本地链上签名证明 (Proof)...</span>
+        </div>
+
+        <div id="auth-actions-row" class="pt-2 flex space-x-2">
+            <button onclick="closeAppAuthModal()" class="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold text-xs rounded-xl active-scale">
+                拒绝
+            </button>
+            <button id="btn-auth-confirm" onclick="startPINForAuth()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-755 text-white font-bold text-xs rounded-xl active-scale" disabled>
+                确认并授权
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== 弹窗组件 4：身份注入/关联弹窗 ========== -->
+<div id="modal-inject-identity" class="absolute inset-0 z-50 overlay-blur flex items-end justify-center hidden">
+    <div class="w-full bg-white rounded-t-[32px] p-6 space-y-4 slide-up shadow-2xl">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+            <h4 class="text-sm font-bold text-slate-900 font-display">添加身份到 <span id="inject-app-name" class="text-indigo-600">App</span></h4>
+            <button onclick="closeInjectModal()" class="text-slate-400 text-sm hover:text-slate-800">✕</button>
+        </div>
+
+        <!-- Tabs to switch between Web3 Wallet and Web2 Account -->
+        <div class="flex bg-slate-100 p-1 rounded-xl">
+            <button id="tab-inject-web3" onclick="switchInjectTab('web3')" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white text-slate-800 shadow-sm transition-all">
+                💳 Web3 钱包
+            </button>
+            <button id="tab-inject-web2" onclick="switchInjectTab('web2')" class="flex-1 py-2 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-800 transition-all">
+                📱 Web2 账号
+            </button>
+        </div>
+
+        <!-- Content 1: Web3 选择网络 + 钱包列表 + 确认条 -->
+        <div id="inject-content-web3" class="space-y-3">
+            <!-- 网络选择器 -->
+            <div class="flex items-center space-x-2">
+                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex-shrink-0">网络</span>
+                <select id="inject-network-select" onchange="switchInjectNetwork(this.value)" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 cursor-pointer">
+                </select>
+            </div>
+            <!-- 钱包列表 -->
+            <div class="space-y-2 max-h-[240px] overflow-y-auto hide-scrollbar">
+                <p class="text-[9px] font-bold text-slate-400 tracking-wider uppercase">选择要注入的钱包</p>
+                <div id="inject-wallets-list" class="space-y-2">
+                    <!-- 钱包动态渲染 -->
+                </div>
+            </div>
+            <!-- 底部确认条 -->
+            <div id="inject-confirm-bar" class="hidden p-3 bg-indigo-50/50 border border-indigo-200 rounded-xl"></div>
+        </div>
+
+        <!-- Content 2: Web2 inputs with Password verification -->
+        <div id="inject-content-web2" class="space-y-3 hidden">
+            <p class="text-[9px] font-bold text-slate-400 tracking-wider uppercase">输入 Web2 账号密码进行验证注入</p>
+            <div class="space-y-2.5">
+                <div>
+                    <label class="text-[8px] font-bold text-slate-400 uppercase">账号 (手机号或邮箱)</label>
+                    <input id="input-inject-web2-acc" type="text" placeholder="例: 13912345678 或 mail@r9lab.org" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500 font-mono">
+                </div>
+                <div>
+                    <label class="text-[8px] font-bold text-slate-400 uppercase">登录密码</label>
+                    <input id="input-inject-web2-pwd" type="password" placeholder="请输入密码" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <!-- Verification Loader -->
+            <div id="inject-verify-loader" class="hidden py-1.5 flex items-center justify-center space-x-2 text-indigo-650 text-[10px] font-semibold animate-pulse">
+                <span>🔄 正在连接服务器进行登录验证...</span>
+            </div>
+
+            <button id="btn-inject-web2-submit" onclick="submitInjectWeb2()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs rounded-xl active-scale">
+                安全验证并注入
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== 弹窗组件 5：短号服务弹窗（免费领取 + 购买靓号） ========== -->
+<div id="modal-short-number" class="absolute inset-0 z-50 overlay-blur flex items-end justify-center hidden">
+    <div class="w-full bg-white rounded-t-[32px] p-6 slide-up shadow-2xl h-[80%] max-h-[80%] overflow-hidden flex flex-col">
+        <!-- iOS Style Drag Handle Indicator -->
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto flex-shrink-0 -mt-1 mb-2"></div>
+
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3 flex-shrink-0">
+            <div>
+                <h4 class="text-sm font-bold text-slate-900 font-display">短号服务</h4>
+                <p id="short-num-context" class="text-[9px] text-slate-400 mt-0.5"></p>
+            </div>
+            <button onclick="closeShortNumberModal()" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 text-xs flex items-center justify-center">✕</button>
+        </div>
+
+        <!-- 顶部提示区 -->
+        <div class="mt-4 text-[10px] text-slate-500 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-150 flex-shrink-0">
+            <span class="font-semibold text-slate-700">短号按网络隔离</span>：当前身份在 <span id="short-num-context-chain" class="font-bold text-indigo-650 font-mono">OBChain</span> (免费号/查号在本网络)。
+            <span class="block mt-1 font-medium"><span class="text-amber-600">💎买靓号</span> 支持多链——可选择任意冷钱包付款并在该链注册。买到的靓号/免费号都能被他人检索。</span>
+        </div>
+
+        <!-- Tab 切换 (买靓号 | 免费号 | 我的短号) -->
+        <div class="mt-4 flex bg-slate-100 p-1 rounded-2xl flex-shrink-0">
+            <button id="tab-short-premium" onclick="switchShortTab('premium')" class="flex-1 py-2.5 text-[10px] sm:text-xs font-bold rounded-xl bg-white text-indigo-650 shadow-sm transition-all active-scale">
+                💎 购买靓号
+            </button>
+            <button id="tab-short-free" onclick="switchShortTab('free')" class="flex-1 py-2.5 text-[10px] sm:text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all active-scale">
+                🎁 免费号
+            </button>
+            <button id="tab-short-my" onclick="switchShortTab('my')" class="flex-1 py-2.5 text-[10px] sm:text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all active-scale">
+                💾 我的短号
+            </button>
+        </div>
+
+        <!-- Contents Area (Flexible, scrollable, with fixed headers inside Tab 2) -->
+        <div class="mt-4 flex-1 min-h-0 flex flex-col">
+            
+            <!-- Content 1: 免费号 -->
+            <div id="short-content-free" class="flex-1 flex flex-col overflow-hidden space-y-3.5 hidden">
+                <!-- 正常领取候选界面 -->
+                <div id="short-free-normal" class="flex-1 flex flex-col overflow-hidden space-y-3.5">
+                    <p class="text-[10px] text-slate-500 leading-normal flex-shrink-0">
+                        系统为您随机生成 10 个免费短号 (10-12 位，不含靓号特征)。每个身份只能免费领取 1 次，领取后不可退换。
+                    </p>
+                    
+                    <!-- 可滚动候选列表 -->
+                    <div id="short-free-grid" class="flex-1 overflow-y-auto hide-scrollbar grid grid-cols-2 gap-2.5 p-0.5 pb-2">
+                        <!-- 候选号动态渲染 -->
+                    </div>
+                    
+                    <!-- 固定底部操作区 -->
+                    <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100 flex-shrink-0">
+                        <button onclick="regenerateFreeNumbers()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active-scale flex items-center space-x-1 border border-slate-200/50">
+                            <span>🔄</span> <span>换一批</span>
+                        </button>
+                        <button id="btn-claim-free" onclick="claimFreeNumber()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-bold rounded-xl active-scale" disabled>
+                            领取选中号
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 已经领取展示界面 -->
+                <div id="short-free-owned" class="hidden p-4 bg-indigo-50/20 border border-indigo-150 rounded-2xl flex items-center justify-between shadow-sm flex-shrink-0">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">🎁</span>
+                        <div>
+                            <p id="short-free-owned-val" class="text-sm font-extrabold font-mono text-slate-800 tracking-wider">-</p>
+                            <p id="short-free-owned-date" class="text-[9px] text-slate-400 mt-0.5">已免费领取</p>
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-lg border border-indigo-200/50">当前绑定</span>
+                </div>
+
+                <!-- 已绑定靓号，拦截免费号 -->
+                <div id="short-free-locked" class="hidden p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center flex-shrink-0">
+                    <span class="text-3xl">🔒</span>
+                    <p class="text-xs font-bold text-slate-700 mt-2">您已购买绑定靓号</p>
+                    <p class="text-[10px] text-slate-400 mt-1">当前身份已绑定有更高权重的靓号，免费号通道已关闭。</p>
+                    <button onclick="switchShortTab('my')" class="mt-4 px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-200/50 active-scale">
+                        查看我的短号 ›
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content 2: 购买靓号 -->
+            <div id="short-content-premium" class="flex-1 flex flex-col overflow-hidden space-y-3.5">
+                <!-- 查价输入框 (固定) -->
+                <div class="relative flex items-center flex-shrink-0">
+                    <input id="input-premium-search" type="text" placeholder="输入 5-8 位纯数字查价..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 outline-none focus:border-indigo-500 font-mono pr-20">
+                    <button onclick="searchPremiumNumber()" class="absolute right-2 px-3.5 py-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl active-scale">
+                        查价
+                    </button>
+                </div>
+
+                <!-- Pills 筛选器 (固定) -->
+                <div class="space-y-1 flex-shrink-0">
+                    <span class="text-[9px] font-bold text-slate-400 tracking-wider uppercase">选择靓号位数</span>
+                    <div class="flex space-x-2 overflow-x-auto hide-scrollbar py-0.5">
+                        <button id="pill-digits-5" onclick="selectDigitLengthPill(5)" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full shadow-sm active-scale transition-all font-display">5 位</button>
+                        <button id="pill-digits-6" onclick="selectDigitLengthPill(6)" class="px-4 py-2 bg-slate-100 text-slate-655 text-xs font-semibold rounded-full hover:bg-slate-200 active-scale transition-all font-display">6 位</button>
+                        <button id="pill-digits-7" onclick="selectDigitLengthPill(7)" class="px-4 py-2 bg-slate-100 text-slate-655 text-xs font-semibold rounded-full hover:bg-slate-200 active-scale transition-all font-display">7 位</button>
+                        <button id="pill-digits-8" onclick="selectDigitLengthPill(8)" class="px-4 py-2 bg-slate-100 text-slate-655 text-xs font-semibold rounded-full hover:bg-slate-200 active-scale transition-all font-display">8 位</button>
+                    </div>
+                </div>
+
+                <!-- 推荐靓号列表头 (固定) -->
+                <div id="premium-random-header" class="flex items-center justify-between flex-shrink-0 pt-0.5 pb-0.5">
+                    <span class="text-[9px] font-bold text-slate-400 tracking-wider uppercase">推荐靓号列表</span>
+                    <button onclick="triggerRandomNumbers()" class="text-indigo-650 hover:text-indigo-750 text-xs font-bold active-scale flex items-center space-x-0.5">
+                        <span>🔄</span> <span>换一批</span>
+                    </button>
+                </div>
+
+                <!-- 可滚动列表区 -->
+                <div class="flex-1 overflow-y-auto hide-scrollbar space-y-3.5 pr-0.5 pb-2">
+                    <!-- 查价结果展示区域 -->
+                    <div id="premium-search-result-box" class="hidden pb-1">
+                        <!-- 单个查询结果卡片 -->
+                    </div>
+
+                    <!-- 随机出号结果区域 -->
+                    <div id="premium-random-results-box" class="hidden">
+                        <div id="premium-random-grid" class="grid grid-cols-2 gap-2.5 p-0.5">
+                            <!-- 随机生成的靓号卡片列表 -->
+                        </div>
+                    </div>
+
+                    <!-- 定价与靓号规则折叠区 (随列表滚动) -->
+                    <div class="border border-slate-150 rounded-2xl overflow-hidden bg-slate-50/50">
+                        <button onclick="toggleRulesAccordion()" class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-200/50 outline-none transition-all">
+                            <span class="flex items-center space-x-1.5">
+                                <span id="rules-accordion-arrow">▼</span>
+                                <span>定价与靓号规则说明</span>
+                            </span>
+                        </button>
+                        <div id="rules-accordion-content" class="px-4 pb-3 text-[10px] text-slate-500 space-y-1.5 border-t border-slate-150/40 pt-2.5">
+                            <p class="leading-relaxed">普通号基价：5位 1000 USDT 买断，位数每多一位价格为前者的 0.9 倍（6位900 / 7位810 / 8位729）。</p>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 pt-1 font-mono text-[9.5px]">
+                                <p>· 豹子 (全同): ×50 <span class="text-slate-400">(如 55555)</span></p>
+                                <p>· 顺子 (连号): ×20 <span class="text-slate-400">(如 12345)</span></p>
+                                <p>· 四连同 (4重): ×10 <span class="text-slate-400">(如 11112)</span></p>
+                                <p>· 三连+对 (葫芦): ×8 <span class="text-slate-400">(如 11122)</span></p>
+                                <p>· 双对子 (两对): ×5 <span class="text-slate-400">(如 11223)</span></p>
+                                <p>· 吉尾号 (尾数6/8): ×3 <span class="text-slate-400">(如 12388)</span></p>
+                                <p>· normal (普通): ×1</p>
+                            </div>
+                            <p class="text-[9px] text-indigo-500 mt-2">免费号：随机 10-12 位，自动避开所有靓号段。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content 3: 我的短号 -->
+            <div id="short-content-my" class="flex-1 flex flex-col overflow-hidden space-y-3.5 hidden">
+                <p class="text-[10px] text-slate-500 leading-normal flex-shrink-0">
+                    以下是该身份绑定注册的数字通行证短号。购买靓号或领取免费号后会自动更新在此处。
+                </p>
+                <div id="short-my-list" class="flex-1 overflow-y-auto hide-scrollbar space-y-2.5 p-0.5 pb-2">
+                    <!-- 动态渲染我的短号 -->
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<!-- ========== 弹窗组件 6：购买短号确认支付弹窗 (iOS Bottom Sheet 风格) ========== -->
+<div id="modal-short-number-payment" class="absolute inset-0 z-[60] overlay-blur flex items-end justify-center hidden">
+    <div class="w-full bg-white rounded-t-[32px] p-6 space-y-5 slide-up shadow-2xl max-h-[85%] overflow-y-auto hide-scrollbar flex flex-col border-t border-slate-100">
+        <!-- Drag indicator bar -->
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto flex-shrink-0 -mt-1.5 mb-1.5"></div>
+
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3 flex-shrink-0">
+            <h4 class="text-sm font-bold text-slate-900 font-display">购买短号 <span id="pay-short-num-title" class="font-mono">21008</span></h4>
+            <button onclick="closePaymentModal()" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 text-xs flex items-center justify-center">✕</button>
+        </div>
+
+        <!-- 详细订单账单卡片 -->
+        <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 flex-shrink-0">
+            <div class="flex justify-between text-xs text-slate-500">
+                <span>所购靓号：</span>
+                <span id="pay-short-num-val" class="font-bold text-slate-900 font-mono text-sm">21008</span>
+            </div>
+            <div class="flex justify-between text-xs text-slate-500">
+                <span>靓号类型：</span>
+                <span id="pay-short-num-type" class="font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-lg text-[10px]">吉尾号 ×3</span>
+            </div>
+            <div class="pt-2.5 border-t border-slate-200/60 flex justify-between items-center">
+                <span class="text-xs text-slate-800 font-bold">最终价格：</span>
+                <div class="text-right">
+                    <span id="pay-short-num-price" class="text-base font-extrabold text-emerald-600 font-mono">3000 USDT</span>
+                    <p class="text-[8.5px] text-slate-400 mt-0.5">(永久买断，在下方网络注册)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 付款选择表单 -->
+        <div class="space-y-3.5 flex-1">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">付款网络</label>
+                    <select id="pay-network" class="w-full mt-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer font-bold">
+                        <option value="OBChain">OBChain</option>
+                        <option value="Ethereum">Ethereum</option>
+                        <option value="Arbitrum">Arbitrum</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">支付币种</label>
+                    <select id="pay-currency" class="w-full mt-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer font-bold">
+                        <option value="USDT">USDT</option>
+                        <option value="USDRs">USDRs</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">付款钱包 (当前已连接 cold wallets)</label>
+                <select id="pay-wallet" class="w-full mt-1 px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer font-mono font-medium">
+                    <!-- 动态渲染冷钱包列表 -->
+                </select>
+            </div>
+            
+            <div class="flex justify-between items-center text-[10px] text-slate-400 px-1 pt-1">
+                <span>收款国库合约地址：</span>
+                <span class="font-mono text-slate-600 bg-slate-50 px-2 py-0.5 rounded border">0xaf5cd2...76b66d</span>
+            </div>
+        </div>
+
+        <!-- 密码验证 -->
+        <div class="relative flex-shrink-0">
+            <span class="absolute left-4 top-3.5 text-xs text-slate-400">🔒</span>
+            <input id="pay-password" type="password" placeholder="验证本地 PIN 主密码进行链上交易确认" class="w-full pl-9 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all font-mono">
+        </div>
+
+        <!-- loading -->
+        <div id="pay-loading-text" class="hidden py-2 flex items-center justify-center space-x-2 text-indigo-650 text-xs font-semibold animate-pulse bg-indigo-50/50 rounded-xl border border-indigo-100/40">
+            <span>🔄 正在签名并向主网广播智能合约交易...</span>
+        </div>
+
+        <!-- 操作区 -->
+        <div class="flex space-x-3 pt-2 flex-shrink-0">
+            <button onclick="closePaymentModal()" class="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-650 font-bold text-xs rounded-2xl active-scale">
+                取消
+            </button>
+            <button onclick="submitPremiumPurchase()" class="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-2xl active-scale shadow-lg shadow-indigo-100">
+                确认支付并购买
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== JS Scripts for Simulation ========== -->
+    
+
+</body>
+</html>

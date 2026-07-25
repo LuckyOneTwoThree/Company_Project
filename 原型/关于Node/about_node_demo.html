@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>关于 Node - 版本与更新原型 v1.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lightbg: '#f8fafc',
+                        'slate-350': '#cbd5e1',
+                        'indigo-650': '#4f46e5',
+                    },
+                    fontFamily: {
+                        display: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .font-display { font-family: 'Outfit', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .premium-card { background: white; border: 1px solid rgba(226,232,240,0.8); box-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 1px 2px rgba(15,23,42,0.02); }
+        .active-scale { transition: transform 0.1s; }
+        .active-scale:active { transform: scale(0.97); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .gradient-brand { background: linear-gradient(135deg, #6d5efc 0%, #8b7fff 100%); }
+        .card-shadow-lg { box-shadow: 0 4px 24px rgba(109,94,252,0.12), 0 1px 3px rgba(15,23,42,0.06); }
+        .app-icon-shadow { box-shadow: 0 2px 8px rgba(15,23,42,0.1); }
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background: #cbd5e1; transition: 0.3s; border-radius: 9999px; }
+        .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 2px; bottom: 2px; background: white; transition: 0.3s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        input:checked + .slider { background: #6366f1; }
+        input:checked + .slider:before { transform: translateX(18px); }
+        .progress-bar { background: linear-gradient(90deg, #6366f1 0%, #8b7fff 100%); transition: width 0.3s; }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+<div id="phone-frame" class="mx-auto relative bg-white shadow-2xl" style="width:390px; height:844px; overflow:hidden;">
+
+    <!-- 状态栏 -->
+    <div class="absolute top-0 inset-x-0 h-11 flex items-center justify-between px-6 text-xs font-bold text-slate-900 z-50">
+        <span class="font-mono">9:41</span>
+        <div class="flex items-center space-x-1">
+            <span class="text-[10px]">●●●</span>
+            <span class="text-[10px]">📶</span>
+            <span class="text-[10px]">🔋</span>
+        </div>
+    </div>
+
+    <!-- 主布局 -->
+    <div class="absolute inset-0 pt-11 flex flex-col bg-lightbg">
+
+        <!-- 顶部导航栏 -->
+        <header class="px-5 py-3.5 flex justify-between items-center bg-white border-b border-slate-100 flex-shrink-0">
+            <button onclick="showToast('返回上一页','‹')" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center hover:text-slate-800 active-scale flex-shrink-0">
+                ‹
+            </button>
+            <h1 class="text-base font-black text-slate-900 font-display">关于 Node</h1>
+            <div class="w-8"></div>
+        </header>
+
+        <!-- 内容滚动区 -->
+        <div class="flex-1 overflow-y-auto hide-scrollbar p-5 space-y-4">
+
+            <!-- ===== 应用信息卡(单卡片承载所有状态) ===== -->
+            <div id="info-card" class="premium-card rounded-3xl p-6 relative overflow-hidden">
+                <div class="absolute -right-8 -top-8 w-32 h-32 bg-indigo-50 rounded-full blur-2xl"></div>
+                <div class="relative z-10 flex flex-col items-center text-center">
+                    <!-- Logo -->
+                    <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-3xl font-black app-icon-shadow mb-3">
+                        N
+                    </div>
+                    <h2 class="text-xl font-black text-slate-900 font-display">Node</h2>
+                    <p class="text-[10px] text-slate-400 mt-0.5">数字身份 · 资产 · 关系网络</p>
+
+                    <!-- 当前版本 -->
+                    <div class="mt-4 px-4 py-2 bg-slate-50 rounded-xl w-full">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-400">当前版本</span>
+                            <span class="font-mono font-bold text-slate-700">v2.0.0</span>
+                        </div>
+                    </div>
+
+                    <!-- 动态区(按钮/新版本信息/进度) -->
+                    <div id="dynamic-area" class="mt-4 w-full">
+                        <!-- 默认:检查更新按钮 -->
+                        <button onclick="checkUpdate()" class="w-full py-3 gradient-brand text-white text-xs font-bold rounded-xl active-scale flex items-center justify-center space-x-2">
+                            <span>🔍</span>
+                            <span>检查更新</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 版权信息 -->
+            <p class="text-center text-[10px] text-slate-400 mt-6 font-mono">Node v2.0.0 (build 20260717)</p>
+            <p class="text-center text-[9px] text-slate-300 mt-1">© 2026 Node Team. All rights reserved.</p>
+
+            <!-- ===== 原型演示区(切换整包/热更新两种场景) ===== -->
+            <div class="mt-6 p-4 border-2 border-dashed border-slate-200 rounded-2xl">
+                <div class="flex items-center space-x-1.5 mb-3">
+                    <span class="text-[10px]">🧪</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">原型演示</span>
+                </div>
+                <p class="text-[10px] text-slate-400 mb-3 leading-relaxed">实际环境中热更新由后台静默触发,此处提供手动切换两种场景的演示入口</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="checkUpdate()" class="py-2.5 bg-white border border-indigo-200 text-indigo-600 text-[11px] font-bold rounded-xl active-scale">
+                        整包更新场景
+                    </button>
+                    <button onclick="simulateHotUpdate()" class="py-2.5 bg-white border border-emerald-200 text-emerald-600 text-[11px] font-bold rounded-xl active-scale">
+                        热更新场景
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ===== 待应用弹窗(热更新场景) ===== -->
+    <div id="apply-modal" class="absolute inset-0 z-[70] hidden items-end justify-center" style="background:rgba(15,23,42,0.4); backdrop-filter:blur(4px);">
+        <div class="bg-white w-full rounded-t-3xl p-6 pb-8" style="max-width:390px;">
+            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
+            <div class="text-center">
+                <div class="w-14 h-14 rounded-2xl gradient-brand flex items-center justify-center text-2xl mx-auto mb-3">✨</div>
+                <h3 class="text-base font-black text-slate-900 font-display mb-1">新版本已准备好</h3>
+                <p class="text-xs text-slate-500 mb-4">更新将在下次启动时自动生效,或现在立即应用</p>
+                <button onclick="applyNow()" class="w-full py-3 gradient-brand text-white text-sm font-bold rounded-xl active-scale mb-2">
+                    立即应用
+                </button>
+                <button onclick="closeApplyModal()" class="w-full py-2 text-slate-500 text-xs font-bold">
+                    下次启动时生效
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 整包更新弹窗(安卓跳转/iOS退出) ===== -->
+    <div id="upgrade-modal" class="absolute inset-0 z-[70] hidden items-end justify-center" style="background:rgba(15,23,42,0.4); backdrop-filter:blur(4px);">
+        <div class="bg-white w-full rounded-t-3xl p-6 pb-8" style="max-width:390px;">
+            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
+            <div class="text-center mb-4">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-2xl mx-auto mb-3">📦</div>
+                <h3 class="text-base font-black text-slate-900 font-display mb-1">更新 Node</h3>
+                <p class="text-xs text-slate-500">v2.0.0 → v2.1.0</p>
+            </div>
+
+            <!-- 平台切换(演示用) -->
+            <div class="bg-slate-100 rounded-full p-1 flex items-center mb-4">
+                <button data-platform="android" onclick="switchPlatform('android')" class="plat-btn flex-1 py-1.5 text-[10px] font-bold rounded-full bg-white text-slate-900 shadow-sm">
+                    📲 安卓
+                </button>
+                <button data-platform="ios" onclick="switchPlatform('ios')" class="plat-btn flex-1 py-1.5 text-[10px] font-bold rounded-full text-slate-400">
+                    🍎 iOS
+                </button>
+            </div>
+
+            <!-- 平台对应内容 -->
+            <div id="platform-content" class="bg-slate-50 rounded-xl p-3.5 mb-4"></div>
+
+            <button id="platform-btn" class="w-full py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl active-scale mb-2">
+                确认
+            </button>
+            <button onclick="closeUpgradeModal()" class="w-full py-2 text-slate-500 text-xs font-bold">
+                稍后再说
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div id="toast-container" class="absolute top-14 inset-x-0 z-[60] flex flex-col items-center pointer-events-none"></div>
+
+</div>
+
+<script>
+    // ========== 动态区状态渲染 ==========
+    const dynamicArea = () => document.getElementById('dynamic-area');
+
+    // 默认:检查更新按钮
+    function renderDefault() {
+        dynamicArea().innerHTML = `
+            <button onclick="checkUpdate()" class="w-full py-3 gradient-brand text-white text-xs font-bold rounded-xl active-scale flex items-center justify-center space-x-2">
+                <span>🔍</span>
+                <span>检查更新</span>
+            </button>
+        `;
+    }
+
+    // 检查中
+    function renderChecking() {
+        dynamicArea().innerHTML = `
+            <button disabled class="w-full py-3 bg-slate-100 text-slate-400 text-xs font-bold rounded-xl flex items-center justify-center space-x-2">
+                <span class="animate-pulse">⏳</span>
+                <span>正在检查...</span>
+            </button>
+        `;
+    }
+
+    // 有新版本(整包) - 按钮变立即更新,内联展示版本号
+    function renderHasUpdate() {
+        dynamicArea().innerHTML = `
+            <!-- 新版本提示 -->
+            <div class="bg-indigo-50/60 rounded-xl p-3 mb-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-xs">✨</span>
+                        <span class="text-[11px] font-bold text-indigo-700">发现新版本</span>
+                    </div>
+                    <span class="font-mono font-bold text-indigo-600 text-xs">v2.1.0</span>
+                </div>
+            </div>
+            <!-- 立即更新按钮 → 弹窗(整包需跳转/退出,不在内部下载) -->
+            <button onclick="openUpgradeModal()" class="w-full py-3 bg-indigo-600 text-white text-xs font-bold rounded-xl active-scale">
+                立即更新
+            </button>
+        `;
+    }
+
+    // 待应用(热更新静默下载完成)
+    function renderReady() {
+        dynamicArea().innerHTML = `
+            <div class="bg-emerald-50 rounded-xl p-3 mb-3 text-left">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-xs">✅</span>
+                        <span class="text-[11px] font-bold text-emerald-700">新版本已准备好</span>
+                    </div>
+                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 text-[9px] font-bold rounded-full">待应用</span>
+                </div>
+                <p class="text-[10px] text-slate-500">下次启动时自动生效,或现在立即应用</p>
+            </div>
+            <button onclick="openApplyModal()" class="w-full py-3 gradient-brand text-white text-xs font-bold rounded-xl active-scale mb-2">
+                立即应用
+            </button>
+            <button onclick="showToast('已推迟,下次启动时生效','⏰')" class="w-full py-2 text-slate-500 text-[10px] font-bold">
+                下次启动时生效
+            </button>
+        `;
+    }
+
+    // 已是最新
+    function renderLatest() {
+        dynamicArea().innerHTML = `
+            <div class="bg-emerald-50 rounded-xl p-3 mb-3 flex items-center space-x-2">
+                <span class="text-base">✓</span>
+                <div class="text-left">
+                    <p class="text-[11px] font-bold text-emerald-700">已是最新版本</p>
+                    <p class="text-[9px] text-slate-400">无需操作</p>
+                </div>
+            </div>
+            <button onclick="checkUpdate()" class="w-full py-3 bg-slate-100 text-slate-500 text-xs font-bold rounded-xl active-scale">
+                再次检查
+            </button>
+        `;
+    }
+
+    // ========== 流程函数 ==========
+    function checkUpdate() {
+        renderChecking();
+        setTimeout(() => {
+            renderHasUpdate();
+            showToast('发现新版本 v2.1.0', '✨');
+        }, 1200);
+    }
+
+    // 模拟热更新场景(静默下载完成,直接进入待应用)
+    function simulateHotUpdate() {
+        renderReady();
+        showToast('热更新已准备好', '✅');
+    }
+
+    // ========== 整包更新弹窗(安卓跳转/iOS退出) ==========
+    let currentPlatform = 'android';
+
+    function openUpgradeModal() {
+        const modal = document.getElementById('upgrade-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        switchPlatform(currentPlatform);
+    }
+
+    function closeUpgradeModal() {
+        const modal = document.getElementById('upgrade-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function switchPlatform(platform) {
+        currentPlatform = platform;
+        const content = document.getElementById('platform-content');
+        const btn = document.getElementById('platform-btn');
+        // 切换分段控制器视觉
+        document.querySelectorAll('.plat-btn').forEach(b => {
+            b.className = b.dataset.platform === platform
+                ? 'plat-btn flex-1 py-1.5 text-[10px] font-bold rounded-full bg-white text-slate-900 shadow-sm'
+                : 'plat-btn flex-1 py-1.5 text-[10px] font-bold rounded-full text-slate-400';
+        });
+
+        if (platform === 'android') {
+            content.innerHTML = `
+                <div class="flex items-start space-x-2.5 text-left">
+                    <span class="text-base flex-shrink-0">📲</span>
+                    <div>
+                        <p class="text-[11px] font-bold text-slate-700 mb-1">跳转浏览器下载安装包</p>
+                        <p class="text-[10px] text-slate-500 leading-relaxed">安卓安装包需从官网下载后手动安装,点击下方按钮将跳转至浏览器打开下载页</p>
+                    </div>
+                </div>
+            `;
+            btn.textContent = '跳转下载';
+            btn.onclick = () => {
+                closeUpgradeModal();
+                showToast('即将跳转浏览器...', '📲');
+                setTimeout(() => renderLatest(), 800);
+            };
+        } else {
+            content.innerHTML = `
+                <div class="flex items-start space-x-2.5 text-left">
+                    <span class="text-base flex-shrink-0">🍎</span>
+                    <div>
+                        <p class="text-[11px] font-bold text-slate-700 mb-1">退出后系统自动安装</p>
+                        <p class="text-[10px] text-slate-500 leading-relaxed">iOS 更新由系统接管,退出 Node 后将在后台自动下载并安装,完成后可直接打开新版</p>
+                    </div>
+                </div>
+            `;
+            btn.textContent = '退出 Node';
+            btn.onclick = () => {
+                closeUpgradeModal();
+                showToast('请退出 App,系统将自动下载安装', '🍎');
+                setTimeout(() => renderLatest(), 800);
+            };
+        }
+    }
+
+    // ========== 热更新应用弹窗 ==========
+    function openApplyModal() {
+        const modal = document.getElementById('apply-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeApplyModal() {
+        const modal = document.getElementById('apply-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        showToast('已推迟,下次启动时生效', '⏰');
+    }
+
+    function applyNow() {
+        closeApplyModal();
+        showToast('正在应用更新...', '⏳');
+        setTimeout(() => {
+            renderLatest();
+            showToast('更新已应用', '🎉');
+        }, 1500);
+    }
+
+    // ========== Toast ==========
+    function showToast(message, icon = '✨') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'mb-2 px-4 py-2.5 bg-slate-900/95 text-white text-xs font-bold rounded-full shadow-lg flex items-center space-x-2 pointer-events-auto';
+        toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.transition = 'opacity 0.3s, transform 0.3s';
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-10px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    }
+
+    // 初始化
+    console.log('关于 Node - 版本与更新原型 v1.2 已加载');
+    console.log('整包流程:检查更新 → 发现新版本 → 立即更新 → 弹窗(安卓跳转/iOS退出)');
+    console.log('热更流程:静默下载完成 → 待应用 → 立即应用/下次启动(点底部"演示:热更新场景"触发)');
+</script>
+
+</body>
+</html>

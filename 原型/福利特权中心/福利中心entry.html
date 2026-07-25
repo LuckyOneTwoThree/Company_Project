@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>福利特权 v5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-body: #F1F5F9; --card-main: #FFFFFF; --text-dark: #0F172A; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--bg-body); color: var(--text-dark); overflow-x: hidden; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .welfare-card { background: var(--card-main); border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 6px 16px rgba(0,0,0,0.03); transition: all 0.25s cubic-bezier(0.4,0,0.2,1); }
+        .welfare-card:active { transform: scale(0.98); }
+        .page-layer { transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .toast-enter { animation: toastIn 0.3s ease-out forwards; }
+        .toast-exit { animation: toastOut 0.25s ease-in forwards; }
+        @keyframes toastIn { from { opacity:0; transform:translateY(20px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
+        @keyframes toastOut { from { opacity:1; transform:translateY(0) scale(1); } to { opacity:0; transform:translateY(-10px) scale(0.95); } }
+        .copy-flash { animation: copyFlash 0.4s ease-out; }
+        @keyframes copyFlash { 0% { background-color: rgba(16,185,129,0.2); } 100% { background-color: transparent; } }
+        #switcher-dropdown { transition: max-height 0.2s ease-out; }
+        .cat-card { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
+        .cat-card:active { transform: scale(0.96); }
+        .cat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .cat-grid > div { height: 100%; display: flex; flex-direction: column; }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .entry-module { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
+        .entry-module:active { transform: scale(0.98); }
+        .sub-entry { transition: all 0.2s ease-out; }
+        .sub-entry:active { transform: scale(0.9); }
+    </style>
+</head>
+<body class="flex justify-center items-center min-h-screen bg-slate-200">
+<div class="w-full max-w-md bg-white relative flex flex-col overflow-hidden rounded-[2rem] shadow-2xl shadow-slate-400/30 border border-slate-200" style="height:812px;max-height:100vh;">
+
+    <!-- ========== 第零层：前置入口页 ========== -->
+    <div id="view-entry" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar bg-[#F8FAFC] z-0">
+        <header class="px-6 pt-6 pb-4 flex justify-between items-center bg-white">
+            <h1 class="text-xl font-extrabold text-slate-800">服务</h1>
+            <div id="entry-wallet-status" class="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg border">
+                <span id="entry-status-dot" class="w-1.5 h-1.5 rounded-full"></span>
+                <span id="entry-status-text" class="text-[10px] font-bold">--</span>
+            </div>
+        </header>
+
+        <section class="px-5 mt-2 pb-8">
+            <!-- IM 余额钱包服务卡片 -->
+            <div class="welfare-card rounded-[24px] p-5 bg-gradient-to-r from-emerald-400 to-teal-500 text-white relative overflow-hidden cursor-pointer active:scale-95 transition">
+                <div class="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10 flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center space-x-1.5 mb-1">
+                            <span class="text-[10px] font-bold opacity-90">IM 余额</span>
+                            <span class="text-[10px] opacity-70">👁</span>
+                        </div>
+                        <div class="text-[28px] font-black font-mono tracking-tight">$8.0185</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-6 rounded bg-yellow-300/90 flex items-center justify-center text-[8px] text-yellow-900 font-bold">SIM</div>
+                        <div class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-[10px]">⌘</div>
+                        <span class="text-xl opacity-80">›</span>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-6 mb-3">服务入口</h3>
+
+            <!-- 福利特权大模块 -->
+            <div class="entry-module welfare-card rounded-2xl p-5 mb-4 cursor-pointer relative overflow-hidden" onclick="checkAndEnter('home')">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-3xl shadow-lg shadow-orange-200">🪂</div>
+                            <div>
+                                <h4 class="text-lg font-extrabold text-slate-800">福利特权</h4>
+                                <p class="text-[10px] text-slate-500 mt-0.5">空投 · 资产 · 互动</p>
+                            </div>
+                        </div>
+                        <span class="text-2xl font-black text-slate-200">›</span>
+                    </div>
+
+                    <!-- 三个子分类快捷入口 -->
+                    <div class="grid grid-cols-3 gap-2 pt-4 border-t border-slate-100">
+                        <div onclick="event.stopPropagation();checkAndEnter('airdrop')" class="sub-entry flex flex-col items-center p-3 rounded-xl bg-emerald-50 border border-emerald-100 cursor-pointer">
+                            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-lg mb-1.5">🎁</div>
+                            <span class="text-[11px] font-bold text-slate-700">空投</span>
+                            <span id="entry-pending-airdrop" class="text-[10px] font-black text-emerald-600 mt-0.5">0 待领</span>
+                        </div>
+                        <div onclick="event.stopPropagation();checkAndEnter('holding')" class="sub-entry flex flex-col items-center p-3 rounded-xl bg-indigo-50 border border-indigo-100 cursor-pointer">
+                            <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-lg mb-1.5">🔒</div>
+                            <span class="text-[11px] font-bold text-slate-700">资产</span>
+                            <span id="entry-pending-holding" class="text-[10px] font-black text-indigo-600 mt-0.5">0 待领</span>
+                        </div>
+                        <div onclick="event.stopPropagation();checkAndEnter('reward')" class="sub-entry flex flex-col items-center p-3 rounded-xl bg-amber-50 border border-amber-100 cursor-pointer">
+                            <div class="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-lg mb-1.5">⭐</div>
+                            <span class="text-[11px] font-bold text-slate-700">互动</span>
+                            <span id="entry-pending-reward" class="text-[10px] font-black text-amber-600 mt-0.5">0 待领</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IM会员占位 -->
+            <div class="welfare-card rounded-2xl p-5 flex items-center space-x-3 opacity-60">
+                <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-3xl">⭐</div>
+                <div>
+                    <h4 class="text-[15px] font-extrabold text-slate-700">IM 会员</h4>
+                    <p class="text-[10px] text-slate-400 mt-0.5">会员等级与权益服务</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ========== 第一层：福利特权首页 ========== -->
+    <div id="view-home" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar bg-[#F8FAFC] z-10 translate-x-full">
+        <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-30 border-b border-slate-100">
+            <button onclick="backFromHome()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-800 font-bold transition active:scale-90">‹</button>
+            <div class="text-center">
+                <span class="text-[10px] font-black text-indigo-600 tracking-widest uppercase">Welfare Hub</span>
+                <h1 class="text-xl font-extrabold text-slate-800">福利特权</h1>
+            </div>
+            <button onclick="showRecords()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-sm active:scale-90 transition">�</button>
+        </nav>
+
+        <!-- 数据总览卡 -->
+        <section class="px-5 mt-4">
+            <div class="welfare-card rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white relative overflow-hidden">
+                <div class="absolute -right-8 -bottom-8 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10 px-5 py-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-2 min-w-0">
+                            <h2 id="display-address" class="text-[13px] font-mono font-bold truncate">0x71C8...R89ab</h2>
+                            <span id="tag-wallet" class="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 text-[8px] font-bold rounded border border-indigo-500/30 whitespace-nowrap">平台托管</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="toggleWallet()" class="px-3 py-1.5 bg-white/10 text-white text-[10px] font-bold rounded-lg border border-white/10 active:scale-95 transition">切换</button>
+                            <button onclick="toggleStatExpand()" id="btn-stat-expand" class="w-7 h-7 flex items-center justify-center bg-white/10 rounded-lg border border-white/10 active:scale-90 transition">
+                                <span id="stat-expand-icon" class="text-[10px] text-slate-400 transition-transform duration-200">▾</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[11px] text-slate-500">含合约</span>
+                            <span id="stat-total" class="text-[13px] font-black text-white font-mono">0</span>
+                        </div>
+                        <div class="w-px h-3 bg-white/10"></div>
+                        <div class="flex items-center space-x-1.5">
+                            <span id="stat-dot" class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse hidden"></span>
+                            <span class="text-[11px] text-slate-500">待领</span>
+                            <span id="stat-pending" class="text-[13px] font-black text-indigo-400 font-mono">0</span>
+                        </div>
+                        <div class="w-px h-3 bg-white/10"></div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-[11px] text-slate-500">已领</span>
+                            <span id="stat-claimed" class="text-[13px] font-black text-emerald-400 font-mono">0</span>
+                        </div>
+                    </div>
+                    <div id="stat-expand" class="overflow-hidden transition-all duration-300" style="max-height:0;opacity:0;">
+                        <div class="mt-3 pt-3 border-t border-white/10">
+                            <p class="text-[10px] text-slate-500 uppercase font-bold mb-2">合约明细</p>
+                            <div id="stat-pending-detail" class="space-y-1.5"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 方案类型入口 -->
+        <section class="px-5 mt-5 pb-8">
+            <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">方案类型</h3>
+            <div class="space-y-3">
+                <!-- 空投 -->
+                <div onclick="enterCategory('airdrop')" class="cat-card relative rounded-2xl overflow-hidden cursor-pointer" style="background:linear-gradient(135deg,#10B981 0%,#059669 100%);">
+                    <div class="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full blur-2xl"></div>
+                    <div class="relative z-10 p-5 text-white">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl">🎁</div>
+                                <div>
+                                    <h4 class="text-lg font-extrabold">空投</h4>
+                                    <p class="text-[10px] text-white/70">无门槛直接领取</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl font-black text-white/30">›</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-1.5">
+                                <span class="text-[10px] text-white/60">合约</span>
+                                <span id="cat-count-airdrop" class="text-[14px] font-black font-mono">0</span>
+                            </div>
+                            <div class="w-px h-3 bg-white/20"></div>
+                            <div class="flex items-center space-x-1.5">
+                                <span id="cat-dot-airdrop" class="w-1.5 h-1.5 bg-red-300 rounded-full hidden"></span>
+                                <span class="text-[10px] text-white/60">待领</span>
+                                <span id="cat-pending-airdrop" class="text-[14px] font-black font-mono">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 资产 -->
+                <div onclick="enterCategory('holding')" class="cat-card relative rounded-2xl overflow-hidden cursor-pointer" style="background:linear-gradient(135deg,#4F46E5 0%,#3730A3 100%);">
+                    <div class="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full blur-2xl"></div>
+                    <div class="relative z-10 p-5 text-white">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl">🔒</div>
+                                <div>
+                                    <h4 class="text-lg font-extrabold">资产</h4>
+                                    <p class="text-[10px] text-white/70">持仓达标享返利</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl font-black text-white/30">›</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-1.5">
+                                <span class="text-[10px] text-white/60">合约</span>
+                                <span id="cat-count-holding" class="text-[14px] font-black font-mono">0</span>
+                            </div>
+                            <div class="w-px h-3 bg-white/20"></div>
+                            <div class="flex items-center space-x-1.5">
+                                <span id="cat-dot-holding" class="w-1.5 h-1.5 bg-red-300 rounded-full hidden"></span>
+                                <span class="text-[10px] text-white/60">待领</span>
+                                <span id="cat-pending-holding" class="text-[14px] font-black font-mono">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 互动 -->
+                <div onclick="enterCategory('reward')" class="cat-card relative rounded-2xl overflow-hidden cursor-pointer" style="background:linear-gradient(135deg,#F59E0B 0%,#D97706 100%);">
+                    <div class="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full blur-2xl"></div>
+                    <div class="relative z-10 p-5 text-white">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl">⭐</div>
+                                <div>
+                                    <h4 class="text-lg font-extrabold">互动</h4>
+                                    <p class="text-[10px] text-white/70">身份/动作/资格激励</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl font-black text-white/30">›</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-1.5">
+                                <span class="text-[10px] text-white/60">合约</span>
+                                <span id="cat-count-reward" class="text-[14px] font-black font-mono">0</span>
+                            </div>
+                            <div class="w-px h-3 bg-white/20"></div>
+                            <div class="flex items-center space-x-1.5">
+                                <span id="cat-dot-reward" class="w-1.5 h-1.5 bg-red-300 rounded-full hidden"></span>
+                                <span class="text-[10px] text-white/60">待领</span>
+                                <span id="cat-pending-reward" class="text-[14px] font-black font-mono">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ========== 第二层：分类方案列表页 ========== -->
+    <div id="view-category" class="page-layer absolute top-0 left-full w-full h-full bg-[#F8FAFC] z-10 overflow-y-auto hide-scrollbar pb-10">
+        <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-30 border-b border-slate-100">
+            <button onclick="hideCategory()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-800 font-bold transition active:scale-90">‹</button>
+            <span id="cat-page-title" class="text-[13px] font-black text-slate-700">--</span>
+            <button onclick="showRecords()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-sm active:scale-90 transition">📋</button>
+        </nav>
+
+        <section class="px-5 mt-4">
+            <div id="cat-stat-card" class="welfare-card rounded-2xl text-white relative overflow-hidden">
+                <div class="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10 px-5 py-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-2">
+                            <span id="cat-stat-icon" class="text-2xl">🎁</span>
+                            <div>
+                                <h3 id="cat-stat-name" class="text-[15px] font-extrabold">空投</h3>
+                                <p id="cat-stat-desc" class="text-[10px] text-white/60">无门槛直接领取</p>
+                            </div>
+                        </div>
+                        <button onclick="toggleCatStatExpand()" id="btn-cat-stat-expand" class="w-7 h-7 flex items-center justify-center bg-white/10 rounded-lg border border-white/10 active:scale-90 transition">
+                            <span id="cat-stat-expand-icon" class="text-[10px] text-white/60 transition-transform duration-200">▾</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-[11px] text-white/60">合约</span>
+                                <span id="cat-stat-total" class="text-[16px] font-black font-mono">0</span>
+                            </div>
+                            <div class="w-px h-4 bg-white/20"></div>
+                            <div class="flex items-center space-x-2">
+                                <span id="cat-stat-dot" class="w-2 h-2 bg-red-300 rounded-full animate-pulse hidden"></span>
+                                <span class="text-[11px] text-white/60">待领</span>
+                                <span id="cat-stat-pending" class="text-[16px] font-black font-mono">0</span>
+                            </div>
+                            <div class="w-px h-4 bg-white/20"></div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-[11px] text-white/60">已领</span>
+                                <span id="cat-stat-claimed" class="text-[16px] font-black font-mono">0</span>
+                            </div>
+                        </div>
+                    <div id="cat-stat-expand" class="overflow-hidden transition-all duration-300" style="max-height:0;opacity:0;">
+                        <div class="mt-3 pt-3 border-t border-white/10">
+                            <p class="text-[10px] text-white/50 uppercase font-bold mb-2">币种明细</p>
+                            <div id="cat-stat-detail" class="space-y-1.5"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="px-5 mt-5">
+            <div id="category-list" class="cat-grid"></div>
+            <div id="category-empty" class="hidden flex flex-col items-center justify-center py-16">
+                <div class="text-4xl mb-4">📭</div>
+                <p class="text-slate-400 text-sm">该分类暂无方案</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- ========== 第三层：方案详情页 ========== -->
+    <div id="view-detail" class="page-layer absolute top-0 left-full w-full h-full bg-[#F8FAFC] z-20 overflow-y-auto hide-scrollbar pb-40">
+        <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-30 border-b border-slate-50">
+            <button onclick="hideDetail()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-800 font-bold transition active:scale-90">‹</button>
+            <span id="detail-nav-title" class="text-[13px] font-black text-slate-700">--</span>
+            <button onclick="showDetailHistory()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-sm active:scale-90 transition">📋</button>
+        </nav>
+
+        <div class="px-5 pt-4" id="detail-content">
+            <div id="det-banner" class="rounded-2xl p-5 mb-4 relative overflow-hidden text-white shadow-lg">
+                <div class="absolute -right-8 -top-8 w-28 h-28 bg-white/15 rounded-full blur-2xl"></div>
+                <div class="relative z-10 flex items-start justify-between">
+                    <div class="min-w-0">
+                        <h2 id="det-title" class="text-lg font-extrabold leading-tight">--</h2>
+                        <p id="det-desc" class="text-[11px] text-white/80 leading-relaxed mt-1 truncate">--</p>
+                    </div>
+                    <span id="det-badge" class="flex-shrink-0 ml-3 px-2 py-1 bg-white/20 backdrop-blur-md rounded-md text-[9px] font-bold tracking-widest uppercase">--</span>
+                </div>
+            </div>
+
+            <!-- 合约列表 -->
+            <div class="mb-5">
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">合约奖励</h4>
+                    <span id="contract-count" class="text-[10px] font-bold text-slate-400">共 0 个合约</span>
+                </div>
+                <div id="contracts-list" class="space-y-3"></div>
+            </div>
+
+            <!-- 方案详情折叠区 -->
+            <div class="welfare-card rounded-2xl overflow-hidden mb-6">
+                <button onclick="toggleDetailCards()" id="btn-toggle-cards" class="w-full flex items-center justify-between p-5 active:scale-[0.98] transition">
+                    <span class="text-[13px] font-bold text-slate-800">方案详情</span>
+                    <div class="flex items-center space-x-1.5 text-[10px] text-slate-400">
+                        <span id="toggle-text">展开</span>
+                        <span id="toggle-icon" class="transition-transform duration-200">▾</span>
+                    </div>
+                </button>
+                <div id="detail-cards" class="transition-all duration-300 overflow-hidden" style="max-height:0;opacity:0;">
+                    <div class="px-5 pb-5 space-y-4">
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <p class="text-[10px] text-slate-400 uppercase font-bold mb-2">资格条件</p>
+                            <p id="det-requirement" class="text-[13px] font-bold text-slate-800 font-mono">--</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 uppercase font-bold mb-2">规则说明</p>
+                            <div id="det-logic" class="text-[11px] text-slate-500 leading-relaxed space-y-2"></div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 uppercase font-bold mb-2">领取地址</p>
+                            <p id="det-locked-addr" class="text-[11px] font-mono font-bold text-slate-700 truncate">--</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="auto-claim-info" class="mb-6 hidden">
+                <div class="welfare-card rounded-2xl p-5 bg-cyan-50 border border-cyan-100">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center text-white text-lg">⚡</div>
+                        <div>
+                            <h4 class="text-[13px] font-bold text-cyan-800">自动下发模式</h4>
+                            <p class="text-[11px] text-cyan-600 mt-0.5">返利将自动发放至绑定钱包</p>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-cyan-700 leading-relaxed">系统将按周期自动将返利代币发放至您当前绑定的钱包地址，无需手动操作。可在领取记录中查看自动下发详情。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部固定操作栏 -->
+    <div id="action-bar" class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 z-40 px-5 py-4 hidden">
+        <button id="btn-claim-all" onclick="claimAllContracts()" class="w-full py-4 bg-indigo-600 text-white font-black text-[13px] rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition">一键领取全部</button>
+    </div>
+
+    <!-- 方案内下发历史 -->
+    <div id="view-detail-history" class="page-layer absolute top-0 left-full w-full h-full bg-white z-30 overflow-y-auto hide-scrollbar pb-10">
+        <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-30 border-b border-slate-50">
+            <button onclick="hideDetailHistory()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-800 font-bold transition active:scale-90">‹</button>
+            <span class="text-[10px] font-black tracking-widest uppercase text-slate-400">Distribution History</span>
+            <div class="w-10"></div>
+        </nav>
+        <div class="px-5 pt-4" id="detail-history-list"></div>
+    </div>
+
+    <!-- 领取记录 -->
+    <div id="view-records" class="page-layer absolute top-0 left-full w-full h-full bg-white z-20 overflow-y-auto hide-scrollbar pb-10">
+        <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-30 border-b border-slate-50">
+            <button onclick="hideRecords()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-800 font-bold transition active:scale-90">‹</button>
+            <span class="text-[10px] font-black tracking-widest uppercase text-slate-400">Claim Records</span>
+            <div class="w-10"></div>
+        </nav>
+        <div class="px-5 pt-3 pb-1 sticky top-[57px] bg-white/95 backdrop-blur-md z-20">
+            <div id="record-tabs" class="flex space-x-2 overflow-x-auto hide-scrollbar pb-2">
+                <button onclick="filterRecords('all')" id="rtab-all" class="flex-shrink-0 px-4 py-2 text-[11px] font-bold rounded-xl transition active:scale-95 bg-indigo-600 text-white">全部</button>
+                <button onclick="filterRecords('airdrop')" id="rtab-airdrop" class="flex-shrink-0 px-4 py-2 text-[11px] font-bold rounded-xl transition active:scale-95 bg-slate-100 text-slate-500">空投</button>
+                <button onclick="filterRecords('holding')" id="rtab-holding" class="flex-shrink-0 px-4 py-2 text-[11px] font-bold rounded-xl transition active:scale-95 bg-slate-100 text-slate-500">资产</button>
+                <button onclick="filterRecords('reward')" id="rtab-reward" class="flex-shrink-0 px-4 py-2 text-[11px] font-bold rounded-xl transition active:scale-95 bg-slate-100 text-slate-500">互动</button>
+            </div>
+        </div>
+        <div class="px-5 pt-2" id="records-list"></div>
+    </div>
+
+    <!-- 历史累计奖励补领页 -->
+    <div id="view-reclaim" class="page-layer absolute top-0 left-full w-full h-full bg-[#F8FAFC] z-20 overflow-y-auto hide-scrollbar flex flex-col justify-between">
+        <div>
+            <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-md z-30 border-b border-slate-100">
+                <button onclick="hideReclaimPage()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-800 font-bold transition active:scale-90">‹</button>
+                <h1 class="text-xs font-black tracking-widest uppercase text-slate-400">Reclaim History</h1>
+                <div class="w-10"></div>
+            </nav>
+            
+            <div class="p-5 space-y-4">
+                <!-- 时限提示 -->
+                <div class="p-3.5 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-[10px] text-slate-550 leading-relaxed">
+                    💡 <span class="font-bold text-indigo-600">提示:</span> 本方案支持最长 <span class="font-black text-indigo-700 bg-indigo-100/50 px-1 py-0.5 rounded">30 天</span> 的历史累计补领。超出 30 天的已锁快照将自动作废。
+                </div>
+                
+                                                                <!-- 顶部全选控制条 -->
+                <div class="flex items-center justify-between px-2 text-[11px] text-slate-500">
+                    <label class="flex items-center space-x-2.5 cursor-pointer select-none font-bold text-slate-650">
+                        <input type="checkbox" id="reclaim-select-all" class="sr-only peer" onchange="toggleReclaimAll(this.checked)">
+                        <div class="w-4.5 h-4.5 rounded-full border-2 border-slate-300 peer-checked:border-indigo-600 peer-checked:bg-indigo-600 flex items-center justify-center transition-all duration-200 shrink-0">
+                            <svg class="w-2.5 h-2.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <span class="text-[11px] text-slate-550">全选可补领</span>
+                    </label>
+                    <span class="text-[10px] text-slate-400">支持补领最近 30 天</span>
+                </div>
+                
+                <!-- 动态列表区 (手机 C 端卡片流) -->
+                <div id="reclaim-list-container" class="space-y-2.5">
+                    <!-- 动态渲染手机卡片行 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部悬浮一键批量补领栏 -->
+        <div class="p-5 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/90 to-transparent safe-bottom">
+            <button id="btn-reclaim-selected" onclick="claimSelectedReclaims()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/25 active:scale-[0.98] transition opacity-50 cursor-not-allowed" disabled>
+                一键补领已选奖励 (0)
+            </button>
+        </div>
+    </div>
+
+    <!-- 密码核验 Modal -->
+    <div id="modal-password" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center justify-center px-6">
+        <div class="w-full max-w-sm bg-white rounded-3xl p-6 border border-slate-200 translate-y-8 transition-transform duration-300 shadow-2xl">
+            <div class="w-12 h-12 bg-indigo-50/10 text-indigo-650 rounded-2xl flex items-center justify-center text-xl mb-4">🔑</div>
+            <h3 class="text-base font-bold text-slate-800">自管钱包签名解密</h3>
+            <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                请输入您的自管冷钱包密码，以在隔离沙盒内解密私钥，并对本次补领交易（EIP-712 元交易）进行签名。
+            </p>
+            <div class="mt-4">
+                <input type="password" id="input-reclaim-password" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none" placeholder="输入钱包密码 (至少6位)">
+            </div>
+            <div class="mt-6 flex flex-col space-y-2">
+                <button onclick="confirmReclaimSignature()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/10 active:scale-95 transition">
+                    确认解密并签名补领
+                </button>
+                <button onclick="closePasswordModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl text-xs font-bold active:scale-95 transition border border-slate-250">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 警告 Modal (解绑占用：仅支持付费500USDT解绑) -->
+    <div id="modal-warning" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center justify-center px-6">
+        <div class="w-full max-w-sm bg-white rounded-3xl p-6 border border-slate-200 translate-y-8 transition-transform duration-300 shadow-2xl">
+            <div class="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center text-2xl mb-4 border border-red-100">⚠️</div>
+            <h3 class="text-base font-bold text-slate-800">强制解除设备历史锁定</h3>
+            <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                当前冷钱包地址在链上已被其它设备物理锁死。强制释放原设备排他锁定需支付重置费。
+            </p>
+            <div class="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-[9px] text-slate-550 font-mono space-y-2">
+                <div class="flex justify-between items-center gap-2">
+                    <span class="text-slate-400 shrink-0">需释放钱包:</span>
+                    <span id="warning-address" class="text-slate-800 font-bold font-mono truncate max-w-[170px] text-right">0x00...00</span>
+                </div>
+                <div class="flex justify-between border-t border-slate-200/50 pt-1.5">
+                    <span class="text-slate-400">解绑定向合约:</span>
+                    <span class="text-slate-800 font-bold font-mono">0x9fC2...98A5 (Vault Registry)</span>
+                </div>
+                <div class="flex justify-between border-t border-slate-200/50 pt-1.5">
+                    <span class="text-slate-400">所需支付币种:</span>
+                    <span class="text-indigo-600 font-bold">USDT (自主链)</span>
+                </div>
+                <div class="flex justify-between border-t border-slate-200/50 pt-1.5">
+                    <span class="text-slate-400">所需服务金额:</span>
+                    <span class="text-indigo-650 font-black">500.00 USDT</span>
+                </div>
+                <div class="border-t border-slate-200/50 pt-2 text-[8px] text-indigo-500 font-sans leading-relaxed">
+                    💡 提示：解绑操作将由智能合约在链上广播，需消耗自管钱包中微量 RC 代币作为 Gas 费。
+                </div>
+            </div>
+            
+            <div class="mt-4 border-t border-slate-100 pt-3 text-[8.5px] leading-relaxed space-y-1 bg-red-50/30 p-2.5 rounded-lg border border-red-100/30">
+                <div class="text-red-500 font-bold">⚠️ 安全警示:</div>
+                <div class="pl-2.5 text-slate-500 list-item list-inside">解绑后原设备的排他性硬锁定将被清除。</div>
+                <div class="pl-2.5 text-slate-500 list-item list-inside">同时将同步抹除被解绑设备在该冷钱包下的所有待激活特权福利。</div>
+            </div>
+            
+            <div class="mt-6 flex flex-col space-y-2">
+                <button onclick="confirmPayUnbind()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/10 active:scale-95 transition">
+                    💳 支付 500 USDT 立即解绑
+                </button>
+                <button onclick="closeWarningModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl text-xs font-bold active:scale-95 transition border border-slate-250">
+                    暂不解绑
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自管钱包配置 -->
+    <div id="view-cold-wallet" class="page-layer absolute top-0 left-full w-full h-full bg-white z-20 overflow-y-auto hide-scrollbar pb-10">
+        <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-30 border-b border-slate-50">
+            <button onclick="hideColdWallet()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-800 font-bold transition active:scale-90">‹</button>
+            <span class="text-[10px] font-black tracking-widest uppercase text-slate-400">Wallet Setup</span>
+            <div class="w-10"></div>
+        </nav>
+        <div class="px-5 pt-6">
+            <h2 class="text-xl font-extrabold text-slate-800 mb-2">选择账户与链</h2>
+            <p class="text-[12px] text-slate-500 mb-6">自管钱包需定位到具体账户和链地址</p>
+            <div class="mb-6"><h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">选择账户</h4><div id="cold-accounts" class="space-y-2"></div></div>
+            <div class="mb-8"><h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">选择链</h4><div id="cold-chains" class="grid grid-cols-2 gap-2"></div></div>
+            <div id="cold-confirm" class="hidden">
+                <div class="welfare-card rounded-2xl p-5 mb-6 bg-slate-50"><p class="text-[10px] text-slate-400 uppercase font-bold mb-2">确认绑定地址</p><p id="cold-confirm-addr" class="text-[13px] font-mono font-bold text-slate-800">--</p></div>
+                <button onclick="confirmColdWallet()" class="w-full py-4 bg-indigo-600 text-white font-black text-[13px] rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition">确认绑定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 钱包切换弹窗 -->
+    <div id="modal-wallet" class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="w-full max-w-md bg-white rounded-t-[2.5rem] p-7 translate-y-full transition-transform duration-300 shadow-2xl">
+            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
+            <h3 class="text-lg font-black text-slate-800 mb-5">选择验证身份</h3>
+            <div class="space-y-3 mb-6">
+                <div onclick="selectWallet('platform')" class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between cursor-pointer active:bg-indigo-50 transition">
+                    <div class="flex items-center space-x-3"><div class="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-lg">📱</div><div><p class="text-[13px] font-bold text-slate-700">平台托管钱包</p><p class="text-[10px] text-slate-400">默认高频交互地址</p></div></div>
+                    <div id="check-p" class="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">✓</div>
+                </div>
+                <div onclick="selectWallet('im-cold')" class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between cursor-pointer active:bg-indigo-50 transition">
+                    <div class="flex items-center space-x-3"><div class="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-lg">🛡️</div><div><p class="text-[13px] font-bold text-slate-700">自管钱包</p><p class="text-[10px] text-slate-400">本地多链多账户钱包</p></div></div>
+                    <div id="check-im" class="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold"></div>
+                </div>
+                <div onclick="selectWallet('external')" class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between cursor-pointer active:bg-indigo-50 transition">
+                    <div class="flex items-center space-x-3"><div class="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-lg">🔗</div><div><p class="text-[13px] font-bold text-slate-700">外部绑定钱包</p><p class="text-[10px] text-slate-400">MetaMask / WalletConnect</p></div></div>
+                    <div id="check-e" class="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold"></div>
+                </div>
+            </div>
+            <button onclick="toggleWallet()" class="w-full py-3.5 bg-slate-100 text-slate-500 rounded-xl text-[12px] font-bold active:scale-[0.98] transition">取消</button>
+        </div>
+    </div>
+
+    <!-- 入口绑定钱包引导弹窗 -->
+    <div id="modal-entry-bind" class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="w-full max-w-md bg-white rounded-t-[2.5rem] p-7 translate-y-full transition-transform duration-300 shadow-2xl">
+            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
+            <h3 class="text-lg font-black text-slate-800 mb-2">绑定自管钱包</h3>
+            <p class="text-[12px] text-slate-500 mb-5">领取福利特权前需要绑定自管钱包地址</p>
+            <div class="p-4 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center space-x-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-lg">�️</div>
+                <div>
+                    <p class="text-[13px] font-bold text-slate-700">自管钱包</p>
+                    <p class="text-[10px] text-slate-400">本地多链多账户钱包</p>
+                </div>
+            </div>
+            <button onclick="selectBindWallet('im-cold')" class="w-full py-3.5 bg-indigo-600 text-white rounded-xl text-[12px] font-bold active:scale-[0.98] transition mb-3">立即绑定</button>
+            <button onclick="hideEntryBindModal()" class="w-full py-3.5 bg-slate-100 text-slate-500 rounded-xl text-[12px] font-bold active:scale-[0.98] transition">稍后再说</button>
+        </div>
+    </div>
+
+    <!-- 领取任务流弹窗 -->
+    <div id="modal-task-flow" class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="w-full max-w-md bg-white rounded-t-[2.5rem] p-7 translate-y-full transition-transform duration-300 shadow-2xl">
+            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="text-lg font-black text-slate-800">领取任务</h3>
+                <span id="task-progress" class="text-[11px] font-bold text-slate-400">0 / 0</span>
+            </div>
+            <div id="task-list" class="space-y-2 max-h-[50vh] overflow-y-auto hide-scrollbar mb-5"></div>
+            <button id="btn-task-done" onclick="hideTaskFlow()" class="w-full py-3.5 bg-indigo-600 text-white rounded-xl text-[12px] font-bold active:scale-[0.98] transition">完成</button>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed top-12 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"></div>
+</div>
+
+<script>
+// ==================== 活动数据 ====================
+const activities = [
+    // 空投
+    { id:'welcome-airdrop', category:'airdrop', icon:'🎁', iconColor:'emerald', title:'迎新专项空投', desc:'新用户专属 USDR 空投', type:'direct', detail:{ title:'迎新专项空投', desc:'新用户专属 USDR 空投奖励，可直接领取到绑定钱包。', requirement:'新用户', logic:'<p>● <b>领取条件：</b>新用户即可领取。</p><p>● <b>领取机制：</b>点击领取，USDR 将发放至绑定钱包。</p>', color:'linear-gradient(135deg, #10B981 0%, #059669 100%)', badge:'Seed Airdrop', contracts:[
+        { id:'c1', contract:'0x5678...efgh', chainName:'自主链', rewardAmount:'50', rewardSymbol:'USDR', balance:'3,800.00' },
+        { id:'c2', contract:'0x88AA...bbcc', chainName:'Ethereum', rewardAmount:'0.01', rewardSymbol:'WETH', balance:'0.50' }
+    ] }},
+    { id:'daily-airdrop', category:'airdrop', icon:'🎁', iconColor:'amber', title:'每日奖励空投', desc:'每日可领取 USDR 奖励', type:'direct', detail:{ title:'每日奖励空投', desc:'每日可领取 USDR 奖励空投，直接领取即可。', requirement:'当日未领取', logic:'<p>● <b>领取条件：</b>当日未领取即可。</p><p>● <b>领取机制：</b>每日限领一次，点击领取。</p>', color:'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', badge:'Daily', contracts:[
+        { id:'c1', contract:'0x9abc...ijkl', chainName:'自主链', rewardAmount:'2', rewardSymbol:'USDR', balance:'3,800.00' }
+    ] }},
+    { id:'dao-airdrop', category:'airdrop', icon:'🏛️', iconColor:'rose', title:'DAO 治理空投', desc:'参与治理投票领取 DAO', type:'direct', detail:{ title:'DAO 治理空投', desc:'参与 DAO 治理投票的成员，可直接领取治理代币空投。', requirement:'参与过治理投票', logic:'<p>● <b>领取条件：</b>参与过至少一次治理投票。</p><p>● <b>领取机制：</b>点击领取，DAO 代币将发放至绑定钱包。</p>', color:'linear-gradient(135deg, #E11D48 0%, #BE123C 100%)', badge:'Governance', contracts:[
+        { id:'c1', contract:'0x7890...uvwx', chainName:'自主链', rewardAmount:'500', rewardSymbol:'DAO', balance:'2,000' }
+    ] }},
+
+    // 资产
+    { id:'hold-usdr', category:'holding', icon:'🔒', iconColor:'indigo', title:'USDR 持仓返利', desc:'持仓达标即享代币返利', type:'direct', detail:{ title:'USDR 持仓返利', desc:'持有超过 500 USDR 的白名单地址，可按持仓比例获得代币返利奖励。', requirement:'≥ 500.00 USDR', logic:'<p>● <b>白名单规则：</b>运营方已预先配置持仓阈值白名单，系统根据链上快照核验绑定地址余额是否达标。</p><p>● <b>返利机制：</b>核验通过后，按持仓比例定期发放代币返利至绑定钱包。</p>', color:'linear-gradient(135deg, #4F46E5 0%, #3730A3 100%)', badge:'Yield Active', contracts:[
+        { id:'c1', contract:'0x1111...aaaa', chainName:'自主链', rewardAmount:'25', rewardSymbol:'USDR', balance:'3,800.00' }
+    ] }},
+    { id:'hold-usdr-auto', category:'holding', icon:'💎', iconColor:'cyan', title:'USDR 持仓返利', desc:'持仓达标自动发放返利', type:'direct', autoTag:'⚡自动下发', detail:{ title:'USDR 持仓返利（自动）', desc:'持有超过 500 USDR 的白名单地址，系统将按持仓比例自动下发代币返利至绑定钱包。', requirement:'≥ 500.00 USDR', logic:'<p>● <b>白名单规则：</b>运营方已预先配置持仓阈值白名单，系统根据链上快照核验绑定地址余额是否达标。</p><p>● <b>自动下发：</b>核验通过后，系统按周期自动将返利代币发放至绑定钱包。</p>', color:'linear-gradient(135deg, #0891B2 0%, #0E7490 100%)', badge:'Auto Yield', autoClaim:true, contracts:[
+        { id:'c1', contract:'0x2222...bbbb', chainName:'自主链', rewardAmount:'25', rewardSymbol:'USDR', balance:'3,800.00' }
+    ] }},
+
+    // 互动
+    { id:'welcome-gas', category:'reward', icon:'⚓', iconColor:'emerald', title:'新用户 Gas 补贴', desc:'新用户开通即领', type:'direct', detail:{ title:'新用户 Gas 补贴', desc:'首次开通平台托管钱包的用户，可直接领取 Gas 补贴到绑定钱包。', requirement:'首次开通钱包', logic:'<p>● <b>领取条件：</b>当前 UID 首次开通平台托管钱包即可领取。</p><p>● <b>领取机制：</b>点击领取，RC 将发放至绑定钱包。</p>', color:'linear-gradient(135deg, #10B981 0%, #059669 100%)', badge:'Welcome', contracts:[
+        { id:'c1', contract:'0x1234...abcd', chainName:'自主链', rewardAmount:'0.05', rewardSymbol:'RC', balance:'2.50' }
+    ] }},
+    { id:'checkin-reward', category:'reward', icon:'✅', iconColor:'blue', title:'签到奖励', desc:'每日签到领取 USDR', type:'direct', detail:{ title:'每日签到奖励', desc:'每日完成签到即可领取 USDR 奖励，连续签到奖励递增。', requirement:'当日未签到', logic:'<p>● <b>领取条件：</b>当日未签到即可点击领取。</p><p>● <b>奖励机制：</b>连续签到7天额外奖励，断签重新计算。</p>', color:'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', badge:'Check In', contracts:[
+        { id:'c1', contract:'0xdef0...mnop', chainName:'自主链', rewardAmount:'1', rewardSymbol:'USDR', balance:'3,800.00' }
+    ] }},
+    { id:'joint-token', category:'reward', icon:'🧬', iconColor:'purple', title:'生态 Token 联合空投', desc:'跨项目持有人专项激励', type:'direct', detail:{ title:'生态联合激励计划', desc:'面向生态合作伙伴的 Token 持有人，领取专属空投。', requirement:'持有任意合作 Token', logic:'<p>● <b>白名单规则：</b>合作项目方已提供持有人白名单，系统核验绑定地址是否在名单中。</p><p>● <b>奖励下发：</b>核验通过后，奖励通过批量空投合约定向发送至绑定钱包。</p>', color:'linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)', badge:'Partner Access', contracts:[
+        { id:'c1', contract:'0x3333...cccc', chainName:'自主链', rewardAmount:'1,200', rewardSymbol:'HRC', balance:'12,500.00' },
+        { id:'c2', contract:'0x4444...dddd', chainName:'自主链', rewardAmount:'50', rewardSymbol:'USDR', balance:'3,800.00' }
+    ] }},
+    { id:'vip-rebate', category:'reward', icon:'👑', iconColor:'amber', title:'付费权益返利', desc:'Premium 节点回馈', type:'direct', detail:{ title:'高级会员权益返利', desc:'针对已升级 Premium 会员的用户，核验会员等级后触发节点贡献收益回馈。', requirement:'Level 2+ 会员', logic:'<p>● <b>白名单规则：</b>系统根据会员等级白名单核验当前 UID 是否满足返利条件。</p><p>● <b>分发规则：</b>每日凌晨结算返利，金额直接汇入平台待提取资产池。</p>', color:'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', badge:'Premium Only', autoClaim:true, contracts:[
+        { id:'c1', contract:'0x5555...eeee', chainName:'自主链', rewardAmount:'12.5', rewardSymbol:'USDR', balance:'3,800.00' },
+        { id:'c2', contract:'0x6666...ffff', chainName:'自主链', rewardAmount:'100', rewardSymbol:'HRC', balance:'12,500.00' }
+    ] }},
+    { id:'share-rebate', category:'reward', icon:'🤝', iconColor:'blue', title:'分销推广特权', desc:'裂变社交管道分红', type:'direct', detail:{ title:'社交分销裂变特权', desc:'建立专属传播节点，核验分销资格后获取长效管道收益。', requirement:'激活分销序列号', logic:'<p>● <b>白名单规则：</b>系统核验当前 UID 是否已激活分销序列号，确认分销资格。</p><p>● <b>实时提现：</b>收益满 10 USDR 可秒级划转至您的绑定钱包。</p>', color:'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', badge:'Referral Engine', contracts:[
+        { id:'c1', contract:'0x7777...1111', chainName:'自主链', rewardAmount:'8.5', rewardSymbol:'USDR', balance:'3,800.00' },
+        { id:'c2', contract:'0x8888...2222', chainName:'自主链', rewardAmount:'3.2', rewardSymbol:'USDR', balance:'3,800.00' },
+        { id:'c3', contract:'0x9999...3333', chainName:'自主链', rewardAmount:'200', rewardSymbol:'HRC', balance:'12,500.00' }
+    ] }},
+    { id:'node-reward', category:'reward', icon:'🌐', iconColor:'teal', title:'节点质押奖励', desc:'质押节点获取 WETH 奖励', type:'direct', detail:{ title:'节点质押奖励', desc:'参与节点质押即可领取 WETH 奖励，直接领取到绑定钱包。', requirement:'已质押节点', logic:'<p>● <b>领取条件：</b>已参与节点质押即可领取。</p><p>● <b>领取机制：</b>点击领取，WETH 将发放至绑定钱包。</p>', color:'linear-gradient(135deg, #0D9488 0%, #0F766E 100%)', badge:'Node', contracts:[
+        { id:'c1', contract:'0x3456...qrst', chainName:'以太坊', rewardAmount:'0.005', rewardSymbol:'WETH', balance:'0.50' }
+    ] }}
+];
+
+const categoryLabels = { all:'全部', airdrop:'空投', holding:'资产', reward:'互动' };
+const categoryConfig = {
+    airdrop: { icon:'🎁', name:'空投', desc:'无门槛直接领取', color:'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
+    holding: { icon:'🔒', name:'资产', desc:'持仓达标享返利', color:'linear-gradient(135deg, #4F46E5 0%, #3730A3 100%)' },
+    reward: { icon:'⭐', name:'互动', desc:'身份/动作/资格激励', color:'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }
+};
+
+const coldAccounts = [{id:'acc1',name:'主账户',icon:'💎'},{id:'acc2',name:'交易账户',icon:'📊'},{id:'acc3',name:'储蓄账户',icon:'🏦'}];
+const coldChains = [{id:'chain_main',name:'自主链',symbol:'RC',color:'indigo'},{id:'chain_eth',name:'Ethereum',symbol:'ETH',color:'blue'},{id:'chain_bsc',name:'BNB Chain',symbol:'BSC',color:'amber'},{id:'chain_polygon',name:'Polygon',symbol:'MATIC',color:'purple'}];
+const coldAddresses = {'acc1_chain_main':'0x71C8182944ab827364121404121111674R89ab','acc1_chain_eth':'0x71C8182944ab827364121404121111674E12cd','acc2_chain_main':'0x88B9203045bc938475232515232222785S01ef','acc3_chain_main':'0x55A6104056cd049586343626343333896T22ij'};
+
+let claimRecords = [
+    {id:1,activityId:'welcome-airdrop',category:'airdrop',title:'迎新专项空投',amount:'50 USDR',time:'2026-06-03 14:22',txHash:'0xabc123def456789abc123def456789abc123def456789abc123def456789abcd',chain:'自主链',auto:false},
+    {id:2,activityId:'welcome-gas',category:'reward',title:'Gas 补贴',amount:'0.05 RC',time:'2026-06-03 14:22',txHash:'0xdef789ghi012345def789ghi012345def789ghi012345def789ghi012345def1',chain:'自主链',auto:false},
+    {id:3,activityId:'daily-airdrop',category:'airdrop',title:'每日奖励空投',amount:'2 USDR',time:'2026-06-02 09:15',txHash:'0xghi012jkl345678ghi012jkl345678ghi012jkl345678ghi012jkl345678ghi2',chain:'自主链',auto:false},
+    {id:4,activityId:'vip-rebate',category:'reward',title:'Premium 返利',amount:'12.5 USDR',time:'2026-06-01 00:01',txHash:'0xjkl345mno678901jkl345mno678901jkl345mno678901jkl345mno678901jkl3',chain:'自主链',auto:true},
+    {id:5,activityId:'hold-usdr',category:'holding',title:'USDR 持仓返利',amount:'25 USDR',time:'2026-05-30 08:00',txHash:'0xmno789pqr012345mno789pqr012345mno789pqr012345mno789pqr012345mno4',chain:'自主链',auto:false}
+];
+
+// ==================== 状态 ====================
+let reclaimData = [
+    { dayIndex: 20636, time: '2026/7/2 12:00:00', balance: '1,760', reward: '35.2 USDR', status: 'unclaimed' },
+    { dayIndex: 20635, time: '2026/7/1 12:00:00', balance: '1,760', reward: '35.2 USDR', status: 'claimed' },
+    { dayIndex: 20634, time: '2026/6/30 12:00:00', balance: '1,760', reward: '35.2 USDR', status: 'claimed' },
+    { dayIndex: 20633, time: '2026/6/29 12:00:00', balance: '2,060', reward: '41.2 USDR', status: 'unclaimed' },
+    { dayIndex: 20632, time: '2026/6/28 12:00:00', balance: '2,060', reward: '41.2 USDR', status: 'expired' },
+    { dayIndex: 20631, time: '2026/6/27 12:00:00', balance: '2,060', reward: '41.2 USDR', status: 'claimed' }
+];
+let stateTempReclaimItem = null;
+
+let currentWallet = 'external';
+let currentCategory = null;
+let currentCampaign = null;
+let isVerified = false;
+let detailCardsCollapsed = false;
+let selectedColdAccount = null;
+let selectedColdChain = null;
+let currentRecordFilter = 'all';
+let touchStartX = 0;
+let touchEndX = 0;
+let viewStack = ['entry']; // 记录当前页面栈
+let pendingEntryTarget = null; // 入口绑定成功后要进入的页面
+let externalConnected = false; // 外部钱包是否已完成连接
+let taskFlowItems = []; // 一键领取任务列表
+let taskFlowRunning = false; // 是否正在执行一键领取
+
+// ==================== 合约领取状态辅助函数 ====================
+function isContractClaimed(activityId, c) {
+    return claimRecords.some(r => {
+        const match = r.amount.match(/([\d,.]+)\s*(\S+)/);
+        return r.activityId === activityId && match && match[2] === c.rewardSymbol && match[1] === c.rewardAmount;
+    });
+}
+function isActivityFullyClaimed(activity) {
+    const contracts = activity.detail?.contracts || [];
+    if (contracts.length === 0) return false;
+    return contracts.every(c => isContractClaimed(activity.id, c));
+}
+function getActivityUnclaimedContracts(activity) {
+    return (activity.detail?.contracts || []).filter(c => !isContractClaimed(activity.id, c));
+}
+
+const walletAddrs = { platform:'0x71C8182944ab827364121404121111674R89ab', 'im-cold':null, external:null };
+const walletLabels = { platform:'平台托管', 'im-cold':'自管钱包', external:'外部钱包' };
+
+// ==================== 前置入口 ====================
+function isWalletBound() {
+    if (currentWallet === 'platform') return true;
+    if (currentWallet === 'im-cold') return !!walletAddrs['im-cold'];
+    if (currentWallet === 'external') return externalConnected && !!walletAddrs['external'];
+    return false;
+}
+function checkAndEnter(target) {
+    if (isWalletBound()) { executeEntry(target); return; }
+    pendingEntryTarget = target;
+    showEntryBindModal();
+}
+function executeEntry(target) {
+    if (target === 'home') enterWelfare();
+    else enterCategory(target);
+}
+function showEntryBindModal() {
+    const m = document.getElementById('modal-entry-bind'), i = m.querySelector('div');
+    m.classList.remove('opacity-0', 'pointer-events-none');
+    i.classList.remove('translate-y-full');
+}
+function hideEntryBindModal() {
+    const m = document.getElementById('modal-entry-bind'), i = m.querySelector('div');
+    m.classList.add('opacity-0', 'pointer-events-none');
+    i.classList.add('translate-y-full');
+    pendingEntryTarget = null;
+}
+function selectBindWallet(type) {
+    if (type === 'im-cold') {
+        hideEntryBindModal();
+        setTimeout(() => showColdWalletSetup(), 350);
+        return;
+    }
+    if (type === 'external') {
+        hideEntryBindModal();
+        showToast('正在连接外部钱包...', 'info');
+        setTimeout(() => {
+            externalConnected = true;
+            walletAddrs['external'] = '0x99AA66B88FEE876324111404555511674C123xyz';
+            currentWallet = 'external';
+            updateWalletChecks('external');
+            showToast('外部钱包连接成功', 'success');
+            renderEntryWalletStatus();
+            if (pendingEntryTarget) { const target = pendingEntryTarget; pendingEntryTarget = null; executeEntry(target); }
+        }, 1200);
+        return;
+    }
+    currentWallet = 'platform';
+    hideEntryBindModal();
+    updateWalletChecks('platform');
+    showToast('已切换至平台托管钱包', 'success');
+    renderEntryWalletStatus();
+    if (pendingEntryTarget) { const target = pendingEntryTarget; pendingEntryTarget = null; executeEntry(target); }
+}
+function enterWelfare() {
+    viewStack.push('home');
+    document.getElementById('view-entry').style.transform = 'translateX(-20%) scale(0.95)';
+    document.getElementById('view-entry').style.opacity = '0.5';
+    document.getElementById('view-home').style.transform = 'translateX(0)';
+}
+function renderEntryWalletStatus() {
+    const bound = isWalletBound();
+    const el = document.getElementById('entry-wallet-status');
+    const dot = document.getElementById('entry-status-dot');
+    const text = document.getElementById('entry-status-text');
+    if (bound) {
+        el.className = 'flex items-center space-x-1.5 px-2.5 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg';
+        dot.className = 'w-1.5 h-1.5 bg-emerald-500 rounded-full';
+        text.className = 'text-[10px] font-bold text-emerald-600';
+        text.innerText = '已绑定';
+    } else {
+        el.className = 'flex items-center space-x-1.5 px-2.5 py-1.5 bg-amber-50 border border-amber-100 rounded-lg';
+        dot.className = 'w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse';
+        text.className = 'text-[10px] font-bold text-amber-600';
+        text.innerText = '未绑定';
+    }
+}
+
+function backFromHome() {
+    viewStack.pop();
+    document.getElementById('view-home').style.transform = 'translateX(100%)';
+    document.getElementById('view-entry').style.transform = 'translateX(0) scale(1)';
+    document.getElementById('view-entry').style.opacity = '1';
+    renderEntryWalletStatus();
+}
+
+function renderEntryStats() {
+    ['airdrop','holding','reward'].forEach(cat => {
+        const catActivities = activities.filter(a => a.category === cat);
+        const catPending = catActivities.filter(a => !isActivityFullyClaimed(a));
+        const el = document.getElementById(`entry-pending-${cat}`);
+        if (catPending.length > 0) el.innerText = `${catPending.length} 待领`;
+        else el.innerText = '已领完';
+    });
+}
+
+// ==================== 首页统计 ====================
+let statExpanded = false;
+function toggleStatExpand() {
+    statExpanded = !statExpanded;
+    const el = document.getElementById('stat-expand');
+    const icon = document.getElementById('stat-expand-icon');
+    if (statExpanded) { el.style.maxHeight='500px'; el.style.opacity='1'; icon.style.transform='rotate(180deg)'; }
+    else { el.style.maxHeight='0'; el.style.opacity='0'; icon.style.transform='rotate(0deg)'; }
+}
+function renderHomeStats() {
+    const totalContracts = activities.reduce((sum, a) => sum + (a.detail?.contracts?.length || 0), 0);
+    const pendingActivities = activities.filter(a => !isActivityFullyClaimed(a));
+    const pendingContracts = pendingActivities.reduce((sum, a) => sum + getActivityUnclaimedContracts(a).length, 0);
+    const claimedContracts = totalContracts - pendingContracts;
+    document.getElementById('stat-total').innerText = totalContracts;
+    document.getElementById('stat-pending').innerText = pendingContracts;
+    document.getElementById('stat-claimed').innerText = claimedContracts;
+    document.getElementById('stat-dot').classList.toggle('hidden', pendingContracts === 0);
+
+    const icons = { USDR:'💎', RC:'⛽', HRC:'🧬', WETH:'⟠', DAO:'🏛️' };
+    const pendingCountBySymbol = {};
+    pendingActivities.forEach(a => {
+        getActivityUnclaimedContracts(a).forEach(c => {
+            pendingCountBySymbol[c.rewardSymbol] = (pendingCountBySymbol[c.rewardSymbol] || 0) + 1;
+        });
+    });
+    const claimedCountBySymbol = {};
+    claimRecords.forEach(r => {
+        const match = r.amount.match(/[\d,.]+\s*(\S+)/);
+        if (match) claimedCountBySymbol[match[1]] = (claimedCountBySymbol[match[1]] || 0) + 1;
+    });
+
+    const expandDetail = document.getElementById('stat-pending-detail');
+    const allSymbols = [...new Set([...Object.keys(pendingCountBySymbol), ...Object.keys(claimedCountBySymbol)])];
+    if (allSymbols.length === 0) { expandDetail.innerHTML='<p class="text-[10px] text-slate-600">暂无数据</p>'; }
+    else { expandDetail.innerHTML = allSymbols.map(symbol => { const icon=icons[symbol]||'🪙'; const pCount=pendingCountBySymbol[symbol]||0; const cCount=claimedCountBySymbol[symbol]||0; return `<div class="flex items-center justify-between py-1.5 px-2 bg-white/5 rounded-lg"><div class="flex items-center space-x-2"><span class="text-[11px]">${icon}</span><span class="text-[11px] font-bold text-slate-300">${symbol}</span></div><div class="flex items-center space-x-3"><span class="text-[10px] text-slate-500">待 <span class="font-black text-indigo-400 font-mono">${pCount}</span></span><span class="text-[10px] text-slate-500">已 <span class="font-black text-emerald-400 font-mono">${cCount}</span></span></div></div>`; }).join(''); }
+
+    ['airdrop','holding','reward'].forEach(cat => {
+        const catActivities = activities.filter(a => a.category === cat);
+        const catTotalContracts = catActivities.reduce((sum, a) => sum + (a.detail?.contracts?.length || 0), 0);
+        const catPendingContracts = catActivities.reduce((sum, a) => sum + getActivityUnclaimedContracts(a).length, 0);
+        document.getElementById(`cat-count-${cat}`).innerText = catTotalContracts;
+        document.getElementById(`cat-pending-${cat}`).innerText = catPendingContracts;
+        document.getElementById(`cat-dot-${cat}`).classList.toggle('hidden', catPendingContracts === 0);
+    });
+}
+
+// ==================== 分类方案列表 ====================
+function enterCategory(cat) {
+    currentCategory = cat;
+    const config = categoryConfig[cat];
+    document.getElementById('cat-page-title').innerText = config.name;
+    document.getElementById('cat-stat-card').style.background = config.color;
+    document.getElementById('cat-stat-icon').innerText = config.icon;
+    document.getElementById('cat-stat-name').innerText = config.name;
+    document.getElementById('cat-stat-desc').innerText = config.desc;
+    renderCategoryStats(cat);
+    renderCategoryList(cat);
+    document.getElementById('view-category').style.transform = 'translateX(-100%)';
+}
+
+function hideCategory() {
+    document.getElementById('view-category').style.transform = 'translateX(0)';
+    renderHomeStats();
+    renderEntryStats();
+}
+
+let catStatExpanded = false;
+function toggleCatStatExpand() {
+    catStatExpanded = !catStatExpanded;
+    const el = document.getElementById('cat-stat-expand');
+    const icon = document.getElementById('cat-stat-expand-icon');
+    if (catStatExpanded) { el.style.maxHeight='500px'; el.style.opacity='1'; icon.style.transform='rotate(180deg)'; }
+    else { el.style.maxHeight='0'; el.style.opacity='0'; icon.style.transform='rotate(0deg)'; }
+}
+
+function renderCategoryStats(cat) {
+    const filtered = activities.filter(a => a.category === cat);
+    const catRecords = claimRecords.filter(r => r.category === cat);
+    const pendingActivities = filtered.filter(a => !isActivityFullyClaimed(a));
+    const totalContracts = filtered.reduce((sum, a) => sum + (a.detail?.contracts?.length || 0), 0);
+    const pendingContracts = filtered.reduce((sum, a) => sum + getActivityUnclaimedContracts(a).length, 0);
+    const claimedContracts = totalContracts - pendingContracts;
+    document.getElementById('cat-stat-total').innerText = totalContracts;
+    document.getElementById('cat-stat-pending').innerText = pendingContracts;
+    document.getElementById('cat-stat-claimed').innerText = claimedContracts;
+    document.getElementById('cat-stat-dot').classList.toggle('hidden', pendingContracts === 0);
+
+    const claimedTokens = {};
+    catRecords.forEach(r => { const match=r.amount.match(/([\d,.]+)\s*(\S+)/); if(match){const val=parseFloat(match[1].replace(/,/g,''));const symbol=match[2];claimedTokens[symbol]=(claimedTokens[symbol]||0)+val;} });
+    const pendingBySymbol = {};
+    pendingActivities.forEach(a => {
+        getActivityUnclaimedContracts(a).forEach(c => {
+            const val = parseFloat(c.rewardAmount.replace(/,/g,''));
+            if (!isNaN(val)) pendingBySymbol[c.rewardSymbol] = (pendingBySymbol[c.rewardSymbol] || 0) + val;
+        });
+    });
+    const icons = { USDR:'💎', RC:'⛽', HRC:'🧬', WETH:'⟠', DAO:'🏛️' };
+    const allSymbols = [...new Set([...Object.keys(pendingBySymbol), ...Object.keys(claimedTokens)])];
+    const detail = document.getElementById('cat-stat-detail');
+    if (allSymbols.length === 0) { detail.innerHTML='<p class="text-[10px] text-white/40">暂无数据</p>'; }
+    else { detail.innerHTML = allSymbols.map(symbol => { const icon=icons[symbol]||'🪙'; const pVal=pendingBySymbol[symbol]||0; const cVal=claimedTokens[symbol]||0; return `<div class="flex items-center justify-between py-1.5 px-2 bg-white/5 rounded-lg"><div class="flex items-center space-x-2"><span class="text-[11px]">${icon}</span><span class="text-[11px] font-bold text-white/80">${symbol}</span></div><div class="flex items-center space-x-3"><span class="text-[10px] text-white/50">待 <span class="font-black text-indigo-300 font-mono">${pVal%1===0?pVal.toLocaleString():pVal.toFixed(2)}</span></span><span class="text-[10px] text-white/40">领 <span class="font-black text-emerald-300 font-mono">${cVal%1===0?cVal.toLocaleString():cVal.toFixed(2)}</span></span></div></div>`; }).join(''); }
+}
+
+function renderCategoryList(cat) {
+    const list = document.getElementById('category-list');
+    const empty = document.getElementById('category-empty');
+    const filtered = activities.filter(a => a.category === cat);
+    if (filtered.length === 0) { list.innerHTML=''; empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+    const withStatus = filtered.map(a => {
+        return { ...a, claimed: isActivityFullyClaimed(a) };
+    });
+    withStatus.sort((x, y) => { if (x.claimed === y.claimed) return 0; return x.claimed ? 1 : -1; });
+    list.innerHTML = withStatus.map(a => {
+        const autoTag = a.autoTag ? `<span class="px-1 py-0.5 bg-cyan-50 text-cyan-600 text-[8px] font-bold rounded border border-cyan-100 leading-none">${a.autoTag}</span>` : '';
+        const claimedTag = a.claimed ? `<span class="px-1 py-0.5 bg-slate-100 text-slate-400 text-[8px] font-bold rounded border border-slate-200 leading-none">已领取</span>` : '';
+        const redDot = a.claimed ? '' : `<span class="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white shadow-sm"></span>`;
+        const unclaimedContracts = getActivityUnclaimedContracts(a);
+        const amountParts = unclaimedContracts.slice(0, 2).map(c => `${c.rewardAmount} ${c.rewardSymbol}`);
+        const moreCount = unclaimedContracts.length - 2;
+        const amountTag = !a.claimed && unclaimedContracts.length > 0
+            ? `<p class="text-[12px] font-black text-indigo-600 font-mono mt-1">${amountParts.join(' · ')}${moreCount > 0 ? ` +${moreCount}` : ''}</p>`
+            : '';
+        const cardClass = a.claimed ? 'welfare-card rounded-2xl p-4 cursor-pointer group opacity-60 relative h-full flex flex-col' : 'welfare-card rounded-2xl p-4 cursor-pointer group relative h-full flex flex-col';
+        return `<div onclick="showDetail('${a.id}')" class="${cardClass}">${redDot}<div class="w-10 h-10 rounded-xl bg-${a.iconColor}-50 flex items-center justify-center text-lg border border-${a.iconColor}-100 group-active:scale-110 transition">${a.icon}</div><div class="mt-3 flex-1 flex flex-col"><div class="flex items-center flex-wrap gap-1"><h4 class="text-[13px] font-bold text-slate-800">${a.title}</h4>${autoTag}${claimedTag}</div><p class="text-[10px] text-slate-500 mt-1 line-clamp-2 flex-1">${a.desc}</p>${amountTag}</div></div>`;
+    }).join('');
+}
+
+// ==================== 方案详情 ====================
+function showDetail(id) {
+    const activity = activities.find(a => a.id === id);
+    if (!activity || !activity.detail) return;
+    currentCampaign = id;
+    const d = activity.detail;
+    document.getElementById('detail-nav-title').innerText = d.title;
+    document.getElementById('det-title').innerText = d.title;
+    document.getElementById('det-desc').innerText = d.desc;
+    document.getElementById('det-requirement').innerText = d.requirement;
+    document.getElementById('det-logic').innerHTML = d.logic;
+    document.getElementById('det-banner').style.background = d.color;
+    document.getElementById('det-badge').innerText = d.badge;
+    document.getElementById('det-locked-addr').innerText = getDisplayAddress();
+    resetDetailUI();
+    renderContracts(d);
+    if (d.autoClaim) document.getElementById('auto-claim-info').classList.remove('hidden');
+    document.getElementById('action-bar').classList.remove('hidden');
+    document.getElementById('view-detail').style.transform = 'translateX(-100%)';
+}
+function hideDetail() {
+    document.getElementById('view-detail').style.transform = 'translateX(0)';
+    document.getElementById('action-bar').classList.add('hidden');
+    if (currentCategory) { renderCategoryStats(currentCategory); renderCategoryList(currentCategory); }
+}
+
+function toggleDetailCards() {
+    const cards = document.getElementById('detail-cards');
+    const icon = document.getElementById('toggle-icon');
+    const text = document.getElementById('toggle-text');
+    detailCardsCollapsed = !detailCardsCollapsed;
+    if (detailCardsCollapsed) {
+        cards.style.maxHeight='2000px'; cards.style.opacity='1';
+        icon.style.transform='rotate(180deg)'; text.innerText='收起';
+    } else {
+        cards.style.maxHeight='0'; cards.style.opacity='0';
+        icon.style.transform='rotate(0deg)'; text.innerText='展开';
+    }
+}
+
+function renderContracts(d) {
+    const list = document.getElementById('contracts-list');
+    const countEl = document.getElementById('contract-count');
+    const contracts = d.contracts || [];
+    countEl.innerText = `共 ${contracts.length} 个合约`;
+    const icons = { USDR:'💎', RC:'⛽', HRC:'🧬', WETH:'⟠', DAO:'🏛️' };
+    const colorMap = { USDR:'indigo', RC:'emerald', HRC:'purple', WETH:'teal', DAO:'rose' };
+    const claimedSet = new Set();
+    claimRecords.filter(r => r.activityId === currentCampaign).forEach(r => {
+        const match = r.amount.match(/([\d,.]+)\s*(\S+)/);
+        if (match) claimedSet.add(`${match[2]}:${match[1]}`);
+    });
+    list.innerHTML = contracts.map((c, idx) => {
+        const icon = icons[c.rewardSymbol] || '🪙';
+        const color = colorMap[c.rewardSymbol] || 'slate';
+        const key = `${c.rewardSymbol}:${c.rewardAmount}`;
+        const claimed = claimedSet.has(key);
+        const btnClass = claimed
+            ? 'py-2.5 bg-emerald-500 text-white text-[10px] font-black rounded-xl cursor-not-allowed text-center'
+            : 'py-2.5 bg-indigo-600 text-white text-[10px] font-black rounded-xl active:scale-95 transition text-center';
+        const btnText = claimed ? '已领取' : '立即领取';
+        const cardOpacity = claimed ? 'opacity-60' : '';
+        
+        const isRebate = c.rewardSymbol === 'USDR';
+        const actionButtonHtml = isRebate ? `
+            <div class="flex space-x-2 w-full">
+                <button id="btn-contract-${c.id}" onclick="claimContract('${c.id}')" class="flex-[2.5] ${btnClass}" ${claimed?'disabled':''}>${btnText}</button>
+                <button onclick="showReclaimPage('${c.id}')" class="flex-[1.5] py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 text-[10px] font-black rounded-xl active:scale-95 transition flex items-center justify-center gap-0.5">
+                    ⏳ 补领历史
+                </button>
+            </div>
+        ` : `
+            <button id="btn-contract-${c.id}" onclick="claimContract('${c.id}')" class="w-full ${btnClass}" ${claimed?'disabled':''}>${btnText}</button>
+        `;
+
+        return `<div id="contract-${c.id}" class="welfare-card rounded-2xl p-4 ${cardOpacity}">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-${color}-50 flex items-center justify-center text-sm border border-${color}-100">${icon}</div>
+                    <div>
+                        <p class="text-[12px] font-bold text-slate-800">合约 #${idx+1}</p>
+                        <p class="text-[10px] text-slate-400">${c.chainName}</p>
+                    </div>
+                </div>
+                <span class="text-[14px] font-black text-indigo-600 font-mono">${c.rewardAmount} ${c.rewardSymbol}</span>
+            </div>
+            <div class="space-y-2 mb-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] text-slate-500">合约地址</span>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-[10px] font-mono font-bold text-slate-700">${c.contract}</span>
+                        <button onclick="copyText('${c.contract}')" class="px-1.5 py-0.5 bg-slate-50 text-slate-400 text-[8px] font-bold rounded border border-slate-100 active:scale-90 transition">复制</button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] text-slate-500">当前余额</span>
+                    <span class="text-[11px] font-black text-slate-700 font-mono">${c.balance} ${c.rewardSymbol}</span>
+                </div>
+            </div>
+            ${actionButtonHtml}
+        </div>`;
+    }).join('');
+    updateClaimAllButton();
+}
+
+function claimContract(contractId) {
+    const activity = activities.find(a => a.id === currentCampaign);
+    const d = activity.detail;
+    const c = d.contracts.find(x => x.id === contractId);
+    if (!c) return;
+    const btn = document.getElementById(`btn-contract-${contractId}`);
+    btn.innerText="链上确认中..."; btn.disabled=true; btn.classList.add('opacity-50');
+    setTimeout(() => {
+        const card = document.getElementById(`contract-${contractId}`);
+        card.classList.add('opacity-60');
+        btn.innerText="已领取"; btn.disabled=true; btn.className="w-full px-3 py-2 bg-emerald-500 text-white text-[10px] font-black rounded-xl cursor-not-allowed";
+        const txHash='0x'+Array.from({length:64},()=>Math.floor(Math.random()*16).toString(16)).join('');
+        claimRecords.unshift({id:Date.now(),activityId:currentCampaign,category:activity.category,title:d.title,amount:`${c.rewardAmount} ${c.rewardSymbol}`,time:new Date().toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(/\//g,'-'),txHash,chain:c.chainName,auto:false});
+        renderHomeStats(); renderEntryStats(); if(currentCategory){renderCategoryStats(currentCategory); renderCategoryList(currentCategory);}
+        updateClaimAllButton();
+        showToast(`${c.rewardAmount} ${c.rewardSymbol} 已发放到绑定钱包`,'success');
+    }, 1200);
+}
+
+function claimAllContracts() {
+    const activity = activities.find(a => a.id === currentCampaign);
+    const d = activity.detail;
+    const contracts = d.contracts || [];
+    const unclaimed = contracts.filter(c => !claimRecords.some(r => {
+        const match = r.amount.match(/([\d,.]+)\s*(\S+)/);
+        return r.activityId === currentCampaign && match && match[2] === c.rewardSymbol && match[1] === c.rewardAmount;
+    }));
+    if (unclaimed.length === 0) { showToast('已全部领取','info'); return; }
+
+    taskFlowItems = unclaimed.map(c => ({ contract: c, status: 'pending', txHash: null }));
+    taskFlowRunning = true;
+    showTaskFlow();
+    updateClaimAllButton();
+
+    const btn = document.getElementById('btn-claim-all');
+    btn.innerText="领取中..."; btn.disabled=true; btn.classList.add('opacity-50');
+
+    let index = 0;
+    function runNext() {
+        if (index >= taskFlowItems.length) {
+            taskFlowRunning = false;
+            btn.innerText="✓ 全部领取成功"; btn.className="w-full py-4 bg-emerald-500 text-white font-black text-[13px] rounded-2xl cursor-not-allowed";
+            renderHomeStats(); renderEntryStats(); if(currentCategory){renderCategoryStats(currentCategory); renderCategoryList(currentCategory);}
+            updateClaimAllButton();
+            showToast(`${taskFlowItems.length} 个合约奖励已全部发放`,'success');
+            return;
+        }
+        const item = taskFlowItems[index];
+        item.status = 'confirming';
+        renderTaskFlow();
+        setTimeout(() => {
+            const c = item.contract;
+            const card = document.getElementById(`contract-${c.id}`);
+            const cBtn = document.getElementById(`btn-contract-${c.id}`);
+            if (card) card.classList.add('opacity-60');
+            if (cBtn) { cBtn.innerText="已领取"; cBtn.disabled=true; cBtn.className="w-full px-3 py-2 bg-emerald-500 text-white text-[10px] font-black rounded-xl cursor-not-allowed"; }
+            item.txHash='0x'+Array.from({length:64},()=>Math.floor(Math.random()*16).toString(16)).join('');
+            claimRecords.unshift({id:Date.now()+index,activityId:currentCampaign,category:activity.category,title:d.title,amount:`${c.rewardAmount} ${c.rewardSymbol}`,time:new Date().toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(/\//g,'-'),txHash:item.txHash,chain:c.chainName,auto:false});
+            item.status = 'success';
+            renderTaskFlow();
+            index++;
+            setTimeout(runNext, 200);
+        }, 1200);
+    }
+    runNext();
+}
+
+function showTaskFlow() {
+    const m = document.getElementById('modal-task-flow'), i = m.querySelector('div');
+    m.classList.remove('opacity-0', 'pointer-events-none');
+    i.classList.remove('translate-y-full');
+    renderTaskFlow();
+}
+function hideTaskFlow() {
+    const m = document.getElementById('modal-task-flow'), i = m.querySelector('div');
+    m.classList.add('opacity-0', 'pointer-events-none');
+    i.classList.add('translate-y-full');
+}
+function renderTaskFlow() {
+    const list = document.getElementById('task-list');
+    const progress = document.getElementById('task-progress');
+    const doneBtn = document.getElementById('btn-task-done');
+    const total = taskFlowItems.length;
+    const successCount = taskFlowItems.filter(t => t.status === 'success').length;
+    progress.innerText = `${successCount} / ${total}`;
+    doneBtn.innerText = taskFlowRunning ? '后台执行中...' : '完成';
+    doneBtn.className = taskFlowRunning
+        ? 'w-full py-3.5 bg-slate-100 text-slate-400 rounded-xl text-[12px] font-bold cursor-not-allowed'
+        : 'w-full py-3.5 bg-indigo-600 text-white rounded-xl text-[12px] font-bold active:scale-[0.98] transition';
+
+    const icons = { USDR:'💎', RC:'⛽', HRC:'🧬', WETH:'⟠', DAO:'🏛️' };
+    const statusHtml = (item) => {
+        if (item.status === 'pending') return `<span class="text-[10px] font-bold text-slate-400">排队中</span>`;
+        if (item.status === 'confirming') return `<span class="flex items-center space-x-1 text-[10px] font-bold text-amber-500"><span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span><span>确认中</span></span>`;
+        if (item.status === 'success') return `<span class="flex items-center space-x-1 text-[10px] font-bold text-emerald-500"><span>✓</span><span>成功</span></span>`;
+        return `<span class="text-[10px] font-bold text-red-500">失败</span>`;
+    };
+    const opacityClass = (item) => item.status === 'pending' ? 'opacity-60' : '';
+
+    list.innerHTML = taskFlowItems.map((item, idx) => {
+        const c = item.contract;
+        const icon = icons[c.rewardSymbol] || '🪙';
+        return `<div class="welfare-card rounded-2xl p-3 flex items-center justify-between ${opacityClass(item)}">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-base border border-slate-100">${icon}</div>
+                <div>
+                    <p class="text-[12px] font-bold text-slate-800">${c.rewardAmount} ${c.rewardSymbol}</p>
+                    <p class="text-[10px] text-slate-400">${c.chainName}</p>
+                </div>
+            </div>
+            <div class="text-right">
+                ${statusHtml(item)}
+                <p class="text-[9px] text-slate-300 font-mono mt-0.5">#${idx + 1}</p>
+            </div>
+        </div>`;
+    }).join('');
+    list.scrollTop = list.scrollHeight;
+}
+
+function updateClaimAllButton() {
+    const activity = activities.find(a => a.id === currentCampaign);
+    const contracts = activity.detail.contracts || [];
+    const unclaimedCount = contracts.filter(c => !claimRecords.some(r => {
+        const match = r.amount.match(/([\d,.]+)\s*(\S+)/);
+        return r.activityId === currentCampaign && match && match[2] === c.rewardSymbol && match[1] === c.rewardAmount;
+    })).length;
+    const btn = document.getElementById('btn-claim-all');
+    if (unclaimedCount === 0) {
+        btn.innerText="已全部领取"; btn.disabled=true; btn.className="w-full py-4 bg-emerald-500 text-white font-black text-[13px] rounded-2xl cursor-not-allowed";
+    } else {
+        btn.innerText=`一键领取全部 (${unclaimedCount})`; btn.disabled=false; btn.className="w-full py-4 bg-indigo-600 text-white font-black text-[13px] rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition";
+    }
+}
+
+function copyText(text) {
+    navigator.clipboard.writeText(text).then(()=>showToast('已复制','success')).catch(()=>{const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('已复制','success');});
+}
+
+function showDetailHistory() { if(!currentCampaign)return; renderDetailHistory(currentCampaign); document.getElementById('view-detail-history').style.transform="translateX(-100%)"; }
+function hideDetailHistory() { document.getElementById('view-detail-history').style.transform="translateX(0)"; }
+function renderDetailHistory(activityId) {
+    const c = document.getElementById('detail-history-list');
+    const records = claimRecords.filter(r => r.activityId === activityId);
+    if (!records.length) { c.innerHTML=`<div class="flex flex-col items-center justify-center py-20"><div class="text-4xl mb-4">📭</div><p class="text-slate-400 text-sm">暂无下发记录</p></div>`; return; }
+    c.innerHTML = records.map(r => `<div class="welfare-card rounded-2xl p-4 mb-3"><div class="flex items-center justify-between mb-2"><div class="flex items-center space-x-2"><h4 class="text-[13px] font-bold text-slate-800">${r.title}</h4>${r.auto?'<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-blue-100">⚡自动</span>':''}</div><span class="text-[13px] font-black text-indigo-600">${r.amount}</span></div><div class="flex items-center justify-between text-[10px] text-slate-400"><span>${r.time}</span><span>${r.chain}</span></div><div class="mt-3 pt-3 border-t border-slate-50"><div class="flex items-center justify-between"><p class="text-[10px] font-mono text-slate-400 truncate mr-2" id="dtx-${r.id}">${r.txHash}</p><button onclick="copyHash('${r.txHash}','dtx-${r.id}')" class="flex-shrink-0 px-2 py-1 bg-slate-50 text-slate-500 text-[9px] font-bold rounded-lg border border-slate-100 active:scale-90 transition">复制</button></div></div></div>`).join('');
+}
+
+function showRecords() { currentRecordFilter='all'; renderRecords(); document.getElementById('view-records').style.transform="translateX(-100%)"; }
+function hideRecords() { document.getElementById('view-records').style.transform="translateX(0)"; }
+function filterRecords(cat) {
+    currentRecordFilter=cat;
+    document.querySelectorAll('#record-tabs button').forEach(b=>b.className="flex-shrink-0 px-4 py-2 text-[11px] font-bold rounded-xl transition active:scale-95 bg-slate-100 text-slate-500");
+    document.getElementById(`rtab-${cat}`).className="flex-shrink-0 px-4 py-2 text-[11px] font-bold rounded-xl transition active:scale-95 bg-indigo-600 text-white";
+    renderRecords();
+}
+function renderRecords() {
+    const c = document.getElementById('records-list');
+    const filtered = currentRecordFilter==='all'?claimRecords:claimRecords.filter(r=>r.category===currentRecordFilter);
+    if (!filtered.length) { const l=currentRecordFilter==='all'?'':(categoryLabels[currentRecordFilter]||''); c.innerHTML=`<div class="flex flex-col items-center justify-center py-20"><div class="text-4xl mb-4">📭</div><p class="text-slate-400 text-sm">暂无${l}记录</p></div>`; return; }
+    c.innerHTML = filtered.map(r=>`<div class="welfare-card rounded-2xl p-4 mb-3"><div class="flex items-center justify-between mb-2"><div class="flex items-center space-x-2"><h4 class="text-[13px] font-bold text-slate-800">${r.title}</h4>${r.auto?'<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-blue-100">⚡自动</span>':''}</div><span class="text-[13px] font-black text-indigo-600">${r.amount}</span></div><div class="flex items-center justify-between text-[10px] text-slate-400"><span>${r.time}</span><span>${r.chain}</span></div><div class="mt-3 pt-3 border-t border-slate-50"><div class="flex items-center justify-between"><p class="text-[10px] font-mono text-slate-400 truncate mr-2" id="tx-${r.id}">${r.txHash}</p><button onclick="copyHash('${r.txHash}','tx-${r.id}')" class="flex-shrink-0 px-2 py-1 bg-slate-50 text-slate-500 text-[9px] font-bold rounded-lg border border-slate-100 active:scale-90 transition">复制</button></div></div></div>`).join('');
+}
+function copyHash(hash,elId) {
+    navigator.clipboard.writeText(hash).then(()=>{const el=document.getElementById(elId);if(el)el.classList.add('copy-flash');showToast('交易哈希已复制','success');}).catch(()=>{const ta=document.createElement('textarea');ta.value=hash;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('交易哈希已复制','success');});
+}
+
+function toggleWallet() {
+    const m=document.getElementById('modal-wallet'),i=m.querySelector('div');
+    if(m.classList.contains('opacity-0')){m.classList.remove('opacity-0','pointer-events-none');i.classList.remove('translate-y-full');}
+    else{m.classList.add('opacity-0','pointer-events-none');i.classList.add('translate-y-full');}
+}
+function selectWallet(type) {
+    if(type==='im-cold'){toggleWallet();setTimeout(()=>showColdWalletSetup(),350);return;}
+    if(type==='external' && !externalConnected){
+        toggleWallet();
+        showToast('正在连接外部钱包...', 'info');
+        setTimeout(() => {
+            externalConnected = true;
+            walletAddrs['external'] = '0x99AA66B88FEE876324111404555511674C123xyz';
+            currentWallet='external';
+            document.getElementById('display-address').innerText=truncateAddr(getDisplayAddress());
+            document.getElementById('tag-wallet').innerText=walletLabels[type];
+            updateWalletChecks(type);
+            showToast('外部钱包连接成功', 'success');
+            renderEntryWalletStatus();
+        }, 1200);
+        return;
+    }
+    currentWallet=type;document.getElementById('display-address').innerText=truncateAddr(getDisplayAddress());document.getElementById('tag-wallet').innerText=walletLabels[type];updateWalletChecks(type);setTimeout(toggleWallet,200);
+}
+function updateWalletChecks(type) {
+    [['check-p','platform'],['check-im','im-cold'],['check-e','external']].forEach(([id,t])=>{
+        const el=document.getElementById(id);
+        if(t===type){el.className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold";el.innerText="✓";}
+        else{el.className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold";el.innerText="";}
+    });
+}
+
+function showColdWalletSetup() {
+    selectedColdAccount=null;selectedColdChain=null;document.getElementById('cold-confirm').classList.add('hidden');
+    document.getElementById('cold-accounts').innerHTML=coldAccounts.map(a=>`<div onclick="selectColdAccount('${a.id}')" id="cold-acc-${a.id}" class="welfare-card rounded-xl p-4 flex items-center space-x-3 cursor-pointer border-2 border-transparent active:scale-[0.98] transition"><div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-lg border border-slate-100">${a.icon}</div><div><p class="text-[13px] font-bold text-slate-700">${a.name}</p><p class="text-[10px] text-slate-400 font-mono">${a.id}</p></div></div>`).join('');
+    document.getElementById('cold-chains').innerHTML=coldChains.map(c=>`<div onclick="selectColdChain('${c.id}')" id="cold-chain-${c.id}" class="welfare-card rounded-xl p-3 flex items-center space-x-2 cursor-pointer border-2 border-transparent active:scale-[0.98] transition"><div class="w-8 h-8 rounded-lg bg-${c.color}-50 flex items-center justify-center text-[10px] font-black text-${c.color}-600 border border-${c.color}-100">${c.symbol}</div><p class="text-[12px] font-bold text-slate-700">${c.name}</p></div>`).join('');
+    document.getElementById('view-cold-wallet').style.transform="translateX(-100%)";
+}
+function hideColdWallet(){
+    document.getElementById('view-cold-wallet').style.transform="translateX(0)";
+    if (pendingEntryTarget) { pendingEntryTarget = null; }
+}
+function selectColdAccount(id){selectedColdAccount=id;document.querySelectorAll('#cold-accounts > div').forEach(e=>{e.classList.remove('border-indigo-500');e.classList.add('border-transparent');});document.getElementById(`cold-acc-${id}`).classList.remove('border-transparent');document.getElementById(`cold-acc-${id}`).classList.add('border-indigo-500');updateColdConfirm();}
+function selectColdChain(id){selectedColdChain=id;document.querySelectorAll('#cold-chains > div').forEach(e=>{e.classList.remove('border-indigo-500');e.classList.add('border-transparent');});document.getElementById(`cold-chain-${id}`).classList.remove('border-transparent');document.getElementById(`cold-chain-${id}`).classList.add('border-indigo-500');updateColdConfirm();}
+function updateColdConfirm(){if(selectedColdAccount&&selectedColdChain){document.getElementById('cold-confirm-addr').innerText=coldAddresses[`${selectedColdAccount}_${selectedColdChain}`]||'0x0000...0000';document.getElementById('cold-confirm').classList.remove('hidden');}}
+function confirmColdWallet(){
+    const k=`${selectedColdAccount}_${selectedColdChain}`,a=coldAddresses[k]||'0x0000...0000';
+    walletAddrs['im-cold']=a;currentWallet='im-cold';
+    document.getElementById('display-address').innerText=truncateAddr(a);
+    document.getElementById('tag-wallet').innerText=walletLabels['im-cold'];
+    updateWalletChecks('im-cold');
+    hideColdWallet();
+    showToast('自管钱包绑定成功','success');
+    renderEntryWalletStatus();
+    if (pendingEntryTarget) { const target = pendingEntryTarget; pendingEntryTarget = null; setTimeout(() => executeEntry(target), 300); }
+}
+
+
+
+// ==================== 补领历史展示及多选处理逻辑 ====================
+function showReclaimPage(contractId) {
+    document.getElementById('view-reclaim').style.transform = "translateX(-100%)";
+    renderReclaimPage();
+}
+
+function hideReclaimPage() {
+    document.getElementById('view-reclaim').style.transform = "translateX(0)";
+}
+
+function renderReclaimPage() {
+    const container = document.getElementById('reclaim-list-container');
+    if (!container) return;
+
+    container.innerHTML = reclaimData.map(item => {
+        let isUnclaimed = item.status === 'unclaimed';
+        let isClaimed = item.status === 'claimed';
+        let isExpired = item.status === 'expired';
+
+        // 状态徽章与操作按钮
+        let actionAreaHtml = '';
+        let cardBgClass = 'bg-white border-slate-100';
+        let cardOpacity = '';
+
+        if (isClaimed) {
+            actionAreaHtml = `<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-150 text-[9px] font-black font-sans">已补领</span>`;
+            cardBgClass = 'bg-slate-50/60 border-slate-100';
+            cardOpacity = 'opacity-65';
+        } else if (isExpired) {
+            actionAreaHtml = `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-400 border border-slate-200 text-[9px] font-bold font-sans">已失效</span>`;
+            cardBgClass = 'bg-slate-50/45 border-slate-100';
+            cardOpacity = 'opacity-55';
+        } else {
+            // 未领，显示极精美的补领按钮
+            actionAreaHtml = `
+                <button onclick="event.stopPropagation();triggerReclaim(${item.dayIndex}, '${item.reward}')" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-extrabold shadow-sm active:scale-95 transition font-sans">
+                    补领
+                </button>
+            `;
+        }
+
+        const balanceVal = item.balance;
+        const rewardVal = parseFloat(item.reward);
+
+        // 币种微型 💎 图标
+        const gemIcon = `<span class="w-3.5 h-3.5 rounded-full bg-indigo-50 text-indigo-600 text-[8px] font-black inline-flex items-center justify-center border border-indigo-200/80 shadow-sm" style="transform: scale(0.85); font-family: sans-serif;">💎</span>`;
+
+        // 左侧选择区：只有未领的才渲染圆形多选框；已领/失效直接显示 🎁 图标以保证清爽与对齐
+        let leftSelectHtml = '';
+        let cardClickAction = '';
+        
+        if (isUnclaimed) {
+            leftSelectHtml = `
+                <label class="relative flex items-center justify-center cursor-pointer shrink-0" onclick="event.stopPropagation()">
+                    <input type="checkbox" name="reclaim-select" value="${item.dayIndex}" class="sr-only peer" onchange="updateReclaimSelectCount()">
+                    <div class="w-4.5 h-4.5 rounded-full border-2 border-slate-300 peer-checked:border-indigo-600 peer-checked:bg-indigo-600 flex items-center justify-center transition-all duration-200 active:scale-90 shrink-0">
+                        <svg class="w-2.5 h-2.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                </label>
+                <div class="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xs shadow-sm shrink-0">
+                    🎁
+                </div>
+            `;
+            cardClickAction = `onclick="toggleCardSelect(${item.dayIndex})"`;
+        } else {
+            leftSelectHtml = `
+                <div class="w-4.5 h-4.5 shrink-0 opacity-0 pointer-events-none"></div>
+                <div class="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-xs shadow-sm shrink-0">
+                    🎁
+                </div>
+            `;
+        }
+
+        return `
+            <div ${cardClickAction} class="welfare-card rounded-2xl p-4 border flex items-center justify-between transition-all duration-200 hover:translate-y-[-1px] hover:shadow-md cursor-pointer ${cardBgClass} ${cardOpacity}">
+                <!-- 左侧：选择框与图标 -->
+                <div class="flex items-center space-x-2.5 shrink-0">
+                    ${leftSelectHtml}
+                </div>
+
+                <!-- 中间：快照时间与余额 -->
+                <div class="flex-1 min-w-0 px-2.5">
+                    <p class="text-[11px] font-bold text-slate-800 truncate">${item.time}</p>
+                    <p class="text-[10px] text-slate-450 mt-1 flex items-center gap-1 font-mono">
+                        持仓: <span class="text-slate-650 font-bold">${balanceVal}</span>${gemIcon}
+                    </p>
+                </div>
+
+                <!-- 右侧：返利数值与按钮/状态 -->
+                <div class="flex flex-col items-end space-y-2 shrink-0">
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[10px] text-slate-400">返利</span>
+                        <span class="text-[13px] font-black text-indigo-650 font-mono">+${rewardVal}</span>
+                        ${gemIcon}
+                    </div>
+                    <div>
+                        ${actionAreaHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // 默认刷新一次底部批量按钮状态
+    updateReclaimSelectCount();
+}
+
+function toggleCardSelect(dayIndex) {
+    const cb = document.querySelector(`input[name="reclaim-select"][value="${dayIndex}"]`);
+    if (cb && !cb.disabled) {
+        cb.checked = !cb.checked;
+        updateReclaimSelectCount();
+    }
+}
+
+function toggleReclaimAll(checked) {
+    const checkboxes = document.querySelectorAll('input[name="reclaim-select"]');
+    checkboxes.forEach(cb => {
+        if (!cb.disabled) {
+            cb.checked = checked;
+        }
+    });
+    updateReclaimSelectCount();
+}
+
+function updateReclaimSelectCount() {
+    const checkboxes = document.querySelectorAll('input[name="reclaim-select"]:checked');
+    const count = checkboxes.length;
+    const btn = document.getElementById('btn-reclaim-selected');
+    if (btn) {
+        btn.innerText = `一键补领已选奖励 (${count})`;
+        if (count > 0) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+    
+    // 同步刷新顶部全选框的勾选态
+    const allEnabled = document.querySelectorAll('input[name="reclaim-select"]:not(:disabled)');
+    const allChecked = document.getElementById('reclaim-select-all');
+    if (allChecked && allEnabled.length > 0) {
+        allChecked.checked = (checkboxes.length === allEnabled.length);
+    } else if (allChecked) {
+        allChecked.checked = false;
+    }
+}
+
+function triggerReclaim(dayIndex, rewardAmount) {
+    stateTempReclaimItem = { dayIndex, reward: rewardAmount };
+    document.getElementById('input-reclaim-password').value = '';
+    
+    const modal = document.getElementById('modal-password');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    modal.querySelector('div').classList.remove('translate-y-8');
+}
+
+function closePasswordModal() {
+    const modal = document.getElementById('modal-password');
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    modal.querySelector('div').classList.add('translate-y-8');
+    stateTempReclaimItem = null;
+}
+
+function claimSelectedReclaims() {
+    const checkboxes = document.querySelectorAll('input[name="reclaim-select"]:checked');
+    if (checkboxes.length === 0) return;
+    
+    const selectedIndexes = [];
+    checkboxes.forEach(cb => {
+        selectedIndexes.push(parseInt(cb.value));
+    });
+    
+    let totalReward = 0;
+    selectedIndexes.forEach(idx => {
+        const item = reclaimData.find(x => x.dayIndex === idx);
+        if (item) totalReward += parseFloat(item.reward);
+    });
+    
+    stateTempReclaimItem = {
+        indexes: selectedIndexes,
+        totalReward: totalReward.toFixed(1) + ' USDR'
+    };
+    
+    document.getElementById('input-reclaim-password').value = '';
+    const modal = document.getElementById('modal-password');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    modal.querySelector('div').classList.remove('translate-y-8');
+}
+
+function confirmReclaimSignature() {
+    const pwd = document.getElementById('input-reclaim-password').value;
+    if (pwd.length < 6) {
+        showToast('密码长度不足，请输入至少 6 位密码', 'error');
+        return;
+    }
+    closePasswordModal();
+
+    if (stateTempReclaimItem) {
+        const item = stateTempReclaimItem;
+        showToast('⌛ 正在生成 EIP-712 签名并向 Relayer 广播...', 'info');
+
+        setTimeout(() => {
+            if (item.indexes) {
+                // 批量补领
+                item.indexes.forEach(idx => {
+                    const record = reclaimData.find(x => x.dayIndex === idx);
+                    if (record) {
+                        record.status = 'claimed';
+                    }
+
+                    // 写入全局已领取记录
+                    claimRecords.unshift({
+                        id: Date.now() + Math.floor(Math.random() * 1000),
+                        activityId: 'hold-usdr',
+                        category: 'holding',
+                        title: `补领持仓返利 (#${idx})`,
+                        amount: record.reward,
+                        time: new Date().toLocaleString('zh-CN', { hour12: false }),
+                        txHash: '0x' + Math.random().toString(16).slice(2, 10) + '...' + Math.random().toString(16).slice(-8),
+                        chain: '自主链',
+                        auto: false
+                    });
+                });
+
+                showToast(`✓ 补领成功！累计已补领 ${item.totalReward} 奖励`, 'success');
+            } else {
+                // 单个补领
+                const record = reclaimData.find(x => x.dayIndex === item.dayIndex);
+                if (record) {
+                    record.status = 'claimed';
+                }
+
+                claimRecords.unshift({
+                    id: Date.now(),
+                    activityId: 'hold-usdr',
+                    category: 'holding',
+                    title: `补领持仓返利 (#${item.dayIndex})`,
+                    amount: item.reward,
+                    time: new Date().toLocaleString('zh-CN', { hour12: false }),
+                    txHash: '0x' + Math.random().toString(16).slice(2, 10) + '...' + Math.random().toString(16).slice(-8),
+                    chain: '自主链',
+                    auto: false
+                });
+
+                showToast(`✓ 补领成功！已补领 ${item.reward} 奖励`, 'success');
+            }
+
+            renderReclaimPage();
+            renderHomeStats(); // 重新刷新数据看板上的已领数量等
+            
+            const selectAll = document.getElementById('reclaim-select-all');
+            if (selectAll) selectAll.checked = false;
+            updateReclaimSelectCount();
+        }, 1500);
+    }
+}
+
+function getDisplayAddress(){return walletAddrs[currentWallet]||walletAddrs.platform;}
+function truncateAddr(a){return(!a||a.length<12)?a:a.slice(0,6)+'...'+a.slice(-4);}
+function resetDetailUI(){
+    document.getElementById('auto-claim-info').classList.add('hidden');
+    document.getElementById('action-bar').classList.add('hidden');
+    const btn=document.getElementById('btn-claim-all');btn.innerText="一键领取全部";btn.disabled=false;btn.className="w-full py-4 bg-indigo-600 text-white font-black text-[13px] rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition";
+    detailCardsCollapsed=false;const c=document.getElementById('detail-cards');c.style.maxHeight='0';c.style.opacity='0';
+    document.getElementById('toggle-icon').style.transform='rotate(0deg)';document.getElementById('toggle-text').innerText='展开';
+}
+function showToast(msg,type='info'){const c=document.getElementById('toast-container'),t=document.createElement('div');t.className=`${type==='success'?'bg-emerald-600':type==='error'?'bg-red-600':'bg-slate-800'} text-white text-[12px] font-bold px-5 py-3 rounded-2xl shadow-xl toast-enter whitespace-nowrap`;t.innerText=msg;c.appendChild(t);setTimeout(()=>{t.classList.remove('toast-enter');t.classList.add('toast-exit');setTimeout(()=>t.remove(),300);},2000);}
+
+// ==================== 初始化 ====================
+renderEntryStats();
+renderHomeStats();
+renderEntryWalletStatus();
+</script>
+</body>
+</html>

@@ -1,0 +1,2099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IM 开放服务 - 安全保险库与福利特权中心</title>
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #F1F5F9; /* 浅色背景 */
+            --bg-mobile: #FFFFFF; /* 手机框背景 */
+            --text-main: #0F172A; /* 深色文字 */
+            --text-mute: #64748B; /* 辅助性文字 */
+        }
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* 页面层切换动画 */
+        .page-layer {
+            transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        }
+        /* 隐藏滚动条 */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 极度精致的浅色毛玻璃卡片 */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 30px 0 rgba(15, 23, 42, 0.04);
+        }
+        .glass-card-interactive {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card-interactive:active {
+            transform: scale(0.97);
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+        /* 微信/IM底部安全区适配 */
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        /* 极简Toast */
+        .toast-enter {
+            animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .toast-exit {
+            animation: toastOut 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
+            to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            to { opacity: 0; transform: translate(-50%, -10px) scale(0.95); }
+        }
+        /* 脉冲红点 */
+        .ping-slow {
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        /* 绑定大卡片浅色流光背景 */
+        .glow-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 50%, rgba(236, 72, 153, 0.04) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.06), inset 0 0 15px rgba(255, 255, 255, 0.8);
+        }
+        /* 流程进度指示器线段 */
+        .step-line {
+            transition: background-color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="flex flex-row gap-8 justify-center items-center min-h-screen p-8 bg-slate-100/50">
+
+    <!-- 左侧开发者测试控制台 -->
+    <div class="w-64 bg-white/95 border border-slate-200 shadow-xl p-5 rounded-3xl flex flex-col space-y-4 text-xs font-bold text-slate-800 z-50 shrink-0">
+        <div class="border-b border-slate-150 pb-2 mb-1 flex items-center gap-2">
+            <span class="text-lg">🛠️</span>
+            <div>
+                <h2 class="text-sm font-black text-slate-900">开发调试面板</h2>
+                <p class="text-[9px] text-slate-400 font-normal">点击下方开关模拟链上场景</p>
+            </div>
+        </div>
+        <div class="flex flex-col space-y-1.5">
+            <span class="text-indigo-600 font-black uppercase tracking-wider text-[10px] mb-1">🔧 模拟钱包状态</span>
+            <div class="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                <button id="dev-btn-wallet-correct" onclick="changeWalletDevStatus('correct')" class="flex-1 py-1.5 rounded-lg bg-white shadow-sm text-indigo-600 transition text-[9px]">已导入钱包</button>
+                <button id="dev-btn-wallet-none" onclick="changeWalletDevStatus('none')" class="flex-1 py-1.5 rounded-lg text-slate-500 transition text-[9px]">未导入钱包</button>
+            </div>
+        </div>
+        <div class="flex flex-col space-y-1.5 border-t border-slate-100 pt-3">
+            <span class="text-indigo-600 font-black uppercase tracking-wider text-[10px] mb-1">👛 钱包已被占</span>
+            <div class="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                <button id="dev-btn-occupied-off" onclick="toggleWalletOccupiedMock(false)" class="flex-1 py-1.5 rounded-lg bg-white shadow-sm text-indigo-600 transition text-[9px]">正常未占</button>
+                <button id="dev-btn-occupied-on" onclick="toggleWalletOccupiedMock(true)" class="flex-1 py-1.5 rounded-lg text-slate-500 transition text-[9px]">已被占用</button>
+            </div>
+        </div>
+        <div class="flex flex-col space-y-1.5 border-t border-slate-100 pt-3">
+            <span class="text-indigo-600 font-black uppercase tracking-wider text-[10px] mb-1">📱 设备重装/重置</span>
+            <div class="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                <button id="dev-btn-reinstall-off" onclick="toggleReinstallMock(false)" class="flex-1 py-1.5 rounded-lg bg-white shadow-sm text-indigo-600 transition text-[9px]">正常设备</button>
+                <button id="dev-btn-reinstall-on" onclick="toggleReinstallMock(true)" class="flex-1 py-1.5 rounded-lg text-slate-500 transition text-[9px]">已上链重装</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 手机边框模拟容器 -->
+    <div class="relative w-[375px] h-[812px] bg-slate-900 rounded-[54px] border-[12px] border-slate-950 overflow-hidden shadow-2xl flex flex-col select-none">
+        
+        <!-- 手机 Notch & 状态栏 Mock -->
+        <div class="absolute top-0 left-0 right-0 h-10 px-6 flex justify-between items-center text-[11px] font-semibold text-slate-500 z-50 pointer-events-none">
+            <span class="font-mono">19:16</span>
+            <div class="w-24 h-4.5 bg-slate-950 rounded-full flex justify-center items-center">
+                <div class="w-12 h-2.5 bg-slate-900 rounded-full"></div>
+            </div>
+            <div class="flex items-center space-x-1">
+                <span>5G</span>
+                <span>📶</span>
+                <span class="text-xs">🔋</span>
+            </div>
+        </div>
+
+        <!-- 内部应用视图容器 -->
+        <div class="relative flex-1 w-full h-full bg-[#F8FAFC] overflow-hidden pt-10">
+
+            <!-- ==================== 第零层：服务入口页 ==================== -->
+            <div id="view-entry" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar px-6 pb-6 flex flex-col z-10 bg-[#F8FAFC]">
+                <header class="py-6 flex justify-between items-center border-b border-slate-200">
+                    <div>
+                        <h1 class="text-2xl font-black text-slate-800">开放服务</h1>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Unified Integration Hub</p>
+                    </div>
+                    <!-- 状态展示 -->
+                    <div id="entry-vault-status" class="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200">
+                        <span id="entry-status-dot" class="w-2 h-2 rounded-full bg-red-500"></span>
+                        <span id="entry-status-text" class="text-[9px] font-black tracking-wide text-slate-500 uppercase">保险库未绑定</span>
+                    </div>
+                </header>
+
+                <main class="flex-1 space-y-5 mt-6">
+                    <!-- IM 余额钱包卡片 -->
+                    <div class="w-full rounded-3xl p-6 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white relative overflow-hidden shadow-lg shadow-indigo-500/10">
+                        <div class="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-[9px] font-extrabold uppercase tracking-widest text-indigo-100/80">IM Pay 托管账户</span>
+                                <h3 class="text-3xl font-black font-mono tracking-tight mt-1">$12,045.50</h3>
+                            </div>
+                            <div class="flex flex-col items-end space-y-1.5">
+                                <span class="px-2.5 py-0.5 rounded-md bg-white/20 text-[8px] font-bold tracking-wider">PREMIUM</span>
+                                <span class="text-xs opacity-65 font-mono">RC Gas: 8.52</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-2">可启用的服务模块</h3>
+
+                    <!-- 新功能服务卡片：安全保险库 (Vault) -->
+                    <div onclick="navigateTo('vault')" class="glass-card glass-card-interactive rounded-2xl p-5 cursor-pointer relative overflow-hidden border border-indigo-500/30">
+                        <!-- 装饰色块 -->
+                        <div class="absolute right-0 top-0 w-24 h-24 bg-indigo-50/5 rounded-full blur-xl"></div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-2xl shadow-md shadow-indigo-500/10">🛡️</div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-800 flex items-center">
+                                        安全保险库 (Vault)
+                                        <span class="ml-2 px-1.5 py-0.5 text-[8px] bg-indigo-100 text-indigo-600 font-extrabold rounded border border-indigo-200">核心安全</span>
+                                    </h4>
+                                    <p class="text-[10px] text-slate-505 mt-1 leading-normal">设备信息与自管冷钱包绑定，生成排他性指纹</p>
+                                </div>
+                            </div>
+                            <span class="text-xl font-bold text-slate-400">›</span>
+                        </div>
+                        <div id="entry-vault-desc-badge" class="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center text-[10px]">
+                            <span class="text-slate-400">指纹保护状态:</span>
+                            <span id="entry-vault-protection" class="font-bold text-red-500">未启用</span>
+                        </div>
+                    </div>
+
+                    <!-- 原功能服务卡片：福利特权中心 -->
+                    <div onclick="tryEnterWelfare()" class="glass-card glass-card-interactive rounded-2xl p-5 cursor-pointer relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl"></div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-2xl shadow-md shadow-emerald-500/10">🪂</div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-800">福利特权中心</h4>
+                                    <p class="text-[10px] text-slate-500 mt-1 leading-normal">激励空投、持仓返利、生态回馈等运营特权</p>
+                                </div>
+                            </div>
+                            <span class="text-xl font-bold text-slate-400">›</span>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-3 gap-3">
+                            <div class="text-center bg-slate-55 py-2 rounded-lg border border-slate-200/60">
+                                <p class="text-[8px] text-slate-400 uppercase font-semibold">激励空投</p>
+                                <p class="text-[10px] font-black font-mono mt-0.5 text-emerald-600">🎁 Direct</p>
+                            </div>
+                            <div class="text-center bg-slate-55 py-2 rounded-lg border border-slate-200/60">
+                                <p class="text-[8px] text-slate-400 uppercase font-semibold">持仓返利</p>
+                                <p class="text-[10px] font-black font-mono mt-0.5 text-indigo-600">⚖️ Snapshot</p>
+                            </div>
+                            <div class="text-center bg-slate-55 py-2 rounded-lg border border-slate-200/60">
+                                <p class="text-[8px] text-slate-400 uppercase font-semibold">硬件商城</p>
+                                <p class="text-[10px] font-black font-mono mt-0.5 text-amber-600">📱 Rebate</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 灰度占位服务：会员中心 -->
+                    <div class="glass-card rounded-2xl p-5 opacity-40 flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center text-2xl">🏅</div>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-500">IM 会员尊享</h4>
+                                <p class="text-[10px] text-slate-400 mt-1">专属通道、高级权限与社群等级规则</p>
+                            </div>
+                        </div>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase border border-slate-200 px-2 py-0.5 rounded">未解锁</span>
+                    </div>
+
+                </main>
+                <footer class="text-center text-[10px] text-slate-400 mt-auto py-2">
+                    IM Open Service Platform v2.5.0
+                </footer>
+            </div>
+
+            <!-- ==================== 第一层：保险库详情层 (Vault) ==================== -->
+            <div id="view-vault" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar px-6 pb-6 flex flex-col z-20 translate-x-full bg-[#F8FAFC]">
+                <nav class="py-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/90 backdrop-blur-md z-30 border-b border-slate-200">
+                    <button onclick="navigateBack('entry')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold active:scale-90 transition">‹</button>
+                    <h2 class="text-sm font-bold text-slate-800">安全保险库</h2>
+                    <div class="w-9 h-9"></div> <!-- 占位 -->
+                </nav>
+
+                <!-- 流程化绑定流程区域 -->
+                <div class="flex-1 mt-4 space-y-6">
+                    
+                    <!-- 动态状态区：渲染步骤流程 (Stepper) 或 绑定大卡片 -->
+                    <div id="vault-dynamic-container" class="space-y-5">
+                        <!-- 由 JavaScript 动态渲染 Step 1~4 或大卡片 -->
+                    </div>
+
+                    <!-- 保险库安全审计日志 -->
+                    <div class="glass-card rounded-2xl p-5 border border-slate-200/80">
+                        <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">保险库安全日志</h4>
+                        <div id="vault-logs" class="space-y-2 max-h-32 overflow-y-auto pr-1 text-[10px] text-slate-500 font-mono">
+                            <!-- 动态加载 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== 1.5层：模拟冷钱包快速创建/恢复页面 (Create Wallet) ==================== -->
+            <div id="view-create-wallet" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar px-6 pb-6 flex flex-col z-25 translate-x-full bg-[#F8FAFC]">
+                <nav class="py-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/90 backdrop-blur-md z-30 border-b border-slate-200">
+                    <button onclick="navigateBack('vault')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold active:scale-90 transition">‹</button>
+                    <h2 class="text-sm font-bold text-slate-800">创建自管冷钱包</h2>
+                    <div class="w-9 h-9"></div>
+                </nav>
+
+                <div class="flex-1 flex flex-col justify-center items-center px-4 space-y-6 text-center" id="create-wallet-loading-area">
+                    <!-- 动态渲染：生成状态与完成状态 -->
+                </div>
+            </div>
+
+            <!-- ==================== 第二层：福利特权首页 (Welfare Hub) ==================== -->
+            <div id="view-home" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar bg-[#F8FAFC] z-10 translate-x-full">
+                <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/90 backdrop-blur-md z-30 border-b border-slate-200">
+                    <button onclick="navigateBack('entry')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold transition active:scale-90">‹</button>
+                    <div class="text-center">
+                        <span class="text-[9px] font-black text-indigo-600 tracking-widest uppercase">Welfare Hub</span>
+                        <h1 class="text-sm font-bold text-slate-800">福利特权</h1>
+                    </div>
+                    <button onclick="showRecords()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-xs active:scale-90 transition">📋</button>
+                </nav>
+
+                <!-- 设备指纹认证信息条 -->
+                <section class="px-6 mt-5">
+                    <div class="w-full rounded-2xl p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-800 text-white relative overflow-hidden shadow-lg shadow-slate-950/20">
+                        <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center space-x-2 min-w-0">
+                                    <div id="welfare-status-indicator-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                                    <span id="welfare-status-indicator-text" class="text-[10px] font-black tracking-wider uppercase text-amber-400">待上链激活</span>
+                                </div>
+                                <span class="px-2 py-0.5 bg-indigo-500/25 text-indigo-300 text-[8px] font-bold rounded border border-indigo-500/30">安全锁定</span>
+                            </div>
+                            <div class="space-y-1.5">
+                                <div class="text-[11px] font-mono text-slate-300 truncate">
+                                    <span class="text-slate-550 text-[10px] font-sans">设备 Hash:</span> <span id="welfare-fingerprint-display">--</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 truncate flex justify-between items-center">
+                                    <span><span class="text-slate-555 text-[10px] font-sans">绑定钱包:</span> <span id="welfare-wallet-display" class="font-mono text-indigo-200">--</span></span>
+                                    <span class="text-[9px] text-indigo-300/90 underline cursor-pointer font-bold" onclick="navigateTo('vault')">更换</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-slate-850 flex items-center space-x-4 text-[10px] text-slate-455">
+                                <div>合约数量: <span id="welfare-stat-total" class="font-mono font-bold text-slate-300">3</span></div>
+                                <div>未领取: <span id="welfare-stat-pending" class="font-mono font-bold text-indigo-400">3</span></div>
+                                <div>已下发: <span id="welfare-stat-claimed" class="font-mono font-bold text-emerald-400">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 活动分类列表 -->
+                <section class="px-6 mt-6 pb-6">
+                    <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3.5">特权方案清单</h3>
+                    <div class="space-y-4.5" id="campaign-list-container">
+                        <!-- 动态渲染方案卡片 -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- ==================== 第三层：方案详情页 (Detail) ==================== -->
+            <div id="view-detail" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar bg-[#F8FAFC] z-30 translate-x-full">
+                <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/90 backdrop-blur-md z-30 border-b border-slate-200">
+                    <button onclick="navigateBack('home')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold transition active:scale-90">‹</button>
+                    <h1 class="text-sm font-bold text-slate-800" id="detail-title">方案详情</h1>
+                    <button onclick="showDetailHistory()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-xs active:scale-90 transition">📋</button>
+                </nav>
+
+                <div class="p-6 space-y-5">
+                    <!-- 活动主描述卡片 -->
+                    <div class="glass-card rounded-2xl p-6 border border-slate-200/80" id="detail-header-card">
+                        <!-- 动态内容 -->
+                    </div>
+
+                    <!-- 指纹鉴权指示区 -->
+                    <div class="w-full py-3 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-[10px] flex justify-between items-center">
+                        <div class="flex items-center space-x-2">
+                            <span id="detail-indicator-dot" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            <span id="detail-indicator-text">设备指纹待上链激活</span>
+                        </div>
+                        <span class="font-mono text-slate-400" id="detail-fingerprint-short">--</span>
+                    </div>
+
+                    <!-- 奖励合约列表 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3.5">
+                            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">分批奖励合约</h3>
+                            <span class="text-[9px] text-slate-400 font-medium">独立下发与一键领取</span>
+                        </div>
+                        <div class="space-y-4" id="detail-contracts-container">
+                            <!-- 动态渲染合约卡片 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部悬浮一键领取栏 -->
+                <div class="sticky bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC] to-transparent z-10 safe-bottom">
+                    <button id="btn-claim-all" onclick="claimAllContracts()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/25 active:scale-[0.98] transition">
+                        一键领取全部 (3)
+                    </button>
+                </div>
+            </div>
+
+            <!-- ==================== 第四层：历史领取记录 (Records) ==================== -->
+            <div id="view-records" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar bg-[#F8FAFC] z-40 translate-x-full">
+                <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/90 backdrop-blur-md z-30 border-b border-slate-200">
+                    <button onclick="navigateBack('home')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold transition active:scale-90">‹</button>
+                    <h1 class="text-sm font-bold text-slate-800">领取记录历史</h1>
+                    <div class="w-9 h-9"></div>
+                </nav>
+                <div class="p-6 space-y-4" id="records-list">
+                    <!-- 动态列表 -->
+                </div>
+            </div>
+
+            <!-- ==================== 第五层：历史奖励补领页 (Reclaim) ==================== -->
+            <div id="view-reclaim" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar bg-[#F8FAFC] z-40 translate-x-full">
+                <nav class="px-6 py-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/90 backdrop-blur-md z-30 border-b border-slate-200">
+                    <button onclick="navigateBack('detail')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold transition active:scale-90">‹</button>
+                    <h1 class="text-sm font-bold text-slate-800">持仓返利 补领历史</h1>
+                    <div class="w-9 h-9"></div>
+                </nav>
+                
+                <div class="p-6 space-y-4">
+                    <!-- 时限提示 -->
+                    <div class="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-105 text-[10px] text-slate-600 leading-relaxed">
+                        💡 <span class="font-bold text-indigo-600">提示:</span> 本方案支持最长 <span class="font-black text-indigo-700 bg-indigo-100/50 px-1 py-0.5 rounded">30 天</span> 的历史累计补领。超出 30 天时限的历史快照会自动失效且无法进行补领。
+                    </div>
+                    
+                    <!-- 列表区 -->
+                    <div class="glass-card rounded-2xl p-4 border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <table class="w-full text-[10px] text-slate-600 font-mono text-left border-collapse">
+                            <thead>
+                                <tr class="text-slate-400 border-b border-slate-100 pb-2">
+                                    <th class="py-2.5 font-bold font-sans">dayIndex</th>
+                                    <th class="py-2.5 font-bold font-sans">快照时刻(本地)</th>
+                                    <th class="py-2.5 font-bold font-sans text-right">余额/返利</th>
+                                    <th class="py-2.5 font-bold font-sans text-center">状态</th>
+                                    <th class="py-2.5 font-bold font-sans text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reclaim-list-body">
+                                <!-- 动态渲染表格行 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 密码核验 Modal -->
+            <div id="modal-password" class="absolute inset-0 bg-slate-950/40 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center justify-center px-6">
+                <div class="w-full glass-card rounded-3xl p-6 border border-slate-200 translate-y-8 transition-transform duration-300">
+                    <div class="w-12 h-12 bg-indigo-50/10 text-indigo-650 rounded-2xl flex items-center justify-center text-xl mb-4">🔑</div>
+                    <h3 class="text-base font-bold text-slate-800">钱包签名解密授权</h3>
+                    <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                        请输入您的冷钱包密码，以在安全隔离沙盒内解密私钥，并对本次补领交易（EIP-712）进行离线签名。
+                    </p>
+                    <div class="mt-4">
+                        <input type="password" id="input-reclaim-password" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none" placeholder="输入钱包密码 (模拟至少6位)">
+                    </div>
+                    <div class="mt-6 flex flex-col space-y-2">
+                        <button onclick="confirmReclaimSignature()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/10 active:scale-95 transition">
+                            确认解密并签名广播
+                        </button>
+                        <button onclick="closePasswordModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl text-xs font-bold active:scale-95 transition border border-slate-250">
+                            取消
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== 弹窗区 (浅色玻璃拟态) ==================== -->
+            <!-- 警告 Modal (注销选项：仅支持付费500USDT解绑) -->
+            <div id="modal-warning" class="absolute inset-0 bg-slate-950/40 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center justify-center px-6">
+                <div class="w-full glass-card rounded-3xl p-6 border border-slate-200 translate-y-8 transition-transform duration-300">
+                    <div class="w-12 h-12 bg-red-50/10 text-red-655 rounded-2xl flex items-center justify-center text-2xl mb-4">⚠️</div>
+                    <h3 class="text-base font-bold text-slate-800">注销/解绑已上链指纹</h3>
+                    <p class="text-[11px] text-slate-555 mt-2 leading-relaxed">
+                        当前设备指纹已广播上链，智能合约已完成物理存证锁死。系统不提供免费解绑通道。
+                    </p>
+                    <div class="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-[9px] text-slate-655 font-mono space-y-2">
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="text-slate-400 shrink-0">已绑定冷钱包:</span>
+                            <span id="warning-address" class="text-slate-800 font-bold font-mono truncate max-w-[170px] text-right">0x00...00</span>
+                        </div>
+                        <div class="flex justify-between border-t border-slate-200/50 pt-1.5">
+                            <span class="text-slate-400">解绑定向合约:</span>
+                            <span class="text-indigo-600 font-bold">0x9fC2...98A5 (Vault Registry)</span>
+                        </div>
+                        <div class="flex justify-between border-t border-slate-200/50 pt-1.5">
+                            <span class="text-slate-400">所需支付币种:</span>
+                            <span class="text-slate-800 font-bold">USDT (自主链)</span>
+                        </div>
+                        <div class="flex justify-between border-t border-slate-200/50 pt-1.5">
+                            <span class="text-slate-400">通道服务金额:</span>
+                            <span class="text-red-600 font-extrabold">500.00 USDT</span>
+                        </div>
+                    </div>
+                    <div class="mt-3 bg-amber-50 border border-amber-200/60 p-3 rounded-xl text-[8px] text-amber-700 leading-normal space-y-1">
+                        <div>💡 <span class="font-bold">Gas 消耗提示:</span> 本次付费解绑交易由智能合约执行，执行此操作将消耗您自管钱包中少量的 Gas 费（当前链为 RC 代币，具体数量以钱包插件广播为准，请确保钱包存有少量 RC 余额）。</div>
+                        <div class="text-red-500 font-bold">⚠️ 安全警示:</div>
+                        <div class="pl-2.5 text-slate-500 list-item list-inside">支付并解绑后，本设备与当前冷钱包的排他锁死关系将被彻底抹除。</div>
+                        <div class="pl-2.5 text-slate-500 list-item list-inside">解绑操作会同步清空此物理指纹在当前冷钱包的全部待激活福利权益，且不可恢复。</div>
+                    </div>
+                    <div class="mt-6 flex flex-col space-y-2">
+                        <button onclick="confirmPayUnbind()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/10 active:scale-95 transition">
+                            💳 支付 500 USDT 立即解绑
+                        </button>
+                        <button onclick="closeWarningModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl text-xs font-bold active:scale-95 transition border border-slate-250">
+                            暂不解绑
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 阻断校验提示 Modal -->
+            <div id="modal-block" class="absolute inset-0 bg-slate-950/40 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center justify-center px-6">
+                <div class="w-full glass-card rounded-3xl p-6 border border-slate-200 translate-y-8 transition-transform duration-300">
+                    <div class="w-12 h-12 bg-indigo-500/10 text-indigo-655 rounded-2xl flex items-center justify-center text-2xl mb-4">🔒</div>
+                    <h3 class="text-base font-bold text-slate-800">硬件指纹校验未通过</h3>
+                    <p class="text-[11px] text-slate-505 mt-2 leading-relaxed">
+                        福利特权中心已开启 **“设备指纹与冷钱包排他性绑定校验”**。检测到您尚未在【保险库】绑定设备指纹，目前无法进入。
+                    </p>
+                    <div class="mt-6 flex flex-col space-y-2">
+                        <button onclick="closeBlockModalAndGoVault()" class="w-full py-3.5 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/10 active:scale-[0.98] transition">立即前往保险库绑定</button>
+                        <button onclick="closeBlockModal()" class="w-full py-3 bg-slate-100 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold active:scale-[0.98] transition">返回入口</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 任务一键领取流程 Modal -->
+            <div id="modal-task-flow" class="absolute inset-0 bg-slate-950/40 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-end">
+                <div class="w-full bg-white border-t border-slate-200 rounded-t-[32px] p-6 translate-y-full transition-transform duration-300 shadow-2xl">
+                    <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4"></div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-sm font-bold text-slate-800" id="task-title-text">正在批量分发奖励</h3>
+                        <span id="task-progress" class="text-xs font-bold text-indigo-600 font-mono">0 / 3</span>
+                    </div>
+                    <div class="space-y-3 max-h-72 overflow-y-auto pr-1" id="task-list">
+                        <!-- 动态列表 -->
+                    </div>
+                    <div class="mt-6">
+                        <button id="btn-task-done" onclick="hideTaskFlow()" class="w-full py-3.5 bg-slate-100 border border-slate-200 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed">分发中...</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 全局 Toast 容器 -->
+            <div id="toast-container" class="absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-2 z-50 pointer-events-none"></div>
+
+            <!-- 屏幕底部虚拟按键区 Mock -->
+            <div class="absolute bottom-1 left-0 right-0 h-5 flex justify-center items-center pointer-events-none z-50">
+                <div class="w-36 h-1 bg-slate-950 rounded-full opacity-10"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 方案与交互的核心 JS 逻辑 -->
+    <script>
+        // ==================== 全局状态 (State) ====================
+        const state = {
+            deviceId: '0x8f2a991b8d6e3e72411c39e8ea0e83ef72411c39e8e08ef7a16d99ab8d6ef7a1',
+            deviceModel: 'IM-Phone-1 Ultra',
+            hasWallet: true,
+            walletImportStatus: 'correct', // 'correct' (已导入绑定钱包 Account 01), 'none' (未导入/本地无匹配钱包)
+            mockReinstalled: false, // 模拟设备已上链重装场景开关
+            mockWalletOccupied: false, // 模拟钱包已被其它设备占用场景开关
+            tempUnbindingOccupiedWallet: false, // 临时记录是否从钱包占用强行解绑进入
+            
+            // 补领历史模拟数据
+            reclaimData: [
+                { dayIndex: 20636, time: '2026/7/2 12:00:00', balance: '1,760', reward: '35.2 USDR', status: 'unclaimed' },
+                { dayIndex: 20635, time: '2026/7/1 12:00:00', balance: '1,760', reward: '35.2 USDR', status: 'claimed' },
+                { dayIndex: 20634, time: '2026/6/30 12:00:00', balance: '1,760', reward: '35.2 USDR', status: 'claimed' },
+                { dayIndex: 20633, time: '2026/6/29 12:00:00', balance: '2,060', reward: '41.2 USDR', status: 'unclaimed' },
+                { dayIndex: 20632, time: '2026/6/28 12:00:00', balance: '2,060', reward: '41.2 USDR', status: 'expired' }, // 已过期不可领
+                { dayIndex: 20631, time: '2026/6/27 12:00:00', balance: '2,060', reward: '41.2 USDR', status: 'claimed' }
+            ],
+            tempReclaimItem: null,
+
+
+            coldAccounts: [
+                { id: 'acc_01', name: '自管钱包 - 主账户 (Account 01)', address: '0x71C8B49a3788876324111404555511674C123456', balance: '125.40 USDR' },
+                { id: 'acc_02', name: '自管钱包 - 备用账户 (Account 02)', address: '0x5555AA66B88FEE876324111404555511674C1111', balance: '2.18 USDR' }
+            ],
+            coldChains: [
+                { id: 'chain-x', name: '链X', symbol: 'CX', color: 'indigo' },
+                { id: 'chain-y', name: '链Y', symbol: 'CY', color: 'teal' },
+                { id: 'chain-z', name: '链Z', symbol: 'CZ', color: 'purple' }
+            ],
+
+            bindStep: 1, 
+
+            tempSelectedAccount: 'acc_01',
+            tempSelectedChain: 'chain-x',
+            tempPassword: '',
+
+            fingerprint: null, 
+            cooldownUntil: null, 
+            viewHistory: ['entry'],
+
+            activities: [
+                {
+                    id: 'act_001',
+                    category: 'airdrop',
+                    title: '新用户迎新专属福利',
+                    desc: '绑定设备指纹的白名单种子用户专属。',
+                    tag: '迎新空投',
+                    color: 'emerald',
+                    contracts: [
+                        { id: 'c1', chainName: '链X', contract: '0x1234...5678', rewardAmount: '50.00', rewardSymbol: 'USDR', balance: '1,200.50' },
+                        { id: 'c2', chainName: '链Y', contract: '0xabcd...efgh', rewardAmount: '0.05', rewardSymbol: 'RC', balance: '25.30' }
+                    ]
+                },
+                {
+                    id: 'act_002',
+                    category: 'rebate',
+                    title: 'USDR 持仓周期返利',
+                    desc: '统计特定链持仓，根据比例每周一自动结算分发。',
+                    tag: '快照返利',
+                    color: 'indigo',
+                    contracts: [
+                        { id: 'c3', chainName: '链X', contract: '0x9876...5432', rewardAmount: '120.00', rewardSymbol: 'USDR', balance: '5,000.00' }
+                    ]
+                },
+                {
+                    id: 'act_003',
+                    category: 'referral',
+                    title: '硬件商城消费及邀请回馈',
+                    desc: '商城成功下单硬件，或邀请有效下级消费获得。',
+                    tag: '裂变回馈',
+                    color: 'amber',
+                    contracts: [
+                        { id: 'c4', chainName: '链Z', contract: '0xdef0...1234', rewardAmount: '200.00', rewardSymbol: 'HRC', balance: '8,800.00' }
+                    ]
+                }
+            ],
+
+            claimRecords: [],
+            currentCampaign: null,
+            taskFlowItems: [],
+            taskFlowRunning: false
+        };
+
+        const vaultLogs = [
+            { time: '18:10:20', text: '保险库服务初始化完成' },
+            { time: '18:11:05', text: '设备硬件ID自检成功' }
+        ];
+
+        // ==================== 界面安全重置与导航重定向（解决卡死漏洞） ====================
+        function resetToEntry() {
+            state.viewHistory = ['entry'];
+            
+            // 强行把所有其他子页面都滑到右侧隐藏
+            const subViews = ['vault', 'create-wallet', 'home', 'detail', 'records'];
+            subViews.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (el) {
+                    el.classList.add('translate-x-full');
+                }
+            });
+            
+            state.bindStep = 1;
+            state.tempPassword = '';
+            
+            renderEntryPage();
+        }
+
+        // ==================== 界面导航与层级跳转逻辑 ====================
+        function navigateTo(viewId) {
+            const currentViewId = state.viewHistory[state.viewHistory.length - 1];
+            if (currentViewId === viewId) return;
+
+            const nextView = document.getElementById(`view-${viewId}`);
+            if (nextView) {
+                nextView.classList.remove('translate-x-full');
+                state.viewHistory.push(viewId);
+                
+                if (viewId === 'vault') {
+                    if (!state.fingerprint) {
+                        state.bindStep = 1;
+                        state.tempPassword = '';
+                    }
+                    renderVaultPage();
+                }
+                if (viewId === 'home') renderWelfareHomePage();
+                if (viewId === 'reclaim') renderReclaimPage();
+            }
+        }
+
+        function navigateBack(targetId) {
+            if (state.viewHistory.length <= 1) return;
+            const currentViewId = state.viewHistory.pop();
+            const currentView = document.getElementById(`view-${currentViewId}`);
+            if (currentView) {
+                currentView.classList.add('translate-x-full');
+            }
+            
+            const parentViewId = state.viewHistory[state.viewHistory.length - 1];
+            if (parentViewId === 'entry') renderEntryPage();
+            if (parentViewId === 'home') renderWelfareHomePage();
+        }
+
+        function goToStep(stepNum) {
+            state.bindStep = stepNum;
+            renderVaultPage();
+        }
+
+        function handlePasswordInput(val) {
+            state.tempPassword = val;
+            const btn = document.getElementById('btn-step3-submit');
+            if (btn) {
+                if (val.length >= 6) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-45', 'cursor-not-allowed');
+                } else {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-45', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        // ==================== 模拟钱包状态开发者控制 ====================
+        function changeWalletDevStatus(status) {
+            state.walletImportStatus = status;
+
+            const btnCorrect = document.getElementById('dev-btn-wallet-correct');
+            const btnNone = document.getElementById('dev-btn-wallet-none');
+
+            const normalClass = "px-3 py-1 rounded-lg text-slate-500";
+            const activeClass = "px-3 py-1 rounded-lg bg-white shadow-sm text-indigo-600";
+
+            btnCorrect.className = normalClass;
+            btnNone.className = normalClass;
+
+            if (status === 'correct') {
+                btnCorrect.className = activeClass;
+                state.hasWallet = true;
+            } else if (status === 'none') {
+                btnNone.className = activeClass;
+                state.hasWallet = false;
+                state.fingerprint = null;
+                resetToEntry();
+            }
+
+            if (state.viewHistory[state.viewHistory.length - 1] === 'vault') {
+                renderVaultPage();
+            }
+        }
+
+        // ==================== 模拟重装场景测试控制 ====================
+        function toggleReinstallMock(val) {
+            state.mockReinstalled = val;
+            const btnOff = document.getElementById('dev-btn-reinstall-off');
+            const btnOn = document.getElementById('dev-btn-reinstall-on');
+            if (val) {
+                btnOn.className = "px-3 py-1 rounded-lg bg-white shadow-sm text-indigo-600";
+                btnOff.className = "px-3 py-1 rounded-lg text-slate-500";
+                
+                // 重置清空本地指纹，并强行将导航复位至服务首页，以演示从 Step 1 开始的完整校验流程
+                state.fingerprint = null;
+                resetToEntry();
+            } else {
+                btnOff.className = "px-3 py-1 rounded-lg bg-white shadow-sm text-indigo-600";
+                btnOn.className = "px-3 py-1 rounded-lg text-slate-500";
+            }
+            if (state.viewHistory[state.viewHistory.length - 1] === 'vault') {
+                state.bindStep = 1;
+                renderVaultPage();
+            }
+        }
+
+        // ==================== 模拟钱包被占用场景控制 ====================
+        function toggleWalletOccupiedMock(val) {
+            state.mockWalletOccupied = val;
+            const btnOff = document.getElementById('dev-btn-occupied-off');
+            const btnOn = document.getElementById('dev-btn-occupied-on');
+            if (val) {
+                btnOn.className = "px-3 py-1 rounded-lg bg-white shadow-sm text-indigo-600";
+                btnOff.className = "px-3 py-1 rounded-lg text-slate-500";
+                
+                // 如果开启钱包被占，强制复位到绑定向导，以方便演示拦截流程
+                state.fingerprint = null;
+                state.bindStep = 1;
+                resetToEntry();
+            } else {
+                btnOff.className = "px-3 py-1 rounded-lg bg-white shadow-sm text-indigo-600";
+                btnOn.className = "px-3 py-1 rounded-lg text-slate-500";
+            }
+            if (state.viewHistory[state.viewHistory.length - 1] === 'vault') {
+                renderVaultPage();
+            }
+        }
+
+        // ==================== 校验钱包是否在链上被占用 ====================
+        function validateWalletBinding() {
+            const container = document.getElementById('vault-dynamic-container');
+            const stepperHtml = makeStepperHtml(2);
+            
+            // 显示核验链上数据状态
+            container.innerHTML = `
+                ${stepperHtml}
+                <div class="glass-card rounded-3xl p-10 border border-indigo-100 text-center flex flex-col items-center justify-center py-20 bg-white shadow-lg shadow-slate-100">
+                    <div class="relative w-16 h-16 mb-6">
+                        <div class="absolute inset-0 rounded-full border-4 border-indigo-100"></div>
+                        <div class="absolute inset-0 rounded-full border-4 border-t-indigo-600 animate-spin"></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-xl">🌐</div>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-800">校验自管钱包绑定状态</h3>
+                    <p class="text-[10px] text-slate-400 mt-2 max-w-[210px] leading-relaxed">正在向智能合约查询该钱包在链上的历史物理锁定记录，检验排他唯一性...</p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                // 如果模拟了钱包已被其它设备占用的情况
+                if (state.mockWalletOccupied) {
+                    renderWalletOccupiedAlert();
+                    vaultLogs.unshift({
+                        time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                        text: `❌ 绑定拦截: 钱包被其它设备(Hash: 0x9a8b...)占用`
+                    });
+                } else {
+                    // 正常状态，进入 Step 3
+                    goToStep(3);
+                }
+            }, 1500);
+        }
+
+        // 渲染钱包被占用拦截卡片
+        function renderWalletOccupiedAlert() {
+            const container = document.getElementById('vault-dynamic-container');
+            const stepperHtml = makeStepperHtml(2);
+            const selectedAcc = state.coldAccounts.find(x => x.id === state.tempSelectedAccount);
+            const walletAddr = selectedAcc ? selectedAcc.address : '0x00...00';
+
+            container.innerHTML = `
+                ${stepperHtml}
+                <div class="glass-card rounded-3xl p-5 border border-red-200 bg-red-50/20 text-slate-800 space-y-4 shadow-sm">
+                    <div class="w-10 h-10 bg-red-100 text-red-650 rounded-xl flex items-center justify-center text-xl">⚠️</div>
+                    <h3 class="text-sm font-bold text-slate-850">⚠️ 自管钱包已在链上绑定</h3>
+                    <p class="text-[10px] text-slate-500 leading-relaxed">
+                        检测到您选择的冷钱包地址已经与另一台物理设备进行了排他性绑定。根据一机一包高防规则，无法直接在此设备进行绑定：<br>
+                        <span class="font-mono text-xs font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-150 inline-block mt-2 break-all">${walletAddr}</span>
+                    </p>
+                    <div class="bg-slate-50 border border-slate-200/70 p-3 rounded-xl text-[9px] text-slate-500 space-y-1.5 font-mono leading-relaxed">
+                        <div>占用设备ID: <span class="text-slate-800 font-bold">0x9a8b9c1d2e3f4a5b6c7d8e9f...a7b</span></div>
+                        <div class="text-red-500 font-bold">解绑规则：如确为您本人的历史账户，您可以选择付费解除历史占用。</div>
+                    </div>
+                    <div class="flex flex-col space-y-2 pt-2">
+                        <button onclick="triggerOccupiedWalletUnbind('${walletAddr}')" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/10 active:scale-95 transition">
+                            💳 付费 500 USDT 强制解绑历史锁定
+                        </button>
+                        <button onclick="goToStep(2)" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl text-xs font-bold active:scale-95 transition border border-slate-250">
+                            返回重新选择
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 触发被占钱包的强制解绑弹窗
+        function triggerOccupiedWalletUnbind(walletAddr) {
+            // 写入解绑弹窗的地址展示（并进行省略处理，防止折行）
+            document.getElementById('warning-address').innerText = walletAddr.length > 20 ? walletAddr.slice(0, 8) + '...' + walletAddr.slice(-8) : walletAddr;
+            
+            // 调取警告弹窗
+            const modal = document.getElementById('modal-warning');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('translate-y-8');
+            
+            // 临时设置标记位
+            state.tempUnbindingOccupiedWallet = true;
+        }
+
+        // ==================== Step 1 确认并链上校验状态恢复机制 ====================
+        function confirmStep1() {
+            const container = document.getElementById('vault-dynamic-container');
+            const stepperHtml = makeStepperHtml(1);
+            
+            // 显示核验链上数据状态
+            container.innerHTML = `
+                ${stepperHtml}
+                <div class="glass-card rounded-3xl p-10 border border-indigo-100 text-center flex flex-col items-center justify-center py-20 bg-white shadow-lg shadow-slate-100">
+                    <div class="relative w-16 h-16 mb-6">
+                        <div class="absolute inset-0 rounded-full border-4 border-indigo-100"></div>
+                        <div class="absolute inset-0 rounded-full border-4 border-t-indigo-600 animate-spin"></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-xl">🌐</div>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-800">核验链上存证记录</h3>
+                    <p class="text-[10px] text-slate-400 mt-2 max-w-[210px] leading-relaxed">正在查询链上同步接口，检验该设备物理 ID 在链上的历史绑定记录以实现防重装恢复...</p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                // 如果模拟已上链重装状态
+                if (state.mockReinstalled) {
+                    const boundAddress = state.coldAccounts[0].address; // 链上记录绑定的钱包 0x71C8B49a3788876324111404555511674C123456
+
+                    if (state.walletImportStatus === 'none') {
+                        // 拦截：本地未检测到绑定的冷钱包账户 (不管是没有钱包还是导入了其它错误钱包，统一提示导入)
+                        renderImportKeyAlert(boundAddress);
+                        vaultLogs.unshift({
+                            time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                            text: `❌ 预检拦截: 链上已绑定 0x71C8... 但本地无匹配钱包，需导入私钥`
+                        });
+                    } else {
+                        // 匹配成功：直接恢复大卡片
+                        executeRestoration(boundAddress);
+                    }
+                } else {
+                    // 正常无上链记录，放行进入下一步
+                    goToStep(2);
+                }
+            }, 1600);
+        }
+
+        // 渲染导入钱包校验弹窗 (Step 1 阻断)
+        function renderImportKeyAlert(boundAddr) {
+            const container = document.getElementById('vault-dynamic-container');
+            const stepperHtml = makeStepperHtml(1);
+
+            container.innerHTML = `
+                ${stepperHtml}
+                <div class="glass-card rounded-3xl p-5 border border-red-200 bg-red-50/20 text-slate-800 space-y-4.5 shadow-sm">
+                    <div class="w-10 h-10 bg-red-100 text-red-650 rounded-xl flex items-center justify-center text-xl">⚠️</div>
+                    <h3 class="text-sm font-bold text-slate-850">⚠️ 物理设备链上已被占用</h3>
+                    <p class="text-[10px] text-slate-500 leading-relaxed">
+                        检测到本设备已在链上绑定了自管结算钱包账户：<br>
+                        <span class="font-mono text-xs font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-150 inline-block mt-2 break-all">
+                            ${boundAddr}
+                        </span><br>
+                        但当前本地应用中<strong>未检测到此钱包 (未导入私钥)</strong>。请导入原绑定冷钱包的私钥/助记词以重新唤醒指纹凭证。
+                    </p>
+                    
+                    <div class="pt-2 flex flex-col space-y-2">
+                        <button onclick="simulateImportPrivateKey()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/10 active:scale-95 transition">
+                            🔑 立即导入对应的私钥/助记词
+                        </button>
+                        <button onclick="resetToEntry()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-250 text-slate-500 font-bold text-xs rounded-xl active:scale-95 transition">
+                            返回服务入口
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 模拟解密并导入私钥
+        function simulateImportPrivateKey() {
+            const container = document.getElementById('vault-dynamic-container');
+            const stepperHtml = makeStepperHtml(1);
+
+            container.innerHTML = `
+                ${stepperHtml}
+                <div class="glass-card rounded-3xl p-10 border border-indigo-100 text-center flex flex-col items-center justify-center py-20 bg-white shadow-lg shadow-slate-100">
+                    <div class="relative w-16 h-16 mb-6">
+                        <div class="absolute inset-0 rounded-full border-4 border-indigo-100"></div>
+                        <div class="absolute inset-0 rounded-full border-4 border-t-indigo-600 animate-spin"></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-xl">🔑</div>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-800">正在验证私钥密码</h3>
+                    <p class="text-[10px] text-slate-400 mt-2 max-w-[200px] leading-relaxed">正在导入私钥、派生公钥并与链上多链指纹合约进行数学特征验签...</p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                changeWalletDevStatus('correct');
+                executeRestoration(state.coldAccounts[0].address);
+                showToast('✓ 私钥核验成功！指纹大卡片已重新载入！', 'success');
+            }, 1800);
+        }
+
+        // 执行卡片恢复动作
+        function executeRestoration(boundAddress) {
+            const hash = generateFingerprintHash(state.deviceId, boundAddress, state.coldChains[0].id);
+            state.fingerprint = {
+                hash: hash,
+                walletAddress: boundAddress,
+                walletName: state.coldAccounts[0].name,
+                chainId: state.coldChains[0].id,
+                chainName: state.coldChains[0].name,
+                status: 'activated', // 既然是在链上校验出来的，状态必定是已激活
+                boundAt: new Date().toLocaleString('zh-CN', { hour12: false })
+            };
+
+            vaultLogs.unshift({
+                time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                text: `✓ 链上预检通过: 设备指纹校验匹配成功，重新恢复组合卡片`
+            });
+
+            state.bindStep = 4;
+            renderVaultPage();
+            renderEntryPage();
+        }
+
+        // ==================== 模拟创建冷钱包流程 ====================
+        function triggerWalletCreation() {
+            navigateTo('create-wallet');
+            const loadArea = document.getElementById('create-wallet-loading-area');
+
+            loadArea.innerHTML = `
+                <div class="w-16 h-16 relative">
+                    <div class="absolute inset-0 rounded-full border-4 border-indigo-200"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-t-indigo-600 animate-spin"></div>
+                    <div class="absolute inset-0 flex items-center justify-center text-2xl">🔑</div>
+                </div>
+                <div>
+                    <h3 class="text-md font-bold text-slate-800">正在生成加密钱包</h3>
+                    <p class="text-xs text-slate-400 mt-2 max-w-[240px] leading-relaxed">正在调用 Secure Enclave 产生 12 位安全助记词，并在本地建立多链主子账户体系...</p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                loadArea.innerHTML = `
+                    <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl shadow-md">✓</div>
+                    <div>
+                        <h3 class="text-md font-bold text-slate-800">自管钱包创建成功</h3>
+                        <p class="text-xs text-slate-500 mt-2 max-w-[240px] leading-relaxed">
+                            已为您成功生成并备份 Account 01 主账户与 Account 02 备用账户。
+                        </p>
+                    </div>
+                    <button onclick="confirmWalletCreatedAndBack()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/15 active:scale-95 transition">
+                        ✓ 返回保险库绑定
+                    </button>
+                `;
+            }, 1500);
+        }
+
+        function confirmWalletCreatedAndBack() {
+            changeWalletDevStatus('correct');
+            navigateBack('vault');
+            showToast('冷钱包已就绪，已自动导入账户！', 'success');
+        }
+
+        function toggleDevWalletState(hasWallet) {
+            if (hasWallet) {
+                changeWalletDevStatus('correct');
+            } else {
+                changeWalletDevStatus('none');
+            }
+        }
+
+        // ==================== 核心逻辑 A：保险库 (Vault) 逻辑 ====================
+
+        function generateFingerprintHash(deviceId, address, chain) {
+            const cleanAddr = address.substring(2, 10).toLowerCase();
+            const cleanDev = deviceId.substring(2, 10).toLowerCase();
+            const cleanChain = chain.replace('chain-', '');
+            return '0xdf8c' + cleanDev + 'ae' + cleanChain + cleanAddr + 'c16d99ab8d6ef778a8e12';
+        }
+
+        function handleCreateFingerprint() {
+            const account = state.coldAccounts.find(w => w.id === state.tempSelectedAccount);
+            const chain = state.coldChains.find(c => c.id === state.tempSelectedChain);
+            if (!account || !chain) return;
+
+            const container = document.getElementById('vault-dynamic-container');
+            container.innerHTML = `
+                <div class="glass-card rounded-3xl p-10 border border-indigo-500/10 text-center flex flex-col items-center justify-center py-20 bg-white shadow-xl shadow-slate-100">
+                    <div class="relative w-16 h-16 mb-6">
+                        <div class="absolute inset-0 rounded-full border-4 border-indigo-500/10"></div>
+                        <div class="absolute inset-0 rounded-full border-4 border-t-indigo-600 animate-spin"></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-xl">✍️</div>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-800">生成签名中</h3>
+                    <p class="text-[10px] text-slate-400 mt-2 max-w-[200px] leading-relaxed">正在使用本地冷钱包密钥签名绑定本设备特征凭证...</p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                const hash = generateFingerprintHash(state.deviceId, account.address, chain.id);
+                state.fingerprint = {
+                    hash: hash,
+                    walletAddress: account.address,
+                    walletName: account.name,
+                    chainId: chain.id,
+                    chainName: chain.name,
+                    status: 'pending_activation', // 待激活 (伪绑定)
+                    boundAt: new Date().toLocaleString('zh-CN', { hour12: false })
+                };
+
+                vaultLogs.unshift({
+                    time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                    text: `指纹预生成成功 (待激活): 绑定账户 [${account.name}] 链 [${chain.name}]`
+                });
+
+                showToast('指纹拟态绑定成功！待首笔福利激活。', 'success');
+                state.bindStep = 4;
+                renderVaultPage();
+                renderEntryPage();
+            }, 1800);
+        }
+
+
+        function triggerUnbind() {
+            if (!state.fingerprint) return;
+
+            // 1. 如果处于待激活（伪绑定）状态：直接免费解绑，无冷却并重置
+            if (state.fingerprint?.status === 'pending_activation') {
+                if (confirm("当前指纹尚未上链激活，注销完全免费。确认撤销吗？")) {
+                    const oldWallet = state.fingerprint.walletAddress;
+                    state.fingerprint = null;
+                    
+                    resetToEntry();
+
+                    vaultLogs.unshift({
+                        time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                        text: `✓ 撤销未激活指纹 (无冷却期)。原钱包: ${oldWallet.slice(0, 6)}...`
+                    });
+
+                    showToast('✓ 待激活指纹已成功撤销！', 'success');
+                }
+                return;
+            }
+
+            // 2. 如果已激活上链：仅支持付费解绑
+            const addr = state.fingerprint?.walletAddress || '--';
+            document.getElementById('warning-address').innerText = addr.length > 20 ? addr.slice(0, 8) + '...' + addr.slice(-8) : addr;
+            const modal = document.getElementById('modal-warning');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('translate-y-8');
+        }
+
+        function closeWarningModal() {
+            const modal = document.getElementById('modal-warning');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.add('translate-y-8');
+        }
+
+        // 备用路径：免费解绑（冷却，虽然无按钮但保留函数安全逻辑，防出错）
+        function confirmUnbind() {
+            closeWarningModal();
+            if (!state.fingerprint) return;
+
+            const oldWallet = state.fingerprint.walletAddress;
+            state.cooldownUntil = Date.now() + 30 * 1000; 
+            state.fingerprint = null;
+            
+            // 冷却时返回 Vault 重新渲染冷却面板
+            state.viewHistory = ['entry', 'vault'];
+            const subViews = ['create-wallet', 'home', 'detail', 'records'];
+            subViews.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (el) el.classList.add('translate-x-full');
+            });
+
+            vaultLogs.unshift({
+                time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                text: `⚠️ 免费解绑! 冷却锁定 30 秒。解绑钱包: ${oldWallet.slice(0, 6)}...`
+            });
+
+            showToast('已吊销已激活指纹，设备进入冷静锁定期', 'success');
+            renderVaultPage();
+            renderEntryPage();
+            startCooldownTick();
+        }
+
+        // 核心解绑路径：支付 500 USDT 立即解绑（无任何冷静锁定）
+        function confirmPayUnbind() {
+            closeWarningModal();
+            
+            // 2.1 从“钱包已被其它设备占用”的快捷强制解绑流程进来
+            if (state.tempUnbindingOccupiedWallet) {
+                state.tempUnbindingOccupiedWallet = false;
+                state.mockWalletOccupied = false; // 解除模拟占用状态
+                
+                // 更新开发测试控制台的按钮显示状态
+                const devBtnOff = document.getElementById('dev-btn-occupied-off');
+                const devBtnOn = document.getElementById('dev-btn-occupied-on');
+                if (devBtnOff && devBtnOn) {
+                    devBtnOff.className = "px-3 py-1 rounded-lg bg-white shadow-sm text-indigo-600";
+                    devBtnOn.className = "px-3 py-1 rounded-lg text-slate-500";
+                }
+
+                const selectedAcc = state.coldAccounts.find(x => x.id === state.tempSelectedAccount);
+                const walletAddr = selectedAcc ? selectedAcc.address : '0x00...00';
+
+                vaultLogs.unshift({
+                    time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                    text: `💰 付费 500 USDT 强制解绑占用! 释放钱包: ${walletAddr.slice(0, 6)}...`
+                });
+
+                showToast('✓ 付费成功！该钱包历史绑定已被强制释放！', 'success');
+                
+                // 自动进到 Step 3 授权密码页面，演示闭环
+                goToStep(3);
+                return;
+            }
+
+            // 2.2 正常本设备已激活指纹注销解绑
+            if (!state.fingerprint) return;
+
+            const oldWallet = state.fingerprint.walletAddress;
+
+            state.cooldownUntil = null; 
+            state.fingerprint = null;
+            
+            resetToEntry();
+
+            vaultLogs.unshift({
+                time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                text: `💰 付费 500 USDT 解绑已激活指纹! 原钱包: ${oldWallet.slice(0, 6)}...`
+            });
+
+            showToast('✓ 成功支付 500 USDT，指纹即时解绑重置完成！', 'success');
+        }
+
+        let cooldownInterval = null;
+        function startCooldownTick() {
+            if (cooldownInterval) clearInterval(cooldownInterval);
+            cooldownInterval = setInterval(() => {
+                if (!state.cooldownUntil) {
+                    clearInterval(cooldownInterval);
+                    return;
+                }
+                const timeLeft = state.cooldownUntil - Date.now();
+                if (timeLeft <= 0) {
+                    state.cooldownUntil = null;
+                    clearInterval(cooldownInterval);
+                    vaultLogs.unshift({
+                        time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                        text: '✓ 设备冷却到期，保险库绑定重新开放'
+                    });
+                    renderVaultPage();
+                    showToast('设备冷却已解除，可以重新绑定', 'success');
+                } else {
+                    renderVaultPage();
+                }
+            }, 1000);
+        }
+
+        // ==================== 核心逻辑 B：福利特权访问控制与验证 ====================
+        function tryEnterWelfare() {
+            if (!state.fingerprint) {
+                showBlockModal();
+            } else {
+                navigateTo('home');
+            }
+        }
+
+        function showBlockModal() {
+            const modal = document.getElementById('modal-block');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('translate-y-8');
+        }
+
+        function closeBlockModal() {
+            const modal = document.getElementById('modal-block');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.add('translate-y-8');
+        }
+
+        function closeBlockModalAndGoVault() {
+            closeBlockModal();
+            setTimeout(() => {
+                navigateTo('vault');
+            }, 300);
+        }
+
+        // ==================== 渲染器 ====================
+
+        function renderEntryPage() {
+            const dot = document.getElementById('entry-status-dot');
+            const text = document.getElementById('entry-status-text');
+            const protection = document.getElementById('entry-vault-protection');
+            const statusArea = document.getElementById('entry-vault-status');
+
+            if (state.fingerprint) {
+                if (state.fingerprint?.status === 'pending_activation') {
+                    dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+                    text.className = 'text-[9px] font-black tracking-wide text-amber-600 uppercase';
+                    text.innerText = '待上链激活';
+                    statusArea.className = 'flex items-center space-x-2 px-3 py-1.5 rounded-full bg-amber-50/50 border border-amber-100';
+                    protection.className = 'font-bold text-amber-600';
+                    protection.innerText = '🟡 待首笔福利激活';
+                } else {
+                    dot.className = 'w-2 h-2 rounded-full bg-emerald-500 ping-slow';
+                    text.className = 'text-[9px] font-black tracking-wide text-emerald-600 uppercase';
+                    text.innerText = '已激活存证';
+                    statusArea.className = 'flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100';
+                    protection.className = 'font-bold text-emerald-600';
+                    protection.innerText = '🛡️ 已激活上链';
+                }
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-red-500';
+                text.className = 'text-[9px] font-black tracking-wide text-slate-500 uppercase';
+                text.innerText = '保险库未绑定';
+                statusArea.className = 'flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200';
+                protection.className = 'font-bold text-red-500';
+                protection.innerText = '未启用';
+            }
+        }
+
+        function makeStepperHtml(activeStep) {
+            const steps = ['确认设备', '账户与链', '输入密码', '激活指纹'];
+            return `
+                <div class="flex items-center justify-between px-3 py-2 mb-3 bg-slate-55 shadow-sm rounded-2xl border border-slate-200/70">
+                    ${steps.map((s, idx) => {
+                        const stepNum = idx + 1;
+                        let circleClass = "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ";
+                        let labelClass = "text-[9px] font-bold mt-1.5 ";
+                        
+                        if (stepNum < activeStep) {
+                            circleClass += "bg-emerald-500 text-white";
+                            labelClass += "text-emerald-500";
+                        } else if (stepNum === activeStep) {
+                            circleClass += "bg-indigo-600 text-white shadow-md shadow-indigo-600/10";
+                            labelClass += "text-indigo-600";
+                        } else {
+                            circleClass += "bg-slate-200 text-slate-400";
+                            labelClass += "text-slate-400";
+                        }
+
+                        return `
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="${circleClass}">${stepNum < activeStep ? '✓' : stepNum}</div>
+                                <span class="${labelClass}">${s}</span>
+                            </div>
+                            ${idx < steps.length - 1 ? `<div class="w-8 h-[2px] step-line ${stepNum < activeStep ? 'bg-emerald-500' : 'bg-slate-200'} mb-4"></div>` : ''}
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function renderVaultLogs() {
+            const el = document.getElementById('vault-logs');
+            if (el) {
+                el.innerHTML = vaultLogs.map(log => `
+                    <div class="flex space-x-2 py-0.5 border-b border-slate-200/20">
+                        <span class="text-indigo-500 font-bold">[${log.time}]</span>
+                        <span class="text-slate-600">${log.text}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function renderVaultPage() {
+            renderVaultLogs();
+            const container = document.getElementById('vault-dynamic-container');
+
+
+            let isCooldown = state.cooldownUntil && Date.now() < state.cooldownUntil;
+            let cooldownSeconds = isCooldown ? Math.ceil((state.cooldownUntil - Date.now()) / 1000) : 0;
+
+            if (isCooldown) {
+                container.innerHTML = `
+                    <div class="glass-card rounded-3xl p-6 border border-red-200 bg-red-50/50 text-center shadow-lg shadow-slate-100">
+                        <div class="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">⏳</div>
+                        <h3 class="text-sm font-bold text-red-600 uppercase tracking-wide">设备冷却中</h3>
+                        <p class="text-[11px] text-slate-505 mt-2.5 leading-relaxed">
+                            该物理设备正处于历史解绑冷却期。您可以选择支付 500 USDT 重置服务费立即解除锁定。
+                        </p>
+                        <div class="my-4 p-4 rounded-xl bg-white border border-slate-200 text-slate-800 font-mono text-[16px] font-black shadow-inner">
+                            剩余锁定: ${cooldownSeconds} 秒
+                        </div>
+                        <div class="flex flex-col space-y-2 pt-2">
+                            <button onclick="confirmPayUnbind()" class="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-md active:scale-95 transition">
+                                💳 支付 500 USDT 立即重置 (免冷却)
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            if (state.fingerprint) {
+                const isActivated = state.fingerprint?.status === 'activated';
+                const statusBadge = isActivated
+                    ? `<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-600 text-[8px] font-bold border border-emerald-200">🟢 已激活存证</span>`
+                    : `<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-600 text-[8px] font-bold border border-amber-200 animate-pulse">🟡 待上链激活 (伪绑定)</span>`;
+                
+                const tipText = isActivated
+                    ? `设备指纹已广播上链锁死。注销当前绑定必须通过智能合约支付 500 USDT 服务费。`
+                    : `指纹尚未写入区块链，将在首笔奖励下发时自动激活。当前状态下注销完全免费，无冷却冷静锁限制。`;
+
+                container.innerHTML = `
+                    <!-- 绑定成功大卡片 (组合凭证) -->
+                    <div class="glow-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between" style="min-height:365px;">
+                        <div class="absolute right-6 top-6 flex items-center space-x-1">
+                            <div class="w-7 h-5 rounded bg-yellow-400 flex items-center justify-center text-[7px] text-slate-950 font-bold border border-yellow-300 shadow-sm">CHIP</div>
+                            <div class="w-5 h-5 rounded-full bg-indigo-600/10 flex items-center justify-center text-[9px] text-indigo-600">⌘</div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                ${statusBadge}
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-2 uppercase font-extrabold tracking-wider">Composite Fingerprint Credential</p>
+                        </div>
+
+                        <!-- 中部：双重唯一凭证组合区 -->
+                        <div class="my-5 space-y-3.5 bg-white/60 p-4 rounded-2xl border border-indigo-100/50 shadow-inner">
+                            <div>
+                                <span class="text-[8px] text-slate-400 block uppercase font-bold tracking-wider">1. 物理设备指纹 (Device ID Hash)</span>
+                                <span class="text-[11px] font-mono text-slate-800 break-all block mt-0.5">${state.fingerprint?.hash ? state.fingerprint.hash.slice(0, 36) : '--'}...</span>
+                            </div>
+                            <div class="pt-2.5 border-t border-indigo-100/30">
+                                <span class="text-[8px] text-slate-400 block uppercase font-bold tracking-wider">2. 绑定的自管冷钱包 (Wallet Address)</span>
+                                <span class="text-[11px] font-mono text-indigo-700 break-all block mt-0.5">${state.fingerprint?.walletAddress || '--'}</span>
+                            </div>
+                        </div>
+
+                        <div class="text-[9px] text-slate-400 leading-snug border-t border-indigo-100 pt-3 flex justify-between items-center">
+                            <span>系统物理锁定保护</span>
+                            <span class="font-mono text-slate-500">${state.fingerprint?.boundAt ? state.fingerprint.boundAt.split(' ')[0] : '--'}</span>
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-[10px] text-slate-555 leading-relaxed">
+                        ⚠️ <span class="font-bold text-indigo-600">说明:</span> ${tipText}
+                    </div>
+
+                    <div class="pt-1">
+                        <button onclick="triggerUnbind()" class="w-full py-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-650 text-xs font-bold rounded-xl active:scale-[0.98] transition">
+                            🗑️ ${isActivated ? '付费注销已激活指纹 (500 USDT)' : '注销撤销当前伪绑定 (免费)'}
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const stepperHtml = makeStepperHtml(state.bindStep);
+
+            if (state.bindStep === 1) {
+                container.innerHTML = `
+                    ${stepperHtml}
+                    <div class="glass-card rounded-3xl p-5 border border-slate-200/80 space-y-4 shadow-sm">
+                        <h3 class="text-xs font-bold text-slate-800 uppercase flex items-center">
+                            <span class="mr-2 text-indigo-600">Step 1.</span> 确认并锁定当前物理设备信息
+                        </h3>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">
+                            系统检测到本设备，请确认硬件细节。我们将在确认后向链上发起存证历史预查，以防止应用重装或系统恢复导致的设备锁丢失。
+                        </p>
+                        
+                        <div class="space-y-2 text-[10px] font-mono bg-slate-50 p-4 rounded-xl border border-slate-200/60 shadow-inner">
+                            <div class="flex justify-between py-1 border-b border-slate-200/50">
+                                <span class="text-slate-400">机型名称:</span>
+                                <span class="text-slate-700 font-sans">${state.deviceModel}</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-slate-200/50">
+                                <span class="text-slate-400">运行内核:</span>
+                                <span class="text-slate-700 font-sans">IM-OS v2.4.1 (Web3 Engine)</span>
+                            </div>
+                            <div class="flex justify-between py-1">
+                                <span class="text-slate-400">物理识别 Hash:</span>
+                                <span class="text-indigo-600">${state.deviceId.slice(0, 12)}...${state.deviceId.slice(-12)}</span>
+                            </div>
+                        </div>
+
+                        <button onclick="confirmStep1()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/15 active:scale-95 transition">
+                            确认并链上预检历史绑定
+                        </button>
+                    </div>
+                `;
+            } else if (state.bindStep === 2) {
+                let contentHtml = '';
+
+                if (!state.hasWallet) {
+                    contentHtml = `
+                        <div class="p-5 rounded-2xl bg-red-50/60 border border-red-200/80 text-center flex flex-col items-center py-8">
+                            <div class="w-12 h-12 bg-red-100 text-red-550 rounded-2xl flex items-center justify-center text-xl mb-3 shadow-inner">🪙</div>
+                            <h4 class="text-xs font-bold text-slate-800">未检测到自管冷钱包</h4>
+                            <p class="text-[10px] text-slate-450 mt-2 max-w-[200px] leading-relaxed">
+                                安全保险库必须将您的物理硬件和本地钱包密钥锁定。检测到您尚未在设备上创建冷钱包。
+                            </p>
+                            <button onclick="triggerWalletCreation()" class="mt-5 w-full py-2.5 bg-indigo-600 text-white text-[10px] font-black rounded-lg shadow-md shadow-indigo-600/10 active:scale-95 transition">
+                                🚀 一键新建自管钱包 (演示用)
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    contentHtml = `
+                        <div class="space-y-2">
+                            <label class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">选择要绑定的自管账户</label>
+                            <div class="space-y-2">
+                                ${state.coldAccounts.map(a => `
+                                    <div onclick="state.tempSelectedAccount='${a.id}'; renderVaultPage();" class="flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition ${state.tempSelectedAccount === a.id ? 'border-indigo-500 bg-indigo-50/20 text-slate-800' : 'border-slate-200 bg-white text-slate-500'}">
+                                        <div>
+                                            <p class="text-xs font-bold">${a.name}</p>
+                                            <p class="text-[9px] font-mono opacity-65 truncate mt-0.5">${a.address.slice(0,10)}...${a.address.slice(-10)}</p>
+                                        </div>
+                                        <div class="w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold ${state.tempSelectedAccount === a.id ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-slate-200'}">
+                                            ${state.tempSelectedAccount === a.id ? '✓' : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">绑定链上网络环境 (多链环境单选)</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                ${state.coldChains.map(c => `
+                                    <div onclick="state.tempSelectedChain='${c.id}'; renderVaultPage();" class="p-3.5 rounded-xl border cursor-pointer text-center transition flex flex-col items-center justify-center ${state.tempSelectedChain === c.id ? 'border-indigo-500 bg-indigo-50/20 text-slate-800' : 'border-slate-200 bg-white text-slate-500'}">
+                                        <div class="w-8 h-8 rounded-lg bg-${c.color}-500/10 flex items-center justify-center text-[10px] font-black text-${c.color}-600 mb-1 border border-${c.color}-500/20">${c.symbol}</div>
+                                        <p class="text-[10px] font-bold">${c.name}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                container.innerHTML = `
+                    ${stepperHtml}
+                    <div class="glass-card rounded-3xl p-5 border border-slate-200/80 space-y-5 shadow-sm">
+                        <h3 class="text-xs font-bold text-slate-800 uppercase flex items-center">
+                            <span class="mr-2 text-indigo-600">Step 2.</span> 选择目标结算账户与区块链
+                        </h3>
+
+                        ${contentHtml}
+
+                        <div class="flex space-x-3 pt-2">
+                            <button onclick="goToStep(1)" class="flex-1 py-3.5 bg-slate-100 text-slate-500 border border-slate-250 text-xs font-bold rounded-xl active:scale-95 transition">返回上步</button>
+                            <button onclick="${state.hasWallet ? 'validateWalletBinding()' : 'showToast(\'请先新建并导入自管钱包\', \'error\')'}" class="flex-1 py-3.5 bg-indigo-600 text-white text-xs font-bold rounded-xl active:scale-95 transition ${state.hasWallet ? '' : 'opacity-45 cursor-not-allowed'}">输入密码授权</button>
+                        </div>
+                    </div>
+                `;
+            } else if (state.bindStep === 3) {
+                const selectedAccName = state.coldAccounts.find(x => x.id === state.tempSelectedAccount)?.name || '未选择账户';
+                const selectedChainName = state.coldChains.find(x => x.id === state.tempSelectedChain)?.name || '未选择链';
+
+                container.innerHTML = `
+                    ${stepperHtml}
+                    <div class="glass-card rounded-3xl p-5 border border-slate-200/80 space-y-4 shadow-sm">
+                        <h3 class="text-xs font-bold text-slate-800 uppercase flex items-center">
+                            <span class="mr-2 text-indigo-600">Step 3.</span> 密码安全校验与冷钱包授权
+                        </h3>
+                        <p class="text-[10px] text-slate-500 leading-relaxed">
+                            请输入该钱包的**密码/支付密钥**，用于在本地解密冷钱包的签名密钥。该计算在安全沙盒内处理，不会经网络上传。
+                        </p>
+
+                        <div class="bg-slate-50 border border-slate-200/70 p-3.5 rounded-xl text-[9px] text-slate-500 space-y-1">
+                            <div>绑定账户: <span class="font-bold text-slate-700">${selectedAccName}</span></div>
+                            <div>网络锁定: <span class="font-bold text-indigo-600">${selectedChainName} Network</span></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">冷钱包支付/解密密码</label>
+                            <div class="relative mt-1.5">
+                                <input type="password" oninput="handlePasswordInput(this.value)" value="${state.tempPassword}" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none" placeholder="输入钱包密码 (至少6位)">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 text-xs">👁</span>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-3 pt-2">
+                            <button onclick="goToStep(2)" class="flex-1 py-3.5 bg-slate-100 border border-slate-250 text-slate-500 text-xs font-bold rounded-xl active:scale-95 transition">返回上步</button>
+                            <button id="btn-step3-submit" onclick="handleCreateFingerprint()" ${state.tempPassword.length < 6 ? 'disabled' : ''} class="flex-1 py-3.5 bg-indigo-600 text-white text-xs font-bold rounded-xl active:scale-95 transition ${state.tempPassword.length < 6 ? 'opacity-45 cursor-not-allowed' : ''}">
+                                生成并激活指纹
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderWelfareHomePage() {
+            if (!state.fingerprint) return;
+
+            const fingerHash = state.fingerprint?.hash || '';
+            const walletAddr = state.fingerprint?.walletAddress || '';
+
+            document.getElementById('welfare-fingerprint-display').innerText = fingerHash ? fingerHash.slice(0,10) + '...' + fingerHash.slice(-10) : '--';
+            document.getElementById('welfare-wallet-display').innerText = walletAddr ? walletAddr.slice(0,8) + '...' + walletAddr.slice(-8) : '--';
+
+            const isActivated = state.fingerprint?.status === 'activated';
+            const dot = document.getElementById('welfare-status-indicator-dot');
+            const text = document.getElementById('welfare-status-indicator-text');
+
+            if (isActivated) {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 ping-slow';
+                text.className = 'text-[10px] font-black tracking-wider uppercase text-emerald-400';
+                text.innerText = '已上链激活';
+            } else {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+                text.className = 'text-[10px] font-black tracking-wider uppercase text-amber-400';
+                text.innerText = '待上链激活';
+            }
+
+            const unclaimedCount = state.activities.reduce((acc, act) => {
+                return acc + act.contracts.filter(c => !state.claimRecords.some(r => r.contractId === c.id)).length;
+            }, 0);
+            document.getElementById('welfare-stat-total').innerText = state.activities.reduce((acc, act) => acc + act.contracts.length, 0);
+            document.getElementById('welfare-stat-pending').innerText = unclaimedCount;
+            document.getElementById('welfare-stat-claimed').innerText = state.claimRecords.length;
+
+            const listContainer = document.getElementById('campaign-list-container');
+
+            listContainer.innerHTML = state.activities.map(act => {
+                const totalContracts = act.contracts.length;
+                const unclaimed = act.contracts.filter(c => !state.claimRecords.some(r => r.contractId === c.id)).length;
+                const statusTag = unclaimed === 0 
+                    ? `<span class="px-2 py-0.5 text-[9px] bg-slate-200 text-slate-500 font-extrabold rounded">已领完</span>`
+                    : `<span class="px-2 py-0.5 text-[9px] bg-indigo-50 text-indigo-600 font-extrabold rounded border border-indigo-100 animate-pulse">待领 ${unclaimed}/${totalContracts}</span>`;
+
+                return `
+                    <div onclick="enterCampaignDetail('${act.id}')" class="glass-card glass-card-interactive rounded-2xl p-5 cursor-pointer relative overflow-hidden border border-slate-200">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="px-2.5 py-0.5 bg-${act.color}-500/10 text-${act.color}-600 text-[8px] font-bold rounded border border-${act.color}-100 uppercase tracking-wider">${act.tag}</span>
+                            ${statusTag}
+                        </div>
+                        <h4 class="text-sm font-bold text-slate-800">${act.title}</h4>
+                        <p class="text-[10px] text-slate-500 mt-2 leading-relaxed">${act.desc}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function enterCampaignDetail(actId) {
+            state.currentCampaign = actId;
+            const act = state.activities.find(a => a.id === actId);
+            if (!act) return;
+
+            navigateTo('detail');
+
+            const fingerHash = state.fingerprint?.hash || '';
+            document.getElementById('detail-title').innerText = act.title;
+            document.getElementById('detail-fingerprint-short').innerText = '设备指纹: ' + (fingerHash ? fingerHash.slice(0, 6) + '...' + fingerHash.slice(-4) : '--');
+
+            const isActivated = state.fingerprint?.status === 'activated';
+            const dot = document.getElementById('detail-indicator-dot');
+            const txt = document.getElementById('detail-indicator-text');
+
+            if (isActivated) {
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 ping-slow';
+                txt.innerText = '设备指纹已上链存证保护中';
+                txt.className = 'text-emerald-700';
+            } else {
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
+                txt.innerText = '首笔福利下发时指纹自动激活上链';
+                txt.className = 'text-amber-700';
+            }
+
+            const headerCard = document.getElementById('detail-header-card');
+            headerCard.innerHTML = `
+                <div class="flex items-center space-x-3 mb-3">
+                    <span class="text-3xl">${act.category === 'airdrop' ? '🪂' : act.category === 'rebate' ? '⚖️' : '🧬'}</span>
+                    <span class="text-[9px] font-bold tracking-wider text-${act.color}-600 uppercase bg-${act.color}-50 px-2.5 py-0.5 rounded border border-${act.color}-100">${act.tag}</span>
+                </div>
+                <h2 class="text-base font-bold text-slate-800">${act.title}</h2>
+                <p class="text-[11px] text-slate-505 mt-2.5 leading-relaxed">${act.desc}</p>
+                <div class="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between text-[10px]">
+                    <span class="text-slate-400">结算绑定的设备指纹:</span>
+                    <span class="font-mono text-indigo-600 select-all">${fingerHash ? fingerHash.slice(0,10) + '...' + fingerHash.slice(-10) : '--'}</span>
+                </div>
+            `;
+
+            renderDetailContracts(act);
+        }
+
+        function renderDetailContracts(act) {
+            const container = document.getElementById('detail-contracts-container');
+            const icons = { USDR: '💎', RC: '⛽', HRC: '🧬' };
+
+            container.innerHTML = act.contracts.map((c, idx) => {
+                const icon = icons[c.rewardSymbol] || '🪙';
+                const claimed = state.claimRecords.some(r => r.contractId === c.id);
+
+                let btnText = "立即领取到绑钱包";
+                let btnClass = "w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg active:scale-95 transition shadow-md shadow-indigo-600/10";
+
+                if (claimed) {
+                    btnText = "已下发成功";
+                    btnClass = "w-full py-2.5 bg-slate-100 border border-slate-200 text-slate-400 text-[10px] font-bold rounded-lg cursor-not-allowed";
+                }
+
+                // 判断是否是持仓返利类（通过 USDR 代币标识），如果是，提供补领历史按钮
+                const isRebate = c.rewardSymbol === 'USDR';
+
+                return `
+                    <div class="glass-card rounded-2xl p-4.5 border border-slate-200/80 ${claimed ? 'opacity-55' : ''}">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-sm">${icon}</div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-800">奖励子项 #${idx+1}</p>
+                                    <p class="text-[9px] text-slate-500">${c.chainName} 网络</p>
+                                </div>
+                            </div>
+                            <span class="text-sm font-extrabold text-indigo-600 font-mono">${c.rewardAmount} ${c.rewardSymbol}</span>
+                        </div>
+                        <div class="space-y-1.5 text-[10px] pb-3.5 mb-3.5 border-b border-slate-200/40 font-mono text-slate-500">
+                            <div class="flex justify-between">
+                                <span class="font-sans">分发合约:</span>
+                                <span class="text-slate-600">${c.contract}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-sans">合约池余量:</span>
+                                <span class="text-slate-600">${c.balance} ${c.rewardSymbol}</span>
+                            </div>
+                        </div>
+                        ${isRebate ? `
+                        <div class="flex space-x-2 w-full">
+                            <button id="btn-c-${c.id}" onclick="claimContract('${c.id}')" class="flex-[3] py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg active:scale-95 transition shadow-md shadow-indigo-600/10 ${claimed ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed shadow-none' : ''}" ${claimed ? 'disabled' : ''}>
+                                ${claimed ? '已下发' : '立即领取'}
+                            </button>
+                            <button onclick="showReclaimPage('${c.id}')" class="flex-[1.3] py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold rounded-lg active:scale-95 transition flex items-center justify-center gap-0.5">
+                                ⏳ 补领历史
+                            </button>
+                        </div>
+                        ` : `
+                        <button id="btn-c-${c.id}" onclick="claimContract('${c.id}')" class="${btnClass}" ${claimed ? 'disabled' : ''}>${btnText}</button>
+                        `}
+                    </div>
+                `;
+            }).join('');
+
+            updateDetailClaimAllBtn(act);
+        }
+
+        // ==================== 历史累计补领页业务逻辑 ====================
+        function showReclaimPage(contractId) {
+            navigateTo('reclaim');
+        }
+
+        function renderReclaimPage() {
+            const tbody = document.getElementById('reclaim-list-body');
+            if (!tbody) return;
+
+            tbody.innerHTML = state.reclaimData.map(item => {
+                let badgeClass = '';
+                let statusText = '';
+                let btnHtml = '';
+
+                if (item.status === 'claimed') {
+                    statusText = '已领';
+                    badgeClass = 'bg-emerald-100 text-emerald-600 border-emerald-250';
+                    btnHtml = `<button class="px-2 py-1 bg-slate-100 text-slate-400 rounded text-[9px] cursor-not-allowed font-bold" disabled>已补领</button>`;
+                } else if (item.status === 'unclaimed') {
+                    statusText = '未领';
+                    badgeClass = 'bg-amber-100 text-amber-600 border-amber-250';
+                    btnHtml = `<button onclick="triggerReclaim(${item.dayIndex}, '${item.reward}')" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[9px] font-bold active:scale-95 transition">补领</button>`;
+                } else if (item.status === 'expired') {
+                    statusText = '已过期';
+                    badgeClass = 'bg-slate-100 text-slate-400 border-slate-200';
+                    btnHtml = `<button class="px-2 py-1 bg-slate-50 text-slate-300 rounded text-[9px] cursor-not-allowed font-bold" disabled>已失效</button>`;
+                }
+
+                return `
+                    <tr class="border-b border-slate-100 hover:bg-slate-50/50 transition">
+                        <td class="py-3 font-bold text-slate-800">${item.dayIndex}</td>
+                        <td class="py-3 text-[9px] text-slate-500 font-sans leading-normal">${item.time}</td>
+                        <td class="py-3 text-right">
+                            <div class="text-[9px] text-slate-400">${item.balance}</div>
+                            <div class="font-bold text-indigo-600 text-[10px] mt-0.5">${item.reward}</div>
+                        </td>
+                        <td class="py-3 text-center">
+                            <span class="px-1.5 py-0.5 rounded text-[8px] font-bold border ${badgeClass}">${statusText}</span>
+                        </td>
+                        <td class="py-3 text-center">
+                            ${btnHtml}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function triggerReclaim(dayIndex, rewardAmount) {
+            state.tempReclaimItem = { dayIndex, reward: rewardAmount };
+            document.getElementById('input-reclaim-password').value = '';
+            
+            const modal = document.getElementById('modal-password');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('translate-y-8');
+        }
+
+        function closePasswordModal() {
+            const modal = document.getElementById('modal-password');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.add('translate-y-8');
+            state.tempReclaimItem = null;
+        }
+
+        function confirmReclaimSignature() {
+            const pwd = document.getElementById('input-reclaim-password').value;
+            if (pwd.length < 6) {
+                showToast('密码长度不足，请输入至少 6 位密码', 'error');
+                return;
+            }
+            closePasswordModal();
+
+            if (state.tempReclaimItem) {
+                const item = state.tempReclaimItem;
+                showToast('⌛ 正在生成 EIP-712 签名并向 Relayer 广播...', 'info');
+
+                setTimeout(() => {
+                    const record = state.reclaimData.find(x => x.dayIndex === item.dayIndex);
+                    if (record) {
+                        record.status = 'claimed';
+                    }
+
+                    // 增加主账户 USDR 余额
+                    const mainAcc = state.coldAccounts.find(a => a.id === 'acc_01');
+                    if (mainAcc) {
+                        const currentBalance = parseFloat(mainAcc.balance);
+                        const rewardNum = parseFloat(item.reward);
+                        mainAcc.balance = (currentBalance + rewardNum).toFixed(2) + ' USDR';
+                    }
+
+                    // 写入全局已领取历史记录
+                    state.claimRecords.unshift({
+                        id: 'rec_reclaim_' + item.dayIndex,
+                        contractId: 'c_reclaim_' + item.dayIndex,
+                        title: `补领持仓返利 (#${item.dayIndex})`,
+                        amount: item.reward,
+                        time: new Date().toLocaleString('zh-CN', { hour12: false }),
+                        chainName: '链X',
+                        txHash: '0x' + Math.random().toString(16).slice(2, 10) + '...' + Math.random().toString(16).slice(-8)
+                    });
+
+                    vaultLogs.unshift({
+                        time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                        text: `💰 补领成功: 快照天 ${item.dayIndex} 补领返利 ${item.reward}`
+                    });
+
+                    showToast(`✓ 补领成功！${item.reward} 奖励已下发至自管冷钱包`, 'success');
+
+                    renderReclaimPage(); // 刷新补领页表格
+                    renderWelfareHomePage(); // 刷新福利首页的余额等信息
+                }, 1500);
+            }
+        }
+
+        function claimContract(contractId) {
+            const act = state.activities.find(a => a.id === state.currentCampaign);
+            const c = act.contracts.find(x => x.id === contractId);
+            if (!c) return;
+
+            const btn = document.getElementById(`btn-c-${contractId}`);
+            btn.disabled = true;
+
+            const isFirstActivation = state.fingerprint && state.fingerprint?.status === 'pending_activation';
+
+            if (isFirstActivation) {
+                btn.innerText = "⚡ 正在广播指纹上链存证...";
+                btn.className = "w-full py-2.5 bg-slate-100 border border-slate-200 text-indigo-600 text-[10px] font-bold rounded-lg cursor-wait animate-pulse";
+                
+                setTimeout(() => {
+                    if (state.fingerprint) state.fingerprint.status = 'activated';
+                    
+                    vaultLogs.unshift({
+                        time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                        text: `🔑 指纹首次上链激活! 存证 Hash: 0x9f2a991b8d6e3e7...`
+                    });
+                    showToast('⚡ 设备指纹首次交易上链激活存证！', 'success');
+                    
+                    btn.innerText = "正在广播福利下发...";
+                    setTimeout(() => {
+                        executeFinalClaim(act, c);
+                    }, 1000);
+                }, 1600);
+            } else {
+                btn.innerText = "正在广播福利下发...";
+                btn.className = "w-full py-2.5 bg-slate-100 border border-slate-200 text-amber-500 text-[10px] font-bold rounded-lg cursor-wait animate-pulse";
+                setTimeout(() => {
+                    executeFinalClaim(act, c);
+                }, 1200);
+            }
+        }
+
+        function executeFinalClaim(act, c) {
+            const txHash = '0x' + Array.from({length:64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+            
+            state.claimRecords.unshift({
+                id: Date.now(),
+                activityId: act.id,
+                contractId: c.id,
+                title: act.title,
+                category: act.category,
+                amount: `${c.rewardAmount} ${c.rewardSymbol}`,
+                time: new Date().toLocaleString('zh-CN', { hour12: false }),
+                txHash: txHash,
+                chain: c.chainName,
+                fingerprint: state.fingerprint?.hash || '--'
+            });
+
+            showToast(`✓ ${c.rewardAmount} ${c.rewardSymbol} 下发成功！`, 'success');
+            enterCampaignDetail(act.id);
+            renderWelfareHomePage();
+        }
+
+        function claimAllContracts() {
+            const act = state.activities.find(a => a.id === state.currentCampaign);
+            if (!act) return;
+
+            const unclaimed = act.contracts.filter(c => !state.claimRecords.some(r => r.contractId === c.id));
+            if (unclaimed.length === 0) return;
+
+            state.taskFlowItems = unclaimed.map(c => ({ contract: c, status: 'pending' }));
+            state.taskFlowRunning = true;
+            
+            showTaskFlowModal();
+
+            let index = 0;
+            const isFirstActivation = state.fingerprint && state.fingerprint?.status === 'pending_activation';
+
+            function runNext() {
+                if (index >= state.taskFlowItems.length) {
+                    state.taskFlowRunning = false;
+                    renderTaskFlowModal();
+                    showToast('一键全额领取完成！', 'success');
+                    enterCampaignDetail(act.id);
+                    renderWelfareHomePage();
+                    return;
+                }
+
+                const item = state.taskFlowItems[index];
+
+                if (index === 0 && isFirstActivation) {
+                    document.getElementById('task-title-text').innerText = "广播设备指纹上链存证...";
+                    item.status = 'confirming';
+                    renderTaskFlowModal();
+
+                    setTimeout(() => {
+                        if (state.fingerprint) state.fingerprint.status = 'activated';
+                        
+                        vaultLogs.unshift({
+                            time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                            text: `🔑 批量领取自动触发: 指纹上链激活成功!`
+                        });
+                        showToast('⚡ 指纹首次交易批量触发上链激活！', 'success');
+                        
+                        document.getElementById('task-title-text').innerText = "批量分发奖励中";
+                        executeItemClaim(item, () => {
+                            index++;
+                            setTimeout(runNext, 400);
+                        });
+                    }, 1500);
+                } else {
+                    item.status = 'confirming';
+                    renderTaskFlowModal();
+                    setTimeout(() => {
+                        executeItemClaim(item, () => {
+                            index++;
+                            setTimeout(runNext, 400);
+                        });
+                    }, 1200);
+                }
+            }
+
+            runNext();
+        }
+
+        function executeItemClaim(item, callback) {
+            const c = item.contract;
+            const act = state.activities.find(a => a.id === state.currentCampaign);
+            const txHash = '0x' + Array.from({length:64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+            
+            state.claimRecords.unshift({
+                id: Date.now() + Math.random(),
+                activityId: act.id,
+                contractId: c.id,
+                title: act.title,
+                category: act.category,
+                amount: `${c.rewardAmount} ${c.rewardSymbol}`,
+                time: new Date().toLocaleString('zh-CN', { hour12: false }),
+                txHash: txHash,
+                chain: c.chainName,
+                fingerprint: state.fingerprint?.hash || '--'
+            });
+
+            item.status = 'success';
+            renderTaskFlowModal();
+            callback();
+        }
+
+        function showTaskFlowModal() {
+            const modal = document.getElementById('modal-task-flow');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('translate-y-full');
+            document.getElementById('task-title-text').innerText = "批量下发通道建立中";
+            renderTaskFlowModal();
+        }
+
+        function hideTaskFlow() {
+            if (state.taskFlowRunning) return;
+            const modal = document.getElementById('modal-task-flow');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.add('translate-y-full');
+        }
+
+        function renderTaskFlowModal() {
+            const list = document.getElementById('task-list');
+            const progress = document.getElementById('task-progress');
+            const doneBtn = document.getElementById('btn-task-done');
+            
+            const total = state.taskFlowItems.length;
+            const successCount = state.taskFlowItems.filter(t => t.status === 'success').length;
+            progress.innerText = `${successCount} / ${total}`;
+
+            if (state.taskFlowRunning) {
+                doneBtn.innerText = "广播打包中...";
+                doneBtn.disabled = true;
+                doneBtn.className = "w-full py-3.5 bg-slate-100 border border-slate-200 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed";
+            } else {
+                doneBtn.innerText = "✓ 完成并返回";
+                doneBtn.disabled = false;
+                doneBtn.className = "w-full py-3.5 bg-indigo-600 text-white rounded-xl text-xs font-bold active:scale-[0.98] transition";
+            }
+
+            const icons = { USDR: '💎', RC: '⛽', HRC: '🧬' };
+            list.innerHTML = state.taskFlowItems.map((item, idx) => {
+                const c = item.contract;
+                const icon = icons[c.rewardSymbol] || '🪙';
+                
+                let statusHtml = `<span class="text-[10px] text-slate-400 font-bold">排队中</span>`;
+                if (item.status === 'confirming') {
+                    statusHtml = `<span class="text-[10px] text-amber-500 font-bold flex items-center space-x-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 ping-slow"></span><span>发送中...</span></span>`;
+                } else if (item.status === 'success') {
+                    statusHtml = `<span class="text-[10px] text-emerald-500 font-bold">✓ 成功</span>`;
+                }
+
+                return `
+                    <div class="glass-card rounded-xl p-3 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-sm">${icon}</div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-800">${c.rewardAmount} ${c.rewardSymbol}</p>
+                                <p class="text-[9px] text-slate-400">${c.chainName}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            ${statusHtml}
+                            <p class="text-[8px] text-slate-400 font-mono mt-0.5">#${idx+1}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateDetailClaimAllBtn(act) {
+            const unclaimedCount = act.contracts.filter(c => !state.claimRecords.some(r => r.contractId === c.id)).length;
+            const btn = document.getElementById('btn-claim-all');
+            
+            if (unclaimedCount === 0) {
+                btn.innerText = "✓ 已全部领取完成";
+                btn.disabled = true;
+                btn.className = "w-full py-4 bg-emerald-600 text-white font-black text-xs rounded-xl cursor-not-allowed";
+            } else {
+                btn.innerText = `一键领取全部奖励 (${unclaimedCount})`;
+                btn.disabled = false;
+                btn.className = "w-full py-4 bg-indigo-600 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/25 active:scale-[0.98] transition";
+            }
+        }
+
+        function showRecords() {
+            navigateTo('records');
+            const container = document.getElementById('records-list');
+
+            if (state.claimRecords.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-20 text-slate-400">
+                        <div class="text-5xl mb-4">📭</div>
+                        <p class="text-xs">暂无任何下发流水记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = state.claimRecords.map(r => `
+                <div class="glass-card rounded-2xl p-4.5 border border-slate-200">
+                    <div class="flex justify-between items-start mb-2.5">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-800">${r.title}</h4>
+                            <span class="text-[8px] text-slate-400 uppercase tracking-widest block mt-0.5">${r.chain} 网络</span>
+                        </div>
+                        <span class="text-xs font-black text-indigo-600 font-mono">${r.amount}</span>
+                    </div>
+                    <div class="text-[9px] text-slate-500 font-mono space-y-1 mt-3 pt-3 border-t border-slate-100">
+                        <div class="flex justify-between">
+                            <span class="font-sans text-slate-400">结算指纹:</span>
+                            <span>${r.fingerprint ? r.fingerprint.slice(0,10) + '...' + r.fingerprint.slice(-10) : '--'}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-sans text-slate-400">交易哈希:</span>
+                            <div class="flex items-center space-x-1">
+                                <span class="text-slate-500">${r.txHash ? r.txHash.slice(0,16) : '--'}...</span>
+                                <button onclick="copyText('${r.txHash}')" class="text-[8px] bg-slate-100 border border-slate-200 text-slate-500 px-1 py-0.5 rounded">复制</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showDetailHistory() {
+            navigateTo('records');
+            showRecords();
+        }
+
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-slate-800';
+            if (type === 'success') bg = 'bg-emerald-600';
+            if (type === 'error') bg = 'bg-red-600 border border-red-500/20';
+
+            toast.className = `px-4 py-2.5 rounded-xl shadow-2xl text-[11px] font-bold text-white whitespace-nowrap toast-enter ${bg}`;
+            toast.innerText = msg;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 250);
+            }, 2000);
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('✓ 复制成功', 'success');
+            }).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('✓ 复制成功', 'success');
+            });
+        }
+
+        renderEntryPage();
+    </script>
+</body>
+</html>

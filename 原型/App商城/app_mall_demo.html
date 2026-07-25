@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Node 应用市场 v1.1 (MVP) - 应用分发平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lightbg: '#f5f6f8',
+                        'slate-955': '#0f172a',
+                        'slate-655': '#475569',
+                        'indigo-55': '#6366f1',
+                        'indigo-650': '#4f46e5',
+                        'brand': '#6d5efc',
+                        'brand-dark': '#5b4ed6',
+                        'brand-light': '#8b7fff',
+                    },
+                    fontFamily: {
+                        display: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Space Grotesk', sans-serif; background: #e9eaf0; }
+        .font-display { font-family: 'Outfit', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', 'monospace'; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .overlay-blur { background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(10px); }
+        .active-scale { transition: transform 0.12s ease; }
+        .active-scale:active { transform: scale(0.96); }
+        .card-shadow { box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04); }
+        .card-shadow-lg { box-shadow: 0 4px 24px rgba(109,94,252,0.12), 0 1px 3px rgba(15,23,42,0.06); }
+        .fade-in { animation: fadeIn 0.25s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .scale-in { animation: scaleIn 0.2s ease-out; }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .gradient-brand { background: linear-gradient(135deg, #6d5efc 0%, #8b7fff 100%); }
+        .gradient-dark { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
+        .gradient-gold { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+        .gradient-official { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+        .gradient-im { background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%); }
+        .gradient-eco { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .gradient-web3 { background: linear-gradient(135deg, #8b5cf6 0%, #6d5efc 100%); }
+        .badge-official { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: white; }
+        .badge-verified { background: #3b82f6; color: white; }
+        .badge-none { background: #f1f5f9; color: #94a3b8; }
+        .app-tag-app { background: #ede9fe; color: #6d5efc; }
+        .app-tag-dapp { background: #dbeafe; color: #2563eb; }
+        .app-tag-im { background: #cffafe; color: #0891b2; }
+        .app-tag-eco { background: #d1fae5; color: #059669; }
+        .shimmer { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .app-icon-shadow { box-shadow: 0 2px 8px rgba(15,23,42,0.1); }
+        .tab-bar-blur { background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .pill-active { background: white; color: #0f172a; border-radius: 9999px; }
+        .pill-inactive { color: rgba(255,255,255,0.7); background: transparent; padding-left: 0.5rem !important; padding-right: 0.5rem !important; justify-content: center !important; }
+        .pill-inactive .tab-label { display: none; }
+        .glow-brand { box-shadow: 0 0 24px rgba(109,94,252,0.3); }
+        .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        .bottom-sheet { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .toast { animation: toastIn 0.25s ease-out; }
+        @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        .gradient-skeleton { background: linear-gradient(135deg, #f8f9ff 0%, #eef0ff 100%); }
+        .coming-soon-card { background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 10px, #f1f5f9 10px, #f1f5f9 20px); }
+    </style>
+</head>
+<body>
+
+<div id="phone-frame" class="mx-auto relative bg-lightbg shadow-2xl" style="width:390px; height:844px; overflow:hidden; border-radius:0;">
+
+    <!-- ========== 状态栏 ========== -->
+    <div class="absolute top-0 inset-x-0 h-11 flex items-center justify-between px-6 text-xs font-bold text-slate-900 z-50 bg-white">
+        <span class="font-mono">9:41</span>
+        <div class="flex items-center space-x-1.5">
+            <span class="text-[10px]">●●●</span>
+            <span class="text-[10px]">📶</span>
+            <span class="text-[10px]">🔋</span>
+        </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- ========== 视图容器:首页 / 列表 / 详情 / DApp详情 / 搜索 / 我的应用 / 上架 ========== -->
+    <!-- ========================================================== -->
+
+    <!-- ========== 视图1:应用市场首页 ========== -->
+    <div id="view-home" class="absolute inset-0 pt-11 flex flex-col bg-lightbg">
+        <!-- 顶部搜索栏 -->
+        <header class="bg-white px-4 py-2.5 flex items-center space-x-3 border-b border-slate-100 flex-shrink-0">
+            <div onclick="openSearch()" class="flex-1 bg-slate-100 rounded-full px-4 py-2 flex items-center space-x-2 active-scale">
+                <span class="text-xs text-slate-400">🔍</span>
+                <span class="text-xs text-slate-400">搜索应用</span>
+            </div>
+            <button onclick="openMyApps()" class="w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center active-scale flex-shrink-0 border border-slate-100">
+                <span class="text-base">📱</span>
+            </button>
+        </header>
+
+        <!-- 滚动内容区 -->
+        <div class="flex-1 overflow-y-auto hide-scrollbar pb-24">
+
+            <!-- Banner:应用市场介绍 -->
+            <div class="px-4 pt-4">
+                <div class="relative rounded-2xl overflow-hidden card-shadow-lg active-scale" onclick="showToast('Node 应用市场','📦')">
+                    <div class="gradient-brand p-4 relative">
+                        <div class="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                        <div class="absolute right-4 bottom-2 text-5xl opacity-25">📦</div>
+                        <div class="relative z-10">
+                            <span class="text-[9px] font-bold text-white/80 uppercase tracking-widest">Node 应用市场</span>
+                            <h3 class="text-base font-black text-white font-display mt-1">一站式应用发现与分发</h3>
+                            <p class="text-[10px] text-white/70 mt-1">IM 社交 · 跨境电商 · Web3 应用,精选原生 App</p>
+                            <div class="mt-2.5 inline-flex items-center space-x-1 bg-white/20 backdrop-blur px-2.5 py-1 rounded-full">
+                                <span class="text-[10px] font-bold text-white">立即探索</span>
+                                <span class="text-[10px] text-white">›</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 金刚位分类(5个:官方精选/IM社交/跨境电商/Web3类/我的) -->
+            <div class="px-4 pt-4">
+                <div class="grid grid-cols-5 gap-2">
+                    <div onclick="openCategory('official')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-official flex items-center justify-center text-xl app-icon-shadow">⭐</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">官方精选</span>
+                    </div>
+                    <div onclick="openCategory('im')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-im flex items-center justify-center text-xl app-icon-shadow">💬</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">IM 社交</span>
+                    </div>
+                    <div onclick="openCategory('eco')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-eco flex items-center justify-center text-xl app-icon-shadow">🛒</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">跨境电商</span>
+                    </div>
+                    <div onclick="openCategory('web3')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-web3 flex items-center justify-center text-xl app-icon-shadow">🌐</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">Web3 类</span>
+                    </div>
+                    <div onclick="openMyApps()" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-xl app-icon-shadow">📱</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">我的</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 官方推荐区(自家 IM 工具) -->
+            <div class="pt-5">
+                <div class="px-4 flex items-center justify-between mb-2.5">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-sm font-black text-slate-900 font-display">官方推荐</span>
+                        <span class="badge-official text-[9px] font-bold px-1.5 py-0.5 rounded">OFFICIAL</span>
+                    </div>
+                    <button onclick="openCategory('official')" class="text-[10px] text-slate-400 font-bold">全部 ›</button>
+                </div>
+                <div class="overflow-x-auto hide-scrollbar">
+                    <div class="flex space-x-3 px-4 pb-1" id="official-apps-row">
+                        <!-- 动态渲染 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 热门 IM App -->
+            <div class="pt-5">
+                <div class="px-4 flex items-center justify-between mb-2.5">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-sm font-black text-slate-900 font-display">热门 IM App</span>
+                        <span class="app-tag-im text-[9px] font-bold px-1.5 py-0.5 rounded">IM</span>
+                    </div>
+                    <button onclick="openCategory('im')" class="text-[10px] text-slate-400 font-bold">全部 ›</button>
+                </div>
+                <div class="overflow-x-auto hide-scrollbar">
+                    <div class="flex space-x-3 px-4 pb-1" id="im-apps-row">
+                        <!-- 动态渲染 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 跨境电商 -->
+            <div class="pt-5">
+                <div class="px-4 flex items-center justify-between mb-2.5">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-sm font-black text-slate-900 font-display">跨境电商</span>
+                        <span class="app-tag-eco text-[9px] font-bold px-1.5 py-0.5 rounded">ECO</span>
+                    </div>
+                    <button onclick="openCategory('eco')" class="text-[10px] text-slate-400 font-bold">全部 ›</button>
+                </div>
+                <div class="overflow-x-auto hide-scrollbar">
+                    <div class="flex space-x-3 px-4 pb-1" id="eco-apps-row">
+                        <!-- 动态渲染 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web3 应用区 -->
+            <div class="pt-5">
+                <div class="px-4 flex items-center justify-between mb-2.5">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-sm font-black text-slate-900 font-display">Web3 应用</span>
+                        <span class="app-tag-app text-[9px] font-bold px-1.5 py-0.5 rounded">App</span>
+                    </div>
+                    <button onclick="openCategory('web3')" class="text-[10px] text-slate-400 font-bold">全部 ›</button>
+                </div>
+                <div class="overflow-x-auto hide-scrollbar">
+                    <div class="flex space-x-3 px-4 pb-1" id="web3-apps-row">
+                        <!-- 动态渲染 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 精选 DApp(前期不做,设计保留,占位提示) -->
+            <div class="pt-5 px-4">
+                <div class="flex items-center justify-between mb-2.5">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-sm font-black text-slate-900 font-display">精选 DApp</span>
+                        <span class="app-tag-dapp text-[9px] font-bold px-1.5 py-0.5 rounded">DApp</span>
+                    </div>
+                    <span class="text-[9px] text-amber-600 font-bold">即将开放</span>
+                </div>
+                <div onclick="showToast('DApp 浏览器功能即将开放,敬请期待','🌐')" class="coming-soon-card rounded-2xl p-5 active-scale border border-slate-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-xl gradient-web3 flex items-center justify-center text-xl opacity-50">🌐</div>
+                        <div class="flex-1">
+                            <p class="text-xs font-bold text-slate-700">DApp 浏览器</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">网页应用收录与钱包连接,即将上线</p>
+                        </div>
+                        <span class="text-slate-300">›</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-4"></div>
+        </div>
+    </div>
+
+    <!-- ========== 视图2:分类列表 ========== -->
+    <div id="view-category" class="absolute inset-0 pt-11 flex flex-col bg-lightbg hidden">
+        <header class="bg-white px-4 py-3 flex items-center space-x-3 border-b border-slate-100 flex-shrink-0">
+            <button onclick="backToHome()" class="w-8 h-8 flex items-center justify-center active-scale">
+                <span class="text-lg text-slate-700">‹</span>
+            </button>
+            <h1 id="category-title" class="text-base font-black text-slate-900 font-display flex-1">分类</h1>
+        </header>
+        <!-- 二级筛选(Web3 类专属) -->
+        <div id="web3-filter" class="bg-white px-4 py-2 flex items-center space-x-2 border-b border-slate-100 hidden">
+            <button onclick="filterWeb3('all')" id="filter-all" class="px-3 py-1 rounded-full bg-slate-900 text-white text-[10px] font-bold">全部</button>
+            <button onclick="filterWeb3('app')" id="filter-app" class="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">App</button>
+            <button onclick="filterWeb3('dapp')" id="filter-dapp" class="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">DApp</button>
+        </div>
+        <div class="flex-1 overflow-y-auto hide-scrollbar p-4 space-y-3 pb-24" id="category-list">
+            <!-- 动态渲染 -->
+        </div>
+    </div>
+
+    <!-- ========== 视图3:App 详情页(精简版) ========== -->
+    <div id="view-app-detail" class="absolute inset-0 pt-11 flex flex-col bg-white hidden">
+        <header class="absolute top-11 inset-x-0 px-4 py-3 flex items-center justify-between z-10">
+            <button onclick="backToHome()" class="w-8 h-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center active-scale card-shadow">
+                <span class="text-lg text-slate-700">‹</span>
+            </button>
+            <div class="flex items-center space-x-2">
+                <button onclick="showToast('分享应用','🔗')" class="w-8 h-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center active-scale card-shadow">
+                    <span class="text-sm">🔗</span>
+                </button>
+            </div>
+        </header>
+        <div class="flex-1 overflow-y-auto hide-scrollbar pb-24" id="app-detail-content">
+            <!-- 动态渲染 -->
+        </div>
+        <!-- 底部固定行动按钮 -->
+        <div id="app-detail-footer" class="absolute bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-slate-100 px-4 py-3 flex items-center space-x-3">
+            <!-- 动态渲染 -->
+        </div>
+    </div>
+
+    <!-- ========== 视图4:DApp 详情页(收录导航模式) ========== -->
+    <div id="view-dapp-detail" class="absolute inset-0 pt-11 flex flex-col bg-white hidden">
+        <header class="absolute top-11 inset-x-0 px-4 py-3 flex items-center justify-between z-10">
+            <button onclick="backToHome()" class="w-8 h-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center active-scale card-shadow">
+                <span class="text-lg text-slate-700">‹</span>
+            </button>
+            <div class="flex items-center space-x-2">
+                <button onclick="showToast('分享 DApp','🔗')" class="w-8 h-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center active-scale card-shadow">
+                    <span class="text-sm">🔗</span>
+                </button>
+            </div>
+        </header>
+        <div class="flex-1 overflow-y-auto hide-scrollbar pb-24" id="dapp-detail-content">
+            <!-- 动态渲染 -->
+        </div>
+        <div id="dapp-detail-footer" class="absolute bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-slate-100 px-4 py-3 flex items-center space-x-3">
+            <!-- 动态渲染 -->
+        </div>
+    </div>
+
+    <!-- ========== 视图5:搜索 ========== -->
+    <div id="view-search" class="absolute inset-0 pt-11 flex flex-col bg-white hidden">
+        <header class="px-4 py-3 flex items-center space-x-3 border-b border-slate-100">
+            <button onclick="backToHome()" class="w-8 h-8 flex items-center justify-center active-scale">
+                <span class="text-lg text-slate-700">‹</span>
+            </button>
+            <div class="flex-1 bg-slate-100 rounded-full px-4 py-2 flex items-center space-x-2">
+                <span class="text-xs text-slate-400">🔍</span>
+                <input id="search-input" type="text" placeholder="搜索应用" class="flex-1 bg-transparent text-xs outline-none border-0">
+            </div>
+            <button onclick="backToHome()" class="text-xs font-bold text-brand">取消</button>
+        </header>
+        <div class="flex-1 overflow-y-auto hide-scrollbar p-4" id="search-content">
+            <div id="search-hot">
+                <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">推荐搜索</h3>
+                <div class="flex flex-wrap gap-2 mb-5">
+                    <span onclick="quickSearch('Swap')" class="px-3 py-1.5 bg-slate-100 rounded-full text-xs font-bold text-slate-700 active-scale">Swap</span>
+                    <span onclick="quickSearch('质押')" class="px-3 py-1.5 bg-slate-100 rounded-full text-xs font-bold text-slate-700 active-scale">质押</span>
+                    <span onclick="quickSearch('治理')" class="px-3 py-1.5 bg-slate-100 rounded-full text-xs font-bold text-slate-700 active-scale">治理</span>
+                    <span onclick="quickSearch('官方')" class="px-3 py-1.5 bg-slate-100 rounded-full text-xs font-bold text-slate-700 active-scale">官方</span>
+                </div>
+            </div>
+            <div id="search-result" class="hidden space-y-3"></div>
+        </div>
+    </div>
+
+    <!-- ========== 视图6:我的应用(最近打开历史) ========== -->
+    <div id="view-myapps" class="absolute inset-0 pt-11 flex flex-col bg-lightbg hidden">
+        <header class="bg-white px-4 py-3 flex items-center space-x-3 border-b border-slate-100">
+            <button onclick="backToHome()" class="w-8 h-8 flex items-center justify-center active-scale">
+                <span class="text-lg text-slate-700">‹</span>
+            </button>
+            <h1 class="text-base font-black text-slate-900 font-display flex-1">我的应用</h1>
+        </header>
+        <div class="flex-1 overflow-y-auto hide-scrollbar p-4 space-y-4 pb-24">
+            <!-- 平台说明卡 -->
+            <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-start space-x-2">
+                <span class="text-base">💡</span>
+                <div class="flex-1">
+                    <p class="text-[10px] text-blue-800 font-bold">最近打开的应用</p>
+                    <p class="text-[9px] text-blue-700 mt-0.5">Android 版可自动检测设备已装应用;iOS 版仅记录打开历史(系统限制)。</p>
+                </div>
+            </div>
+
+            <!-- 最近打开列表 -->
+            <div>
+                <div class="flex items-center justify-between mb-2.5">
+                    <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">最近打开</h3>
+                    <button onclick="clearRecent()" class="text-[10px] text-slate-400 font-bold">清空</button>
+                </div>
+                <div class="space-y-2" id="recent-apps-list">
+                    <!-- 动态渲染 -->
+                </div>
+            </div>
+
+            <!-- 开发者上架入口 -->
+            <div onclick="openSubmit()" class="gradient-brand rounded-2xl p-4 active-scale card-shadow relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-black text-white font-display">应用上架申请</p>
+                        <p class="text-[10px] text-white/80 mt-0.5">开放 IM / 电商 / Web3 应用接入,3 工作日内联系</p>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+                        <span class="text-base">📤</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 视图7:上架申请(简化为意向收集) ========== -->
+    <div id="view-submit" class="absolute inset-0 pt-11 flex flex-col bg-lightbg hidden">
+        <header class="bg-white px-4 py-3 flex items-center space-x-3 border-b border-slate-100">
+            <button onclick="backToHome()" class="w-8 h-8 flex items-center justify-center active-scale">
+                <span class="text-lg text-slate-700">‹</span>
+            </button>
+            <h1 class="text-base font-black text-slate-900 font-display flex-1">应用上架申请</h1>
+        </header>
+        <div class="flex-1 overflow-y-auto hide-scrollbar p-4 space-y-4 pb-24">
+            <!-- 上架引导(简化) -->
+            <div class="gradient-brand rounded-2xl p-4 text-white relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 text-5xl opacity-20">📦</div>
+                <div class="relative z-10">
+                    <h3 class="text-base font-black font-display">申请上架到 Node 应用市场</h3>
+                    <p class="text-[11px] text-white/80 mt-1">提交应用信息,我们将主动与您联系合作事宜</p>
+                </div>
+            </div>
+
+            <!-- 表单(精简为意向收集) -->
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">App 类型</label>
+                    <div class="grid grid-cols-3 gap-2 mt-2">
+                        <button onclick="selectSubmitType('im')" id="submit-type-im" class="p-3 rounded-xl border-2 border-slate-200 active-scale text-center">
+                            <div class="text-xl">💬</div>
+                            <div class="text-[10px] font-bold text-slate-700 mt-1">IM 社交</div>
+                        </button>
+                        <button onclick="selectSubmitType('eco')" id="submit-type-eco" class="p-3 rounded-xl border-2 border-slate-200 active-scale text-center">
+                            <div class="text-xl">🛒</div>
+                            <div class="text-[10px] font-bold text-slate-700 mt-1">跨境电商</div>
+                        </button>
+                        <button onclick="selectSubmitType('web3app')" id="submit-type-web3app" class="p-3 rounded-xl border-2 border-slate-200 active-scale text-center">
+                            <div class="text-xl">📱</div>
+                            <div class="text-[10px] font-bold text-slate-700 mt-1">Web3 App</div>
+                        </button>
+                    </div>
+                    <button onclick="selectSubmitType('dapp')" id="submit-type-dapp" class="w-full mt-2 p-3 rounded-xl border-2 border-slate-200 active-scale flex items-center justify-center space-x-2">
+                        <span class="text-xl">🌐</span>
+                        <span class="text-[10px] font-bold text-slate-700">Web3 DApp(网页应用)</span>
+                    </button>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">App 名称 <span class="text-red-500">*</span></label>
+                    <input id="submit-name" type="text" placeholder="如:MyApp" class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-brand">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">开发者 / 公司 <span class="text-red-500">*</span></label>
+                    <input id="submit-dev" type="text" placeholder="主体名称" class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-brand">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">联系方式 <span class="text-red-500">*</span></label>
+                    <input id="submit-contact" type="text" placeholder="邮箱 / Telegram / 微信" class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-brand">
+                </div>
+
+                <div id="submit-url-field">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">App URL / Deep Link</label>
+                    <input type="text" placeholder="https:// 或 myapp://" class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono outline-none focus:border-brand">
+                </div>
+
+                <div id="submit-contract-field" class="hidden">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">合约地址(DApp 必填)</label>
+                    <input type="text" placeholder="0x..." class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono outline-none focus:border-brand">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">应用简介</label>
+                    <textarea placeholder="一句话介绍你的应用(20-50 字)" class="w-full mt-2 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-brand resize-none" rows="2"></textarea>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <p class="text-[10px] text-slate-600 font-bold mb-1">📋 提交说明</p>
+                    <ul class="text-[10px] text-slate-500 space-y-0.5">
+                        <li>• 提交后我们将在 3 个工作日内主动联系您</li>
+                        <li>• 合作模式(抽成比例/结算方式)将在沟通后确定</li>
+                        <li>• 官方自主应用无需走此流程,内部对接即可</li>
+                    </ul>
+                </div>
+
+                <button onclick="submitApp()" class="w-full gradient-brand text-white text-sm font-bold py-3 rounded-xl active-scale">提交申请</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- ========== 黑色胶囊 5 Tab 导航 ========== -->
+    <!-- ========================================================== -->
+    <nav id="main-nav" class="absolute bottom-6 inset-x-4 h-14 bg-black rounded-full flex items-center justify-between px-2 shadow-[0_8px_30px_rgba(0,0,0,0.35)] z-40">
+        <button onclick="showToast('切换到冷钱包 Tab','💰')" class="pill-inactive flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">💰</span>
+            <span class="tab-label text-[10px] font-bold">冷钱包</span>
+        </button>
+        <button onclick="showToast('切换到身份 Tab','🆔')" class="pill-inactive flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">🆔</span>
+            <span class="tab-label text-[10px] font-bold">身份</span>
+        </button>
+        <button onclick="showToast('切换到团队 Tab','👥')" class="pill-inactive flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">👥</span>
+            <span class="tab-label text-[10px] font-bold">团队</span>
+        </button>
+        <button onclick="showToast('切换到商城 Tab','🛍️')" class="pill-inactive flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">🛍️</span>
+            <span class="tab-label text-[10px] font-bold">商城</span>
+        </button>
+        <button class="pill-active flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">📱</span>
+            <span class="tab-label text-[10px] font-bold">App</span>
+        </button>
+    </nav>
+
+    <!-- ========== Toast ========== -->
+    <div id="toast" class="absolute bottom-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white text-xs px-4 py-2 rounded-full hidden z-50 backdrop-blur"></div>
+
+</div>
+
+<script>
+// ============================================================
+// 平台差异说明(无切换器,统一一套 UI,差异由原生端实现处理)
+//   - iOS:无法检测设备已装应用,"我的应用"仅显示打开历史;不支持 APK 分发,只能跳 App Store;深链 Universal Links
+//   - Android:可检测已装应用(包名);"打开"可拉起 App Link 或跳商店;可分发 APK;DApp 可内嵌 WebView
+// ============================================================
+
+// ============================================================
+// 数据模型
+// MVP 阶段:以三类原生 App(IM/电商/Web3)为主力内容
+// 自家 IM 工具(产品 A/B/C)为官方推荐核心,官方徽章优先展示
+// DApp 前期不做,设计保留,统一标注"即将开放"(含官方 DApp 与第三方 DApp)
+// ============================================================
+// 注:预览图用 CSS 占位图(品牌渐变+首字母),无图片依赖
+const APPS = [
+    // ===== 自家 IM 工具(官方出品,产品 A/B/C)——官方推荐核心 =====
+    { id: 'node-im-a', name: 'Node 企业通', short: 'NE', iconBg: 'gradient-official', category: 'im', subType: 'app', badge: 'official', developer: 'Node Official', version: 'v3.2.0', desc: 'Node 官方企业即时通讯,组织架构管理,支持 Node 签名登录与开放服务生态。', features: ['官方出品', '企业通讯', 'Node 签名登录', '开放服务'], official: true, permissions: ['通知推送', '通讯录读取', '相机/麦克风(音视频通话)', '文件存储'] },
+    { id: 'node-im-b', name: 'Node 社交通', short: 'NS', iconBg: 'gradient-official', category: 'im', subType: 'app', badge: 'official', developer: 'Node Official', version: 'v2.8.0', desc: 'Node 官方社交聊天工具,端到端加密,支持群组/频道与 Web3 权益服务。', features: ['官方出品', '社交聊天', '端到端加密', '权益服务'], official: true, permissions: ['通知推送', '相机/相册', '麦克风(语音消息)', '位置信息(可选)'] },
+    { id: 'node-im-c', name: 'Node Chat', short: 'NC', iconBg: 'gradient-official', category: 'im', subType: 'app', badge: 'official', developer: 'Node Official', version: 'v1.5.0', desc: 'Node 官方多链 IM 工具,跨链权益打通,连接 Web3 身份与社交。', features: ['官方出品', '多链支持', '跨链权益', '社交网络'], official: true, permissions: ['通知推送', '相机/相册', '生物识别(身份验证)'] },
+
+    // ===== 官方 DApp(自主,前期不做,标注"即将开放") =====
+    { id: 'node-swap', name: 'Node Swap', short: 'NS', iconBg: 'gradient-brand', category: 'web3', subType: 'dapp', badge: 'official', developer: 'Node Official', version: 'v2.1.0', desc: 'Node 官方 Swap,支持链上代币两两兑换,低滑点,免 Gas。', features: ['官方出品', '免 Gas', '低滑点', 'EIP-712 签名'], official: true, comingSoon: true, permissions: ['钱包签名(EIP-712)', '钱包地址读取', '链上交易发起'] },
+    { id: 'node-stake', name: 'Node Staking', short: 'NST', iconBg: 'gradient-brand', category: 'web3', subType: 'dapp', badge: 'official', developer: 'Node Official', version: 'v1.5.0', desc: 'Node 官方质押,USDRs 质押赚取年化收益,灵活锁仓。', features: ['官方出品', '年化 8-15%', '灵活锁仓'], official: true, comingSoon: true, permissions: ['钱包签名(EIP-712)', '钱包地址读取', '链上交易发起'] },
+    { id: 'node-gov', name: 'Node Governance', short: 'NG', iconBg: 'gradient-brand', category: 'web3', subType: 'dapp', badge: 'official', developer: 'Node Official', version: 'v1.0.0', desc: 'Node 官方治理,参与链上提案投票,共同决策生态方向。', features: ['官方出品', '链上投票', '提案讨论'], official: true, comingSoon: true, permissions: ['钱包签名(EIP-712)', '钱包地址读取', '链上交易发起'] },
+
+    // ===== IM 类第三方 App =====
+    { id: 'telegram', name: 'Telegram', short: 'TG', iconBg: 'bg-gradient-to-br from-sky-400 to-blue-500', category: 'im', subType: 'app', badge: 'verified', developer: 'Telegram FZ-LLC', version: 'v10.12.0', desc: '加密即时通讯,支持 TON 钱包,Mini Apps 生态。', features: ['端到端加密', 'TON 集成', 'Mini Apps', '大群组'], official: false, permissions: ['通知推送', '通讯录', '相机/麦克风', '文件存储', '位置信息(可选)'] },
+    { id: 'discord', name: 'Discord', short: 'DC', iconBg: 'bg-gradient-to-br from-indigo-400 to-purple-600', category: 'im', subType: 'app', badge: 'verified', developer: 'Discord Inc.', version: 'v180.0', desc: '社区 IM,支持 Bot 生态,Web3 社区首选。', features: ['社区 IM', 'Bot 生态', '语音房', '服务器'], official: false, permissions: ['通知推送', '麦克风(语音房)', '相机(视频通话)', '图片/文件'] },
+    { id: 'lens', name: 'Lens Client', short: 'LN', iconBg: 'bg-gradient-to-br from-green-400 to-emerald-600', category: 'im', subType: 'app', badge: 'none', developer: 'Lens Protocol', version: 'v1.2.0', desc: '去中心化社交协议客户端,数据资产化。', features: ['去中心化社交', '数据资产化', 'Profile NFT'], official: false, permissions: ['通知推送', '相机/相册', '钱包连接', '图片存储'] },
+
+    // ===== 跨境电商 App =====
+    { id: 'shopify-merchant', name: 'Shopify Store', short: 'SP', iconBg: 'bg-gradient-to-br from-emerald-400 to-green-600', category: 'eco', subType: 'app', badge: 'verified', developer: 'Shopify Inc.', version: 'v8.42.0', desc: '跨境电商独立站平台,百万商家精选。', features: ['独立站', '跨境支付', '物流追踪'], official: false, permissions: ['通知推送', '相机(扫码)', '位置信息(物流)', '支付'] },
+    { id: 'amazon-shopping', name: 'Amazon Shopping', short: 'AZ', iconBg: 'bg-gradient-to-br from-orange-400 to-amber-600', category: 'eco', subType: 'app', badge: 'verified', developer: 'Amazon Mobile LLC', version: 'v28.0', desc: '全球最大跨境电商,百万商品直达。', features: ['全球购物', 'Prime 会员', '一键下单'], official: false, permissions: ['通知推送', '相机(扫码)', '位置信息(配送)', '支付', '相册'] },
+    { id: 'aliexpress', name: 'AliExpress', short: 'AE', iconBg: 'bg-gradient-to-br from-red-400 to-orange-500', category: 'eco', subType: 'app', badge: 'verified', developer: 'Alibaba Group', version: 'v8.6.0', desc: '阿里跨境电商,中国直发全球。', features: ['中国直发', '7-15 天达', '超值好物'], official: false, permissions: ['通知推送', '相机(扫码)', '位置信息(物流)', '支付', '相册'] },
+
+    // ===== Web3 类原生 App =====
+    { id: 'phantom', name: 'Phantom', short: 'PH', iconBg: 'bg-gradient-to-br from-purple-500 to-purple-700', category: 'web3', subType: 'app', badge: 'verified', developer: 'Phantom Labs', version: 'v24.6.0', desc: '多链 Web3 钱包,支持 Solana/Ethereum/Polygon,内置 DApp 浏览器。', features: ['多链支持', 'NFT 管理', '内置 Swap'], official: false, permissions: ['相机(扫码导入)', '生物识别', '剪贴板(地址复制)', '网络访问'] },
+    { id: 'stepn', name: 'STEPN', short: 'ST', iconBg: 'bg-gradient-to-br from-emerald-400 to-teal-500', category: 'web3', subType: 'app', badge: 'verified', developer: 'FindSatoshi Lab', version: 'v3.8.2', desc: 'Move-to-Earn 链游,走路即可赚 GMT,社交健身游戏。', features: ['Move-to-Earn', 'GMT 代币', 'NFT 球鞋'], official: false, permissions: ['位置信息(运动追踪)', '通知推送', '相机(扫码)', '健康数据(步数)'] },
+    { id: 'metamask', name: 'MetaMask', short: 'MM', iconBg: 'bg-gradient-to-br from-orange-400 to-orange-600', category: 'web3', subType: 'app', badge: 'verified', developer: 'Consensys', version: 'v12.8.0', desc: '领先的以太坊钱包,支持 EVM 链,Snaps 插件生态。', features: ['EVM 支持', 'Snaps 生态', '硬件钱包', 'Swap'], official: false, permissions: ['相机(扫码导入)', '生物识别', '剪贴板', '网络访问'] },
+
+    // ===== 第三方 DApp(前期不做,设计保留,标注"即将开放") =====
+    { id: 'uniswap', name: 'Uniswap V3', short: 'UN', iconBg: 'bg-gradient-to-br from-pink-400 to-purple-500', category: 'web3', subType: 'dapp', badge: 'verified', developer: 'Uniswap Labs', version: 'v3', desc: '领先的 DEX,集中流动性,低滑点交易。', features: ['集中流动性', '多链部署', '低滑点'], official: false, comingSoon: true, permissions: ['钱包签名(EIP-712)', '钱包地址读取', '链上交易发起'] },
+    { id: 'aave', name: 'Aave V3', short: 'AA', iconBg: 'bg-gradient-to-br from-purple-400 to-pink-500', category: 'web3', subType: 'dapp', badge: 'verified', developer: 'Aave Companies', version: 'v3', desc: '去中心化借贷协议,存款赚息,借款杠杆。', features: ['借贷协议', '存款赚息', '闪电贷'], official: false, comingSoon: true, permissions: ['钱包签名(EIP-712)', '钱包地址读取', '链上交易发起'] },
+    { id: 'opensea', name: 'OpenSea', short: 'OS', iconBg: 'bg-gradient-to-br from-blue-400 to-cyan-500', category: 'web3', subType: 'dapp', badge: 'verified', developer: 'OpenSea Labs', version: 'v2', desc: '最大的 NFT 交易市场,发现/购买/出售 NFT。', features: ['NFT 市场', '批量交易', '懒铸造'], official: false, comingSoon: true, permissions: ['钱包签名(EIP-712)', '钱包地址读取', '链上交易发起'] }
+];
+
+// 最近打开历史(模拟本地存储)
+let recentApps = ['node-im-a', 'node-im-b'];
+
+// ============================================================
+// 视图切换
+// ============================================================
+function hideAllViews() {
+    ['view-home','view-category','view-app-detail','view-dapp-detail','view-search','view-myapps','view-submit'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
+}
+function showView(id) {
+    hideAllViews();
+    const v = document.getElementById(id);
+    v.classList.remove('hidden');
+    v.classList.add('fade-in');
+    setTimeout(() => v.classList.remove('fade-in'), 300);
+    // 详情页/二级页面隐藏底部一级导航,仅首页与分类页保留
+    const showNav = (id === 'view-home' || id === 'view-category');
+    document.getElementById('main-nav').style.display = showNav ? '' : 'none';
+}
+
+// ============================================================
+// 首页渲染
+// ============================================================
+function renderHome() {
+    // 官方推荐(自家 IM 工具,official 且非 comingSoon)
+    document.getElementById('official-apps-row').innerHTML = APPS.filter(a => a.official && !a.comingSoon).map(a => appCardHorizontal(a)).join('');
+    // IM App(自家产品 official 优先,第三方排后)
+    document.getElementById('im-apps-row').innerHTML = APPS.filter(a => a.category === 'im').sort((x,y) => (y.official?1:0)-(x.official?1:0)).map(a => appCardHorizontal(a)).join('');
+    // 跨境电商
+    document.getElementById('eco-apps-row').innerHTML = APPS.filter(a => a.category === 'eco').map(a => appCardHorizontal(a)).join('');
+    // Web3 App(原生 App,排除 DApp)
+    document.getElementById('web3-apps-row').innerHTML = APPS.filter(a => a.category === 'web3' && a.subType === 'app').map(a => appCardHorizontal(a)).join('');
+}
+
+function appCardHorizontal(a) {
+    const badge = renderBadge(a.badge);
+    const tag = a.subType === 'dapp' ? '<span class="app-tag-dapp text-[8px] font-bold px-1 py-0.5 rounded">DApp</span>' : '<span class="app-tag-app text-[8px] font-bold px-1 py-0.5 rounded">App</span>';
+    const comingTag = a.comingSoon ? '<span class="bg-amber-100 text-amber-700 text-[8px] font-bold px-1 py-0.5 rounded">即将开放</span>' : '';
+    return `
+    <div onclick="openAppDetail('${a.id}')" class="flex-shrink-0 w-32 bg-white rounded-2xl p-3 card-shadow active-scale ${a.comingSoon ? 'opacity-70' : ''}">
+        ${renderIcon(a, 'sm')}
+        <div class="flex items-center space-x-1 mt-2">
+            <p class="text-xs font-bold text-slate-900 truncate flex-1">${a.name}</p>
+        </div>
+        <div class="flex items-center flex-wrap gap-1 mt-0.5">
+            ${badge}
+            ${tag}
+            ${comingTag}
+        </div>
+    </div>`;
+}
+
+function renderBadge(badge) {
+    if (badge === 'official') return '<span class="badge-official text-[8px] font-bold px-1 py-0.5 rounded">官方</span>';
+    if (badge === 'verified') return '<span class="badge-verified text-[8px] font-bold px-1 py-0.5 rounded">认证</span>';
+    return '';
+}
+
+// 统一应用图标:首字母 + 品牌渐变背景(无外部图片依赖)
+// size: sm(列表小卡 56px) / md(列表行 48px) / lg(详情页头部 80px)
+function renderIcon(a, size) {
+    const sizeMap = { sm: 'w-14 h-14 text-2xl rounded-2xl', md: 'w-12 h-12 text-xl rounded-xl', lg: 'w-20 h-20 text-4xl rounded-3xl' };
+    const cls = sizeMap[size] || sizeMap.sm;
+    const fontSize = size === 'lg' ? 'text-3xl' : (size === 'md' ? 'text-lg' : 'text-xl');
+    return `<div class="${cls} ${a.iconBg} flex items-center justify-center app-icon-shadow"><span class="font-display font-black text-white ${fontSize} tracking-tight">${a.short}</span></div>`;
+}
+
+// 详情页预览图(占位图:品牌渐变 + 首字母水印)
+function renderPreviewImages(a) {
+    const labels = ['首页', '功能', '设置'];
+    const bg = a.iconBg.includes('gradient') ? a.iconBg : 'gradient-brand';
+    return [0,1,2].map(i => `
+        <div class="flex-shrink-0 w-44 h-80 rounded-2xl overflow-hidden ${bg} flex flex-col items-center justify-center card-shadow relative">
+            <span class="font-display font-black text-white/25 text-6xl">${a.short}</span>
+            <span class="absolute bottom-3 left-3 text-[10px] font-bold text-white/70">${labels[i]}</span>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// 分类列表
+// ============================================================
+let currentCategory = '';
+function openCategory(cat) {
+    currentCategory = cat;
+    const titles = { official:'官方精选', im:'IM 社交', eco:'跨境电商', web3:'Web3 类', dapp:'精选 DApp' };
+    document.getElementById('category-title').textContent = titles[cat] || '分类';
+
+    // Web3 类显示二级筛选
+    const filter = document.getElementById('web3-filter');
+    if (cat === 'web3') filter.classList.remove('hidden');
+    else filter.classList.add('hidden');
+
+    renderCategoryList(cat, 'all');
+    showView('view-category');
+}
+
+function renderCategoryList(cat, filter) {
+    // DApp 分类:前期不做,显示"即将开放"占位(设计保留)
+    if (cat === 'dapp') {
+        document.getElementById('category-list').innerHTML = `
+            <div class="coming-soon-card rounded-2xl p-8 text-center border border-slate-200">
+                <div class="w-16 h-16 rounded-2xl gradient-web3 flex items-center justify-center text-3xl mx-auto opacity-50">🌐</div>
+                <p class="text-sm font-black text-slate-700 font-display mt-3">DApp 浏览器即将开放</p>
+                <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">网页应用收录与钱包连接功能即将上线,敬请期待。<br>当前已支持原生 App 分发,欢迎浏览三类应用。</p>
+            </div>`;
+        return;
+    }
+
+    let list;
+    if (cat === 'official') list = APPS.filter(a => a.official && !a.comingSoon);
+    else if (cat === 'web3') {
+        list = APPS.filter(a => a.category === 'web3');
+        if (filter === 'app') list = list.filter(a => a.subType === 'app');
+        if (filter === 'dapp') list = list.filter(a => a.subType === 'dapp');
+    } else list = APPS.filter(a => a.category === cat);
+
+    // 官方产品优先排序
+    list = list.slice().sort((x, y) => (y.official ? 1 : 0) - (x.official ? 1 : 0));
+
+    document.getElementById('category-list').innerHTML = list.length ? list.map(a => appCardList(a)).join('') : '<div class="text-center text-xs text-slate-400 py-10">暂无应用</div>';
+}
+
+function appCardList(a) {
+    const badge = renderBadge(a.badge);
+    const tag = a.subType === 'dapp' ? '<span class="app-tag-dapp text-[9px] font-bold px-1.5 py-0.5 rounded">DApp</span>' : '<span class="app-tag-app text-[9px] font-bold px-1.5 py-0.5 rounded">App</span>';
+    const comingTag = a.comingSoon ? '<span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded">即将开放</span>' : '';
+    return `
+    <div onclick="openAppDetail('${a.id}')" class="bg-white rounded-2xl p-3 flex items-center space-x-3 card-shadow active-scale ${a.comingSoon ? 'opacity-70' : ''}">
+        <div class="flex-shrink-0">${renderIcon(a, 'sm')}</div>
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-1.5 flex-wrap">
+                <p class="text-sm font-bold text-slate-900 truncate">${a.name}</p>
+                ${badge}
+                ${tag}
+                ${comingTag}
+            </div>
+            <p class="text-[10px] text-slate-400 mt-0.5 truncate">${a.desc}</p>
+        </div>
+        <button class="text-[10px] font-bold text-brand bg-brand/10 px-3 py-1.5 rounded-full flex-shrink-0">${a.subType === 'dapp' ? '打开' : '获取'}</button>
+    </div>`;
+}
+
+function filterWeb3(filter) {
+    ['all','app','dapp'].forEach(f => {
+        const el = document.getElementById('filter-'+f);
+        el.className = f === filter ? 'px-3 py-1 rounded-full bg-slate-900 text-white text-[10px] font-bold' : 'px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold';
+    });
+    renderCategoryList('web3', filter);
+}
+
+// ============================================================
+// App 详情页(精简版:移除评分/截图/评价/版本)
+// ============================================================
+function openAppDetail(id) {
+    const a = APPS.find(x => x.id === id);
+    if (!a) return;
+
+    // 即将开放的第三方 App:提示并返回
+    if (a.comingSoon) {
+        showToast(`${a.name} 即将开放,敬请期待`, '⏳');
+        return;
+    }
+
+    if (a.subType === 'dapp') {
+        openDAppDetail(a);
+        return;
+    }
+
+    const badge = renderBadge(a.badge);
+    const officialNote = a.official ? '<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3"><p class="text-[10px] text-amber-800 font-bold">⭐ Node 官方出品</p><p class="text-[10px] text-amber-700 mt-0.5">此应用由 Node 团队开发,数据全量归公司。</p></div>' : '';
+
+    document.getElementById('app-detail-content').innerHTML = `
+        <!-- 顶部彩色头部 -->
+        <div class="relative ${a.iconBg.includes('gradient') ? a.iconBg : 'gradient-dark'} pt-11 pb-6 px-4">
+            <div class="absolute -right-6 -top-4 font-display font-black text-white/15 text-8xl select-none">${a.short}</div>
+            <div class="relative z-10 flex items-end space-x-4">
+                <div class="w-20 h-20 rounded-3xl bg-white/20 backdrop-blur flex items-center justify-center app-icon-shadow border border-white/30"><span class="font-display font-black text-white text-3xl tracking-tight">${a.short}</span></div>
+                <div class="flex-1 pb-1">
+                    <div class="flex items-center space-x-1.5">
+                        <h2 class="text-xl font-black text-white font-display">${a.name}</h2>
+                        ${badge}
+                    </div>
+                    <p class="text-[11px] text-white/80 mt-0.5">${a.developer}</p>
+                    <div class="flex items-center space-x-2 mt-1.5">
+                        <span class="app-tag-app text-[9px] font-bold px-1.5 py-0.5 rounded">App</span>
+                        <span class="text-[10px] text-white/70">${a.version}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 应用预览图 -->
+        <div class="py-3">
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-4">应用预览</h3>
+            <div class="overflow-x-auto hide-scrollbar">
+                <div class="flex space-x-2.5 px-4">
+                    ${renderPreviewImages(a)}
+                </div>
+            </div>
+        </div>
+
+        <!-- 描述 -->
+        <div class="px-4 py-3">
+            ${officialNote ? '<div class="mb-3">' + officialNote.replace('mt-3','') + '</div>' : ''}
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">应用介绍</h3>
+            <p class="text-xs text-slate-700 leading-relaxed">${a.desc}</p>
+        </div>
+
+        <!-- 特性标签 -->
+        <div class="px-4 py-3">
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">特性</h3>
+            <div class="flex flex-wrap gap-2">
+                ${a.features.map(f => `<span class="px-2.5 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-700">${f}</span>`).join('')}
+            </div>
+        </div>
+
+        <!-- 权限声明(按应用类型动态) -->
+        <div class="px-4 py-3">
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">权限声明</h3>
+            <div class="bg-slate-50 rounded-xl p-3 space-y-1.5">
+                ${(a.permissions || []).map(p => `<p class="text-[10px] text-slate-700 flex items-center"><span class="text-slate-400 mr-1.5">·</span>${p}</p>`).join('')}
+            </div>
+        </div>
+
+        <div class="h-4"></div>
+    `;
+
+    // 底部按钮(统一文案,平台差异用小字提示)
+    document.getElementById('app-detail-footer').innerHTML = `
+        <div class="flex-1">
+            <p class="text-[9px] text-slate-400">应用来源 · ${a.official ? 'Node 官方出品' : '第三方应用'}</p>
+            <p class="text-[9px] text-slate-400 mt-0.5">iOS 跳转 App Store · Android 支持拉起/直装</p>
+        </div>
+        <button onclick="launchApp('${a.id}')" class="gradient-brand text-white text-sm font-bold px-8 py-2.5 rounded-xl active-scale">获取应用</button>
+    `;
+
+    showView('view-app-detail');
+}
+
+// ============================================================
+// DApp 详情页(收录导航模式:不做内嵌浏览器,点击跳转)
+// ============================================================
+function openDAppDetail(a) {
+    const badge = renderBadge(a.badge);
+    const officialNote = a.official ? '<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3"><p class="text-[10px] text-amber-800 font-bold">⭐ Node 官方出品</p><p class="text-[10px] text-amber-700 mt-0.5">此 DApp 由 Node 团队开发,数据全量归公司。</p></div>' : '';
+
+    document.getElementById('dapp-detail-content').innerHTML = `
+        <div class="relative ${a.iconBg.includes('gradient') ? a.iconBg : 'gradient-dark'} pt-11 pb-6 px-4">
+            <div class="absolute -right-6 -top-4 font-display font-black text-white/15 text-8xl select-none">${a.short}</div>
+            <div class="relative z-10 flex items-end space-x-4">
+                <div class="w-20 h-20 rounded-3xl bg-white/20 backdrop-blur flex items-center justify-center app-icon-shadow border border-white/30"><span class="font-display font-black text-white text-3xl tracking-tight">${a.short}</span></div>
+                <div class="flex-1 pb-1">
+                    <div class="flex items-center space-x-1.5">
+                        <h2 class="text-xl font-black text-white font-display">${a.name}</h2>
+                        ${badge}
+                    </div>
+                    <p class="text-[11px] text-white/80 mt-0.5">${a.developer}</p>
+                    <div class="flex items-center space-x-2 mt-1.5">
+                        <span class="app-tag-dapp text-[9px] font-bold px-1.5 py-0.5 rounded">DApp</span>
+                        <span class="text-[10px] text-white/70">网页应用 · 需钱包连接</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DApp 信息 -->
+        <div class="px-4 py-3">
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">DApp 信息</h3>
+            <div class="bg-slate-50 rounded-xl p-3 space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-[10px] text-slate-400">访问地址</span>
+                    <span class="text-[10px] font-mono text-slate-900">${a.id}.node.app</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-[10px] text-slate-400">所属链</span>
+                    <span class="text-[10px] font-bold text-slate-900">Node 主链</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-[10px] text-slate-400">安全审计</span>
+                    <span class="text-[10px] font-bold text-emerald-600">✓ 已通过</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-[10px] text-slate-400">权限</span>
+                    <span class="text-[10px] text-slate-900">eth_requestAccounts, eth_sendTransaction</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 归因提示(收录导航模式) -->
+        <div class="px-4 py-3">
+            <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 flex items-start space-x-2">
+                <span class="text-base">🔗</span>
+                <div class="flex-1">
+                    <p class="text-[11px] font-bold text-violet-900">收录导航模式</p>
+                    <p class="text-[10px] text-violet-700 mt-0.5">点击"打开"将在浏览器中打开,钱包连接通过 Tab1 冷钱包的 DApp 浏览器完成。</p>
+                </div>
+            </div>
+            ${officialNote}
+        </div>
+
+        <!-- 描述 -->
+        <div class="px-4 py-3">
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">应用介绍</h3>
+            <p class="text-xs text-slate-700 leading-relaxed">${a.desc}</p>
+        </div>
+
+        <!-- 特性 -->
+        <div class="px-4 py-3">
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">特性</h3>
+            <div class="flex flex-wrap gap-2">
+                ${a.features.map(f => `<span class="px-2.5 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-700">${f}</span>`).join('')}
+            </div>
+        </div>
+
+        <!-- 风险披露 -->
+        <div class="px-4 py-3">
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">⚠️ 风险披露</h3>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p class="text-[10px] text-amber-800 leading-relaxed">• DApp 涉及链上资产操作,请确认合约审计报告</p>
+                <p class="text-[10px] text-amber-800 leading-relaxed">• 交易一旦上链不可逆,请谨慎操作</p>
+                <p class="text-[10px] text-amber-800 leading-relaxed">• 不保证收益,投资有风险</p>
+            </div>
+        </div>
+
+        <div class="h-4"></div>
+    `;
+
+    document.getElementById('dapp-detail-footer').innerHTML = `
+        <div class="flex-1">
+            <p class="text-[9px] text-slate-400">打开方式</p>
+            <p class="text-[10px] font-bold text-slate-700">浏览器打开</p>
+        </div>
+        <button onclick="launchDApp('${a.id}')" class="gradient-brand text-white text-sm font-bold px-8 py-2.5 rounded-xl active-scale">打开 DApp</button>
+    `;
+
+    showView('view-dapp-detail');
+}
+
+// ============================================================
+// 启动 App(深链跳转,实际跳转逻辑由原生端按平台处理)
+// ============================================================
+function launchApp(id) {
+    const a = APPS.find(x => x.id === id);
+    if (!a) return;
+    // 记录到最近打开
+    addToRecent(id);
+    // 跳转逻辑由原生端处理:iOS 跳 App Store / Android 拉起 App Link 或分发 APK
+    showToast(`跳转获取 ${a.name}`, '🚀');
+}
+
+// ============================================================
+// 打开 DApp(收录导航模式:跳转浏览器,不内嵌)
+// ============================================================
+function launchDApp(id) {
+    const a = APPS.find(x => x.id === id);
+    if (!a) return;
+    addToRecent(id);
+    showToast(`在浏览器打开 ${a.name}`, '🌐');
+}
+
+// ============================================================
+// 最近打开历史
+// ============================================================
+function addToRecent(id) {
+    recentApps = recentApps.filter(x => x !== id);
+    recentApps.unshift(id);
+    if (recentApps.length > 10) recentApps = recentApps.slice(0, 10);
+}
+
+function renderRecentApps() {
+    const list = document.getElementById('recent-apps-list');
+    if (!list) return;
+    const apps = recentApps.map(id => APPS.find(a => a.id === id)).filter(Boolean);
+    if (!apps.length) {
+        list.innerHTML = '<div class="bg-white rounded-2xl p-6 text-center card-shadow"><div class="text-3xl opacity-30">📱</div><p class="text-xs text-slate-400 mt-2">暂无打开记录</p></div>';
+        return;
+    }
+    list.innerHTML = apps.map(a => `
+        <div onclick="openAppDetail('${a.id}')" class="bg-white rounded-2xl p-3 flex items-center space-x-3 card-shadow active-scale">
+            <div class="flex-shrink-0">${renderIcon(a, 'md')}</div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center space-x-1.5">
+                    <p class="text-sm font-bold text-slate-900 truncate">${a.name}</p>
+                    ${renderBadge(a.badge)}
+                    ${a.subType === 'dapp' ? '<span class="app-tag-dapp text-[8px] font-bold px-1 py-0.5 rounded">DApp</span>' : '<span class="app-tag-app text-[8px] font-bold px-1 py-0.5 rounded">App</span>'}
+                </div>
+                <p class="text-[10px] text-slate-400 mt-0.5">${a.developer} · ${a.version}</p>
+            </div>
+            <button class="text-[10px] font-bold text-brand bg-brand/10 px-3 py-1.5 rounded-full">打开</button>
+        </div>
+    `).join('');
+}
+
+function clearRecent() {
+    recentApps = [];
+    renderRecentApps();
+    showToast('已清空最近打开记录', '🗑️');
+}
+
+// ============================================================
+// 搜索
+// ============================================================
+function openSearch() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-hot').classList.remove('hidden');
+    document.getElementById('search-result').classList.add('hidden');
+    showView('view-search');
+}
+
+function quickSearch(kw) {
+    document.getElementById('search-input').value = kw;
+    doSearch(kw);
+}
+
+document.getElementById('search-input') && document.getElementById('search-input').addEventListener('input', function(e) {
+    doSearch(e.target.value);
+});
+
+function doSearch(kw) {
+    if (!kw || !kw.trim()) {
+        document.getElementById('search-hot').classList.remove('hidden');
+        document.getElementById('search-result').classList.add('hidden');
+        return;
+    }
+    document.getElementById('search-hot').classList.add('hidden');
+    document.getElementById('search-result').classList.remove('hidden');
+    const results = APPS.filter(a => a.name.toLowerCase().includes(kw.toLowerCase()) || a.developer.toLowerCase().includes(kw.toLowerCase()) || a.desc.toLowerCase().includes(kw.toLowerCase()));
+    document.getElementById('search-result').innerHTML = results.length ? results.map(a => appCardList(a)).join('') : '<div class="text-center text-xs text-slate-400 py-10">未找到相关应用</div>';
+}
+
+// ============================================================
+// 我的应用 / 上架
+// ============================================================
+function openMyApps() {
+    renderRecentApps();
+    showView('view-myapps');
+}
+function openSubmit() { showView('view-submit'); }
+
+let submitType = '';
+function selectSubmitType(type) {
+    submitType = type;
+    ['im','eco','web3app','dapp'].forEach(t => {
+        document.getElementById('submit-type-'+t).className = 'p-3 rounded-xl border-2 ' + (t === type ? 'border-brand bg-brand/5' : 'border-slate-200') + ' active-scale' + (t === 'dapp' ? ' flex items-center justify-center space-x-2 w-full mt-2' : ' text-center');
+    });
+    // DApp 显示合约字段
+    const contractField = document.getElementById('submit-contract-field');
+    const urlField = document.getElementById('submit-url-field');
+    if (type === 'dapp') {
+        contractField.classList.remove('hidden');
+        urlField.querySelector('label').textContent = 'DApp URL';
+    } else {
+        contractField.classList.add('hidden');
+        urlField.querySelector('label').textContent = type === 'eco' ? '店铺 URL / 独立站' : 'App URL / Deep Link';
+    }
+}
+
+function submitApp() {
+    const name = document.getElementById('submit-name').value.trim();
+    const dev = document.getElementById('submit-dev').value.trim();
+    const contact = document.getElementById('submit-contact').value.trim();
+    if (!submitType) { showToast('请选择 App 类型', '⚠️'); return; }
+    if (!name) { showToast('请填写 App 名称', '⚠️'); return; }
+    if (!dev) { showToast('请填写开发者/公司', '⚠️'); return; }
+    if (!contact) { showToast('请填写联系方式', '⚠️'); return; }
+    showToast('申请已提交 · 我们将在 3 个工作日内联系您', '✅');
+    setTimeout(backToHome, 1500);
+}
+
+// ============================================================
+// 工具函数
+// ============================================================
+function backToHome() {
+    showView('view-home');
+}
+
+function showToast(msg, icon) {
+    const t = document.getElementById('toast');
+    t.textContent = (icon ? icon + ' ' : '') + msg;
+    t.classList.remove('hidden');
+    t.classList.add('toast');
+    setTimeout(() => { t.classList.add('hidden'); t.classList.remove('toast'); }, 2200);
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+renderHome();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Node 产品公共框架 - v2.0 (5 Tab)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Premium Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lightbg: '#f8fafc',
+                        'slate-955': '#0f172a',
+                        'slate-655': '#475569',
+                        'slate-350': '#cbd5e1',
+                        'slate-505': '#94a3b8',
+                        'indigo-55': '#6366f1',
+                        'indigo-650': '#4f46e5',
+                    },
+                    fontFamily: {
+                        display: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .font-display { font-family: 'Outfit', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .premium-card { background: white; border: 1px solid rgba(226,232,240,0.8); box-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 1px 2px rgba(15,23,42,0.02); }
+        .active-scale { transition: transform 0.1s; }
+        .active-scale:active { transform: scale(0.97); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .overlay-blur { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); }
+        .module-entry { transition: all 0.15s; }
+        .module-entry:active { transform: scale(0.98); background: rgba(241,245,249,0.8); }
+        .placeholder-badge { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+        .pill-active { background: white; color: #0f172a; border-radius: 9999px; }
+        .pill-inactive { color: rgba(255,255,255,0.7); background: transparent; padding-left: 0.5rem !important; padding-right: 0.5rem !important; justify-content: center !important; }
+        .pill-inactive .tab-label { display: none; }
+        .tab-bar-blur { background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .gradient-brand { background: linear-gradient(135deg, #6d5efc 0%, #8b7fff 100%); }
+        .gradient-im { background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%); }
+        .gradient-eco { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .gradient-web3 { background: linear-gradient(135deg, #8b5cf6 0%, #6d5efc 100%); }
+        .gradient-official { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+        .card-shadow { box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04); }
+        .card-shadow-lg { box-shadow: 0 4px 24px rgba(109,94,252,0.12), 0 1px 3px rgba(15,23,42,0.06); }
+        .app-icon-shadow { box-shadow: 0 2px 8px rgba(15,23,42,0.1); }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+<div id="phone-frame" class="mx-auto relative bg-white shadow-2xl" style="width:390px; height:844px; overflow:hidden;">
+
+    <!-- ========== 状态栏 ========== -->
+    <div class="absolute top-0 inset-x-0 h-11 flex items-center justify-between px-6 text-xs font-bold text-slate-900 z-50">
+        <span class="font-mono">9:41</span>
+        <div class="flex items-center space-x-1">
+            <span class="text-[10px]">●●●</span>
+            <span class="text-[10px]">📶</span>
+            <span class="text-[10px]">🔋</span>
+        </div>
+    </div>
+
+    <!-- ========== App 主布局 ========== -->
+    <div id="app-main-layout" class="absolute inset-0 pt-11 flex flex-col bg-lightbg">
+
+        <!-- App Header(随 Tab 切换标题) -->
+        <header class="px-5 py-3.5 flex justify-between items-center bg-white border-b border-slate-100 flex-shrink-0">
+            <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-xs font-black">N</div>
+                <h1 id="app-title" class="text-base font-black text-slate-900 font-display">冷钱包</h1>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="showToast('扫码功能 - 占位','📷')" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale">
+                    <span class="text-sm">📷</span>
+                </button>
+                <button onclick="showToast('设置 - 占位','⚙️')" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale">
+                    <span class="text-sm">⚙️</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- ========== Tab 1: 冷钱包舱内容 ========== -->
+        <div id="view-wallet-content" class="flex-1 overflow-y-auto hide-scrollbar p-5 space-y-4 pb-28">
+
+            <!-- 资产总览卡片 -->
+            <div class="p-5 bg-slate-900 text-white rounded-3xl relative overflow-hidden shadow-lg">
+                <div class="absolute -right-10 -bottom-10 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">自管冷钱包总资产</span>
+                        <div class="flex items-center space-x-2 mt-1">
+                            <h2 class="text-3xl font-black font-mono tracking-tight">$2,450.80</h2>
+                            <button onclick="toggleBalanceMask()" class="text-slate-400 text-sm" id="balance-eye">👁️</button>
+                        </div>
+                        <p class="text-[10px] text-emerald-400 mt-0.5 font-mono">+2.4% (24h)</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 mt-4 pt-3 border-t border-white/10 text-[9px] text-slate-300 font-mono">
+                    <span class="text-slate-500">地址:</span>
+                    <span id="wallet-addr-short">0x71C7...98A5</span>
+                    <button onclick="copyAddress()" class="text-indigo-400">📋</button>
+                </div>
+            </div>
+
+            <!-- 收发控制 4 按钮 -->
+            <div class="grid grid-cols-4 gap-2">
+                <div onclick="openModule('swap')" class="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200/80 rounded-xl cursor-pointer hover:bg-slate-50 active-scale module-entry">
+                    <span class="text-lg">🔄</span>
+                    <span class="text-[9px] font-bold text-slate-650 mt-1">Swap兑换</span>
+                </div>
+                <div onclick="openModule('faucet')" class="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200/80 rounded-xl cursor-pointer hover:bg-slate-50 active-scale module-entry">
+                    <span class="text-lg">🪂</span>
+                    <span class="text-[9px] font-bold text-slate-650 mt-1">测试币</span>
+                </div>
+                <div onclick="showToast('发送资产 - 占位','📤')" class="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200/80 rounded-xl cursor-pointer hover:bg-slate-50 active-scale module-entry">
+                    <span class="text-lg">📤</span>
+                    <span class="text-[9px] font-bold text-slate-650 mt-1">发送</span>
+                </div>
+                <div onclick="showToast('接收资产 - 占位','📥')" class="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200/80 rounded-xl cursor-pointer hover:bg-slate-50 active-scale module-entry">
+                    <span class="text-lg">📥</span>
+                    <span class="text-[9px] font-bold text-slate-650 mt-1">接收</span>
+                </div>
+            </div>
+
+            <!-- 资产持仓明细 -->
+            <div class="premium-card rounded-2xl p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">资产持仓明细</h3>
+                    <button onclick="showToast('管理代币 - 占位','⚙️')" class="text-[9px] text-indigo-600 font-bold">管理</button>
+                </div>
+                <div class="space-y-3" id="holdings-list">
+                    <div onclick="openCoinDetail('RC')" class="flex justify-between items-center text-xs cursor-pointer module-entry p-1.5 rounded-lg">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-7 h-7 rounded-full bg-slate-100 text-slate-800 font-bold flex items-center justify-center text-xs border border-slate-200">RC</div>
+                            <div>
+                                <p class="font-bold">RC Token</p>
+                                <p class="text-[8px] text-slate-400">Gas 原生代币</p>
+                            </div>
+                        </div>
+                        <div class="text-right font-mono">
+                            <p class="font-bold text-slate-800">125.00 RC</p>
+                            <p class="text-[8px] text-slate-400">≈ $2.50</p>
+                        </div>
+                    </div>
+                    <div onclick="openCoinDetail('USDRs')" class="flex justify-between items-center text-xs cursor-pointer module-entry p-1.5 rounded-lg">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-650 font-bold flex items-center justify-center text-xs border border-indigo-100">USDR</div>
+                            <div>
+                                <p class="font-bold">USDR Stable</p>
+                                <p class="text-[8px] text-slate-400">生态结算代币</p>
+                            </div>
+                        </div>
+                        <div class="text-right font-mono">
+                            <p class="font-bold text-slate-800">2,448.30 USDR</p>
+                            <p class="text-[8px] text-slate-400">≈ $2,448.30</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 钱包管理入口 -->
+            <div onclick="openModule('wallet-manage')" class="premium-card rounded-2xl p-4 cursor-pointer module-entry flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-base">💳</div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800">钱包管理</h4>
+                        <p class="text-[9px] text-slate-400 mt-0.5">创建 / 导入 / 重命名 / 导出私钥 / 注销</p>
+                    </div>
+                </div>
+                <span class="text-slate-350">›</span>
+            </div>
+        </div>
+
+        <!-- ========== Tab 2: 身份内容(原服务舱) ========== -->
+        <div id="view-service-content" class="flex-1 overflow-y-auto hide-scrollbar px-5 py-4 space-y-4 pb-28 hidden">
+
+            <!-- 福利特权 -->
+            <div class="premium-card rounded-2xl p-5 relative overflow-hidden">
+                <div class="relative z-10">
+                    <!-- 标题行 -->
+                    <div onclick="openModule('welfare')" class="flex items-center justify-between mb-4 cursor-pointer group module-entry">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-xl">🎁</div>
+                            <div>
+                                <h4 class="text-base font-black text-slate-800 font-display">福利特权</h4>
+                                <p class="text-[11px] text-slate-400 mt-0.5">空投 · 资产 · 互动</p>
+                            </div>
+                        </div>
+                        <span class="text-lg font-black text-slate-300 group-hover:text-slate-400">›</span>
+                    </div>
+                    <!-- 3 模块卡片 -->
+                    <div class="grid grid-cols-3 gap-3 pt-3.5 border-t border-slate-100">
+                        <div onclick="openWelfareModule('airdrop')" class="flex flex-col items-center p-3 rounded-xl bg-slate-50 hover:bg-slate-100 cursor-pointer active-scale module-entry">
+                            <span class="text-2xl">🪂</span>
+                            <span class="text-[11px] font-bold text-slate-700 mt-1.5">空投</span>
+                            <span class="text-[9px] text-slate-400 mt-0.5">0 待领</span>
+                        </div>
+                        <div onclick="openWelfareModule('asset')" class="flex flex-col items-center p-3 rounded-xl bg-slate-50 hover:bg-slate-100 cursor-pointer active-scale module-entry">
+                            <span class="text-2xl">💰</span>
+                            <span class="text-[11px] font-bold text-slate-700 mt-1.5">资产</span>
+                            <span class="text-[9px] text-slate-400 mt-0.5">0 待领</span>
+                        </div>
+                        <div onclick="openWelfareModule('interaction')" class="flex flex-col items-center p-3 rounded-xl bg-slate-50 hover:bg-slate-100 cursor-pointer active-scale module-entry">
+                            <span class="text-2xl">🎯</span>
+                            <span class="text-[11px] font-bold text-slate-700 mt-1.5">互动</span>
+                            <span class="text-[9px] text-slate-400 mt-0.5">0 待领</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 安全与保障 -->
+            <div>
+                <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">安全与保障</h3>
+                <div class="premium-card rounded-2xl overflow-hidden">
+                    <!-- 保险库 -->
+                    <div onclick="openModule('vault')" class="flex items-center justify-between px-5 py-4 cursor-pointer active-scale module-entry border-b border-slate-100">
+                        <div class="flex items-center space-x-3.5">
+                            <div class="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-lg">🛡️</div>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800">保险库</h4>
+                                <p class="text-[10px] text-slate-400 mt-0.5">设备绑定与密钥保险箱能力</p>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 bg-teal-50 text-teal-600 text-[9px] font-bold rounded-full">已激活</span>
+                    </div>
+                    <!-- 数字身份通行证 -->
+                    <div onclick="openModule('did-pass')" class="flex items-center justify-between px-5 py-4 cursor-pointer active-scale module-entry">
+                        <div class="flex items-center space-x-3.5">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-lg">🔑</div>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800">数字身份通行证(DID Pass)</h4>
+                                <p class="text-[10px] text-slate-400 mt-0.5">管理多链钱包与 Web2 身份</p>
+                            </div>
+                        </div>
+                        <span class="text-[9px] text-indigo-600 font-bold">0 个关联</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========== Tab 3: 团队内容(Aeon R9 关系网络) ========== -->
+        <div id="view-relation-content" class="flex-1 overflow-y-auto hide-scrollbar px-5 py-4 space-y-4 pb-28 hidden">
+
+            <!-- 身份切换器 -->
+            <div class="bg-slate-900 text-white rounded-2xl p-4 relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10 flex items-center justify-between">
+                    <div>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">当前身份</span>
+                        <div class="flex items-center space-x-2 mt-1">
+                            <span class="text-base font-black font-mono">#100001</span>
+                            <span class="text-[10px] text-slate-400">· 已绑定</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 font-mono mt-0.5">0x71C7...98A5</p>
+                    </div>
+                    <button onclick="showToast('切换身份','🔄')" class="px-3 py-1.5 bg-white/10 rounded-full text-[10px] font-bold active-scale">切换 ▾</button>
+                </div>
+            </div>
+
+            <!-- 推广中心 -->
+            <div onclick="showToast('推广中心 - 占位','📣')" class="premium-card rounded-2xl p-4 cursor-pointer module-entry flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-base">📣</div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800">推广中心</h4>
+                        <p class="text-[10px] text-slate-400 mt-0.5">绑定上级 · 短号 · 二维码 · 邀请链接</p>
+                    </div>
+                </div>
+                <span class="text-slate-350">›</span>
+            </div>
+
+            <!-- 我的团队 -->
+            <div onclick="showToast('我的团队 - 占位','👥')" class="premium-card rounded-2xl p-4 cursor-pointer module-entry">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-base">👥</div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-800">我的团队</h4>
+                            <p class="text-[10px] text-slate-400 mt-0.5">上下级关系树 + L1/L2/L3 明细</p>
+                        </div>
+                    </div>
+                    <span class="text-slate-350">›</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
+                    <div class="text-center">
+                        <p class="text-base font-black font-mono text-slate-900">12</p>
+                        <p class="text-[9px] text-slate-400 mt-0.5">L1 直推</p>
+                    </div>
+                    <div class="text-center border-x border-slate-100">
+                        <p class="text-base font-black font-mono text-slate-900">48</p>
+                        <p class="text-[9px] text-slate-400 mt-0.5">L2 间推</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-base font-black font-mono text-slate-900">156</p>
+                        <p class="text-[9px] text-slate-400 mt-0.5">L3 再推</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 佣金明细 -->
+            <div onclick="showToast('佣金明细 - 占位','💰')" class="premium-card rounded-2xl p-4 cursor-pointer module-entry flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-base">💰</div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800">佣金明细</h4>
+                        <p class="text-[10px] text-slate-400 mt-0.5">L1/L2/L3 分账 + 年费分润</p>
+                    </div>
+                </div>
+                <span class="text-[9px] text-emerald-600 font-bold">+128.50</span>
+            </div>
+
+            <!-- 待分配池 -->
+            <div onclick="showToast('待分配池 - 占位','🗂️')" class="premium-card rounded-2xl p-4 cursor-pointer module-entry flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-base">🗂️</div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800">待分配池</h4>
+                        <p class="text-[10px] text-slate-400 mt-0.5">孤儿单认领(仅代理/公司可见)</p>
+                    </div>
+                </div>
+                <span class="px-2 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-bold rounded-full">3 待认领</span>
+            </div>
+
+        </div>
+
+        <!-- ========== Tab 4: 商城内容(成交型归因商品商城) ========== -->
+        <div id="view-mall-content" class="flex-1 overflow-y-auto hide-scrollbar pb-28 hidden">
+
+            <!-- 顶部搜索栏 -->
+            <div class="px-4 py-3 flex items-center space-x-3 bg-white border-b border-slate-100">
+                <button onclick="showToast('卖家中心 - 占位','🏪')" class="w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center active-scale border border-slate-100">
+                    <span class="text-base">🏪</span>
+                </button>
+                <div onclick="showToast('搜索商品 - 占位','🔍')" class="flex-1 bg-slate-100 rounded-full px-4 py-2 flex items-center space-x-2">
+                    <span class="text-xs text-slate-400">🔍</span>
+                    <span class="text-xs text-slate-400">搜索商品</span>
+                </div>
+                <button onclick="showToast('我的订单 - 占位','📦')" class="w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center active-scale border border-slate-100 relative">
+                    <span class="text-base">📦</span>
+                </button>
+            </div>
+
+            <!-- Banner -->
+            <div class="px-4 pt-4">
+                <div class="relative rounded-2xl overflow-hidden card-shadow-lg active-scale" onclick="showToast('Banner - 占位','🎉')">
+                    <div class="gradient-brand p-4 relative">
+                        <div class="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                        <div class="relative z-10">
+                            <span class="text-[9px] font-bold text-white/80 uppercase tracking-widest">成交即绑定</span>
+                            <h3 class="text-base font-black text-white font-display mt-1">购买即绑定 · 永久关系</h3>
+                            <p class="text-[10px] text-white/70 mt-1">最强成交型获客渠道</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 金刚位分类 -->
+            <div class="px-4 pt-4">
+                <div class="grid grid-cols-5 gap-2">
+                    <div onclick="showToast('实物商品 - 占位','📦')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-eco flex items-center justify-center text-xl app-icon-shadow">📦</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">实物</span>
+                    </div>
+                    <div onclick="showToast('硬件钥匙 - 占位','🔑')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-official flex items-center justify-center text-xl app-icon-shadow">🔑</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">硬件</span>
+                    </div>
+                    <div onclick="showToast('虚拟商品 - 占位','🎫')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-web3 flex items-center justify-center text-xl app-icon-shadow">🎫</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">虚拟</span>
+                    </div>
+                    <div onclick="showToast('服务商品 - 占位','🛠️')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-im flex items-center justify-center text-xl app-icon-shadow">🛠️</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">服务</span>
+                    </div>
+                    <div onclick="showToast('分销商 - 占位','🏪')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-xl app-icon-shadow">🏪</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">分销商</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 双列商品卡片 -->
+            <div class="px-4 pt-4">
+                <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">精选商品</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div onclick="showToast('商品详情 - 占位','📦')" class="bg-white rounded-2xl overflow-hidden card-shadow active-scale">
+                        <div class="aspect-square gradient-eco flex items-center justify-center text-4xl">🔑</div>
+                        <div class="p-2.5">
+                            <p class="text-xs font-bold text-slate-900 truncate">硬件钥匙 Pro</p>
+                            <p class="text-[9px] text-slate-400 mt-0.5 truncate">官方硬件钱包</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <span class="text-sm font-black font-mono text-rose-600">¥299</span>
+                                <span class="text-[8px] text-slate-400">12 销</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div onclick="showToast('商品详情 - 占位','📦')" class="bg-white rounded-2xl overflow-hidden card-shadow active-scale">
+                        <div class="aspect-square gradient-web3 flex items-center justify-center text-4xl">🎫</div>
+                        <div class="p-2.5">
+                            <p class="text-xs font-bold text-slate-900 truncate">VIP 会员月卡</p>
+                            <p class="text-[9px] text-slate-400 mt-0.5 truncate">虚拟权益</p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <span class="text-sm font-black font-mono text-rose-600">99 USDR</span>
+                                <span class="text-[8px] text-slate-400">86 销</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========== Tab 5: App 市场内容(第三方应用分发) ========== -->
+        <div id="view-appmarket-content" class="flex-1 overflow-y-auto hide-scrollbar pb-28 hidden">
+
+            <!-- 顶部搜索栏 -->
+            <div class="px-4 py-3 flex items-center space-x-3 bg-white border-b border-slate-100">
+                <button onclick="showToast('上架 App - 占位','📤')" class="w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center active-scale border border-slate-100">
+                    <span class="text-base">📤</span>
+                </button>
+                <div onclick="showToast('搜索 App - 占位','🔍')" class="flex-1 bg-slate-100 rounded-full px-4 py-2 flex items-center space-x-2">
+                    <span class="text-xs text-slate-400">🔍</span>
+                    <span class="text-xs text-slate-400">搜索 App / DApp / 开发者</span>
+                </div>
+                <button onclick="showToast('我的应用 - 占位','📱')" class="w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center active-scale border border-slate-100 relative">
+                    <span class="text-base">📱</span>
+                    <span class="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">3</span>
+                </button>
+            </div>
+
+            <!-- Banner -->
+            <div class="px-4 pt-4">
+                <div class="relative rounded-2xl overflow-hidden card-shadow-lg active-scale" onclick="showToast('Web3 App 节','🎉')">
+                    <div class="gradient-brand p-4 relative">
+                        <div class="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                        <div class="absolute right-4 bottom-2 text-5xl opacity-30">🚀</div>
+                        <div class="relative z-10">
+                            <span class="text-[9px] font-bold text-white/80 uppercase tracking-widest">本周特惠</span>
+                            <h3 class="text-base font-black text-white font-display mt-1">Web3 App 节 · 全场 8 折</h3>
+                            <p class="text-[10px] text-white/70 mt-1">官方 DApp 套件 + 精选合作方应用</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 金刚位分类 -->
+            <div class="px-4 pt-4">
+                <div class="grid grid-cols-5 gap-2">
+                    <div onclick="showToast('官方精选 - 占位','⭐')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-official flex items-center justify-center text-xl app-icon-shadow">⭐</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">官方</span>
+                    </div>
+                    <div onclick="showToast('IM 社交 - 占位','💬')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-im flex items-center justify-center text-xl app-icon-shadow">💬</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">IM</span>
+                    </div>
+                    <div onclick="showToast('跨境电商 - 占位','🛒')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-eco flex items-center justify-center text-xl app-icon-shadow">🛒</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">电商</span>
+                    </div>
+                    <div onclick="showToast('Web3 类 - 占位','🌐')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl gradient-web3 flex items-center justify-center text-xl app-icon-shadow">🌐</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">Web3</span>
+                    </div>
+                    <div onclick="showToast('我的应用 - 占位','📱')" class="flex flex-col items-center active-scale">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-xl app-icon-shadow">📱</div>
+                        <span class="text-[10px] font-bold text-slate-700 mt-1.5">我的</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 官方直营区 -->
+            <div class="pt-5">
+                <div class="px-4 flex items-center justify-between mb-2.5">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-sm font-black text-slate-900 font-display">官方直营</span>
+                        <span class="gradient-official text-[9px] font-bold px-1.5 py-0.5 rounded text-white">OFFICIAL</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400 font-bold">全部 ›</span>
+                </div>
+                <div class="overflow-x-auto hide-scrollbar">
+                    <div class="flex space-x-3 px-4 pb-1">
+                        <div onclick="showToast('Node Swap - 占位','🔄')" class="flex-shrink-0 w-32 bg-white rounded-2xl p-3 card-shadow active-scale">
+                            <div class="w-14 h-14 rounded-2xl gradient-brand flex items-center justify-center text-2xl app-icon-shadow">🔄</div>
+                            <p class="text-xs font-bold text-slate-900 mt-2 truncate">Node Swap</p>
+                            <div class="flex items-center space-x-1 mt-0.5">
+                                <span class="gradient-official text-white text-[8px] font-bold px-1 py-0.5 rounded">官方</span>
+                                <span class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1 py-0.5 rounded">DApp</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-1 font-mono">★ 4.9 · 50万+</p>
+                        </div>
+                        <div onclick="showToast('Node Staking - 占位','💎')" class="flex-shrink-0 w-32 bg-white rounded-2xl p-3 card-shadow active-scale">
+                            <div class="w-14 h-14 rounded-2xl gradient-brand flex items-center justify-center text-2xl app-icon-shadow">💎</div>
+                            <p class="text-xs font-bold text-slate-900 mt-2 truncate">Node Staking</p>
+                            <div class="flex items-center space-x-1 mt-0.5">
+                                <span class="gradient-official text-white text-[8px] font-bold px-1 py-0.5 rounded">官方</span>
+                                <span class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1 py-0.5 rounded">DApp</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-1 font-mono">★ 4.8 · 12万+</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 热门 Web3 App -->
+            <div class="pt-5">
+                <div class="px-4 flex items-center justify-between mb-2.5">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-sm font-black text-slate-900 font-display">热门 Web3 App</span>
+                        <span class="bg-violet-50 text-violet-600 text-[9px] font-bold px-1.5 py-0.5 rounded">App 优先</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400 font-bold">全部 ›</span>
+                </div>
+                <div class="overflow-x-auto hide-scrollbar">
+                    <div class="flex space-x-3 px-4 pb-1">
+                        <div onclick="showToast('Phantom - 占位','👻')" class="flex-shrink-0 w-32 bg-white rounded-2xl p-3 card-shadow active-scale">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-2xl app-icon-shadow">👻</div>
+                            <p class="text-xs font-bold text-slate-900 mt-2 truncate">Phantom</p>
+                            <div class="flex items-center space-x-1 mt-0.5">
+                                <span class="bg-blue-500 text-white text-[8px] font-bold px-1 py-0.5 rounded">认证</span>
+                                <span class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1 py-0.5 rounded">App</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-1 font-mono">★ 4.8 · 500万+</p>
+                        </div>
+                        <div onclick="showToast('STEPN - 占位','🏃')" class="flex-shrink-0 w-32 bg-white rounded-2xl p-3 card-shadow active-scale">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-2xl app-icon-shadow">🏃</div>
+                            <p class="text-xs font-bold text-slate-900 mt-2 truncate">STEPN</p>
+                            <div class="flex items-center space-x-1 mt-0.5">
+                                <span class="bg-blue-500 text-white text-[8px] font-bold px-1 py-0.5 rounded">认证</span>
+                                <span class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1 py-0.5 rounded">App</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-1 font-mono">★ 4.6 · 1000万+</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-4"></div>
+        </div>
+
+    </div>
+
+    <!-- ========== 底部黑色胶囊导航(5 Tab) ========== -->
+    <nav class="absolute bottom-6 inset-x-4 h-14 bg-black rounded-full flex items-center justify-between px-2 shadow-[0_8px_30px_rgba(0,0,0,0.35)] z-40">
+        <button id="tab-wallet" onclick="switchTab('wallet')" class="pill-active flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">💳</span>
+            <span class="tab-label text-[10px] font-bold">冷钱包</span>
+        </button>
+        <button id="tab-service" onclick="switchTab('service')" class="pill-inactive flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">🆔</span>
+            <span class="tab-label text-[10px] font-bold">身份</span>
+        </button>
+        <button id="tab-relation" onclick="switchTab('relation')" class="pill-inactive flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">👥</span>
+            <span class="tab-label text-[10px] font-bold">团队</span>
+        </button>
+        <button id="tab-mall" onclick="switchTab('mall')" class="pill-inactive flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">🛍️</span>
+            <span class="tab-label text-[10px] font-bold">商城</span>
+        </button>
+        <button id="tab-appmarket" onclick="switchTab('appmarket')" class="pill-inactive flex items-center space-x-1 px-3.5 py-2 transition-all active-scale">
+            <span class="text-sm">📱</span>
+            <span class="tab-label text-[10px] font-bold">App</span>
+        </button>
+    </nav>
+
+    <!-- ========== 二级页面占位容器(模块详情后续分模块填充) ========== -->
+    <div id="view-module-detail" class="absolute inset-0 bg-lightbg z-[45] hidden flex flex-col pt-11">
+        <header class="px-5 py-3.5 flex justify-between items-center bg-white border-b border-slate-100 flex-shrink-0">
+            <button onclick="closeModuleDetail()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center hover:text-slate-800 active-scale flex-shrink-0">
+                ‹
+            </button>
+            <h1 id="detail-title" class="text-sm font-black text-slate-900 font-display">模块详情</h1>
+            <div class="w-8"></div>
+        </header>
+        <div id="module-detail-content" class="flex-grow overflow-y-auto hide-scrollbar p-5">
+            <!-- 动态内容区:后续各模块分模块填充 demo -->
+            <div class="flex flex-col items-center justify-center h-full text-center">
+                <div class="text-5xl mb-4" id="detail-icon">📦</div>
+                <h3 class="text-base font-black text-slate-900 font-display mb-1" id="detail-name">模块名称</h3>
+                <p class="text-xs text-slate-400 mb-4" id="detail-desc">模块描述</p>
+                <div class="px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+                    <p class="text-[10px] text-amber-700 font-bold">📌 详情页待分模块补充</p>
+                    <p class="text-[9px] text-amber-600 mt-0.5">此为公共框架,各模块详情后续独立制作 demo</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== Toast 容器 ========== -->
+    <div id="toast-container" class="absolute top-14 inset-x-0 z-[60] flex flex-col items-center pointer-events-none"></div>
+
+</div>
+
+<script>
+    // ========== 模块配置 ==========
+    const moduleConfig = {
+        'swap': { icon: '🔄', name: 'Swap 兑换', desc: '自主链代币两两兑换', placeholder: true },
+        'faucet': { icon: '🪂', name: 'Faucet 测试币', desc: '每24h领取5 RC,Gas不足平台代发', placeholder: true },
+        'wallet-manage': { icon: '💳', name: '钱包管理', desc: '创建/导入/重命名/导出私钥/注销', placeholder: true },
+        'welfare': { icon: '🎁', name: '福利特权中心', desc: '7模块:消息/会员/空投/积分/任务/邀请/帮助', placeholder: true },
+        'vault': { icon: '🛡️', name: 'Goose 保险库', desc: '设备指纹钥匙 + 虚拟权益舱', placeholder: true },
+        'did-pass': { icon: '🔑', name: '数字身份通行证', desc: 'Web3钱包 + Web2凭证管理', placeholder: true },
+    };
+
+    const welfareModuleConfig = {
+        'airdrop': { icon: '🪂', name: '空投', desc: '空投活动列表与领取', placeholder: true },
+        'asset': { icon: '💰', name: '资产', desc: '持仓返利与资产权益', placeholder: true },
+        'interaction': { icon: '🎯', name: '互动', desc: '互动激励与任务', placeholder: true },
+    };
+
+    // ========== Tab 切换(5 Tab 胶囊导航) ==========
+    const tabConfig = {
+        'wallet':    { viewId: 'view-wallet-content',    tabId: 'tab-wallet',    title: '冷钱包' },
+        'service':   { viewId: 'view-service-content',   tabId: 'tab-service',   title: '身份' },
+        'relation':  { viewId: 'view-relation-content',  tabId: 'tab-relation',  title: '团队' },
+        'mall':      { viewId: 'view-mall-content',      tabId: 'tab-mall',      title: '商城' },
+        'appmarket': { viewId: 'view-appmarket-content', tabId: 'tab-appmarket', title: 'App市场' },
+    };
+
+    function switchTab(tab) {
+        const cfg = tabConfig[tab];
+        if (!cfg) return;
+
+        // 隐藏所有视图,重置所有 Tab 为 pill-inactive
+        Object.values(tabConfig).forEach(c => {
+            document.getElementById(c.viewId).classList.add('hidden');
+            const tabEl = document.getElementById(c.tabId);
+            tabEl.className = 'pill-inactive flex items-center space-x-1 px-3.5 py-2 transition-all active-scale';
+        });
+
+        // 显示当前视图,当前 Tab 设为 pill-active
+        document.getElementById(cfg.viewId).classList.remove('hidden');
+        document.getElementById(cfg.tabId).className = 'pill-active flex items-center space-x-1 px-3.5 py-2 transition-all active-scale';
+
+        // 更新标题
+        document.getElementById('app-title').textContent = cfg.title;
+    }
+
+    // ========== 模块入口 ==========
+    function openModule(key) {
+        const cfg = moduleConfig[key];
+        if (!cfg) return;
+        showModuleDetail(cfg);
+    }
+
+    function openWelfareModule(key) {
+        const cfg = welfareModuleConfig[key];
+        if (!cfg) return;
+        showModuleDetail(cfg);
+    }
+
+    function openCoinDetail(symbol) {
+        showModuleDetail({
+            icon: '🪙',
+            name: symbol + ' 币种详情',
+            desc: '余额 + 操作入口 + 价格走势 + 交易记录',
+            placeholder: true
+        });
+    }
+
+    function showModuleDetail(cfg) {
+        document.getElementById('detail-icon').textContent = cfg.icon;
+        document.getElementById('detail-name').textContent = cfg.name;
+        document.getElementById('detail-desc').textContent = cfg.desc;
+        document.getElementById('view-module-detail').classList.remove('hidden');
+    }
+
+    function closeModuleDetail() {
+        document.getElementById('view-module-detail').classList.add('hidden');
+    }
+
+    // ========== 工具函数 ==========
+    function toggleBalanceMask() {
+        const eye = document.getElementById('balance-eye');
+        const balance = document.querySelector('#view-wallet-content h2');
+        if (eye.textContent === '👁️') {
+            eye.textContent = '🙈';
+            balance.textContent = '****';
+            showToast('资产已隐藏', '🙈');
+        } else {
+            eye.textContent = '👁️';
+            balance.textContent = '$2,450.80';
+            showToast('资产已显示', '👁️');
+        }
+    }
+
+    function copyAddress() {
+        const addr = '0x71C7656EC7ab88b098defB751B7401B5f6d898A5';
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(addr).then(() => showToast('地址已复制', '📋'));
+        } else {
+            showToast('地址已复制: ' + addr.slice(0,10) + '...', '📋');
+        }
+    }
+
+    // ========== Toast ==========
+    function showToast(message, icon = '✨') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'mb-2 px-4 py-2.5 bg-slate-900/95 text-white text-xs font-bold rounded-full shadow-lg flex items-center space-x-2 pointer-events-auto';
+        toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.transition = 'opacity 0.3s, transform 0.3s';
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-10px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    }
+
+    // ========== Debug 状态(开发用) ==========
+    function showDebugStatus() {
+        console.log('Node App Framework v2.0 - 5 Tab 公共框架已加载');
+        console.log('5 Tab: 冷钱包 / 身份 / 团队 / 商城 / App市场');
+        console.log('冷钱包 Tab1 模块入口: swap / faucet / wallet-manage');
+        console.log('身份 Tab2 模块入口: welfare / vault / did-pass');
+        console.log('团队/商城/App市场 为首页占位,详情页见各自独立 demo');
+    }
+
+    // 初始化
+    showDebugStatus();
+</script>
+
+</body>
+</html>

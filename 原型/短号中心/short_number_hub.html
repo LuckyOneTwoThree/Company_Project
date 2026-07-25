@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>短号中心 - Node (v1.0)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lightbg: '#f8fafc',
+                        'slate-655': '#475569',
+                        'slate-350': '#cbd5e1',
+                        'indigo-650': '#4f46e5',
+                    },
+                    fontFamily: {
+                        display: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .font-display { font-family: 'Outfit', 'sans-serif'; }
+        .font-mono { font-family: 'JetBrains Mono', 'monospace'; }
+        .premium-card { background: white; border: 1px solid rgba(226,232,240,0.8); box-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 1px 2px rgba(15,23,42,0.02); }
+        .active-scale { transition: transform 0.1s; }
+        .active-scale:active { transform: scale(0.97); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .overlay-blur { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); }
+        .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .gradient-premium { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+        .gradient-free { background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+<div id="phone-frame" class="mx-auto relative bg-white shadow-2xl" style="width:390px; height:844px; overflow:hidden;">
+
+    <!-- 状态栏 -->
+    <div class="absolute top-0 inset-x-0 h-11 flex items-center justify-between px-6 text-xs font-bold text-slate-900 z-50">
+        <span class="font-mono">9:41</span>
+        <div class="flex items-center space-x-1">
+            <span class="text-[10px]">●●●</span><span class="text-[10px]">📶</span><span class="text-[10px]">🔋</span>
+        </div>
+    </div>
+
+    <!-- 主布局 -->
+    <div class="absolute inset-0 pt-11 flex flex-col bg-lightbg">
+
+        <!-- Header -->
+        <header class="px-5 py-3 flex justify-between items-center bg-white border-b border-slate-100 flex-shrink-0">
+            <button onclick="goBack()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale">
+                <span class="text-sm">‹</span>
+            </button>
+            <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-xs font-black">N</div>
+                <h1 class="text-base font-black text-slate-900 font-display">短号中心</h1>
+            </div>
+            <button onclick="openHistoryModal()" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center active-scale">
+                <span class="text-sm">📋</span>
+            </button>
+        </header>
+
+        <!-- 主内容 -->
+        <div class="flex-1 overflow-y-auto hide-scrollbar px-5 py-4 space-y-4 pb-8">
+
+            <!-- 锚定地址卡 -->
+            <div class="p-5 bg-slate-900 text-white rounded-3xl relative overflow-hidden shadow-lg">
+                <div class="absolute -right-10 -bottom-10 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                <div class="absolute -left-6 -top-6 w-20 h-20 bg-amber-500/5 rounded-full blur-2xl"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">当前锚定地址</span>
+                        <button onclick="openWalletSwitcher()" class="text-[9px] text-indigo-400 font-bold active-scale flex items-center space-x-0.5">
+                            <span>切换钱包</span><span>›</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-base">👛</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold truncate" id="anchor-wallet-name">自管钱包 - 地址A</p>
+                            <p class="text-[10px] text-slate-400 font-mono mt-0.5" id="anchor-wallet-addr">0x71C7...898A5</p>
+                        </div>
+                        <span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 text-[9px] font-bold rounded-full border border-indigo-400/20 flex-shrink-0" id="anchor-wallet-chain">OBChain</span>
+                    </div>
+                    <div class="flex items-center space-x-4 text-[10px] pt-3 border-t border-slate-700/50">
+                        <span class="flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                            <span class="text-slate-400">靓号</span>
+                            <span class="font-bold text-amber-400" id="stat-premium">1</span>
+                        </span>
+                        <span class="flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                            <span class="text-slate-400">免费号</span>
+                            <span class="font-bold text-blue-400" id="stat-free">1</span>
+                        </span>
+                        <span class="text-slate-500">·</span>
+                        <span class="text-slate-400">共 <span class="font-bold text-white" id="stat-total">2</span> 个</span>
+                    </div>
+                    <div id="anchor-default-row" class="hidden mt-2.5 pt-2.5 border-t border-slate-700/40 flex items-center justify-between text-[10px]">
+                        <span class="flex items-center space-x-1.5 text-slate-400">
+                            <span class="text-amber-400">⭐</span>
+                            <span>默认展示短号</span>
+                        </span>
+                        <span class="font-mono font-bold text-amber-300" id="anchor-default-num">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主Tab -->
+            <div class="flex bg-slate-100 p-1 rounded-2xl">
+                <button id="tab-my" onclick="switchMainTab('my')" class="flex-1 py-2.5 text-xs font-bold rounded-xl bg-white text-indigo-650 shadow-sm transition-all active-scale">💾 我的短号</button>
+                <button id="tab-premium" onclick="switchMainTab('premium')" class="flex-1 py-2.5 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all active-scale">💎 购买靓号</button>
+                <button id="tab-free" onclick="switchMainTab('free')" class="flex-1 py-2.5 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all active-scale">🎁 免费号</button>
+            </div>
+
+            <!-- Tab 1: 我的短号 -->
+            <div id="content-my" class="space-y-3">
+                <div id="asset-list" class="space-y-3"></div>
+            </div>
+
+            <!-- Tab 2: 购买靓号 -->
+            <div id="content-premium" class="space-y-3.5 hidden">
+                <div class="text-[10px] text-slate-500 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-150">
+                    <span class="font-semibold text-slate-700">为当前锚定地址购买靓号</span>：购买的靓号将注册到 <span id="premium-context-addr" class="font-bold text-indigo-650 font-mono">0x71C7...898A5</span>。
+                    <span class="block mt-1 font-medium"><span class="text-amber-600">💎买靓号</span> 支持多链付款——可选择任意冷钱包付款并在当前网络注册。</span>
+                </div>
+
+                <div class="relative flex items-center">
+                    <input id="input-premium-search" type="text" placeholder="输入 5-8 位纯数字查价..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 outline-none focus:border-indigo-500 font-mono pr-20">
+                    <button onclick="searchPremiumNumber()" class="absolute right-2 px-3.5 py-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl active-scale">查价</button>
+                </div>
+
+                <div class="space-y-1">
+                    <span class="text-[9px] font-bold text-slate-400 tracking-wider uppercase">选择靓号位数</span>
+                    <div class="flex space-x-2 overflow-x-auto hide-scrollbar py-0.5">
+                        <button id="pill-digits-5" onclick="selectDigitLengthPill(5)" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full shadow-sm active-scale transition-all font-display">5 位</button>
+                        <button id="pill-digits-6" onclick="selectDigitLengthPill(6)" class="px-4 py-2 bg-slate-100 text-slate-655 text-xs font-semibold rounded-full hover:bg-slate-200 active-scale transition-all font-display">6 位</button>
+                        <button id="pill-digits-7" onclick="selectDigitLengthPill(7)" class="px-4 py-2 bg-slate-100 text-slate-655 text-xs font-semibold rounded-full hover:bg-slate-200 active-scale transition-all font-display">7 位</button>
+                        <button id="pill-digits-8" onclick="selectDigitLengthPill(8)" class="px-4 py-2 bg-slate-100 text-slate-655 text-xs font-semibold rounded-full hover:bg-slate-200 active-scale transition-all font-display">8 位</button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-0.5 pb-0.5">
+                    <span class="text-[9px] font-bold text-slate-400 tracking-wider uppercase">推荐靓号列表</span>
+                    <button onclick="triggerRandomNumbers()" class="text-indigo-650 hover:text-indigo-750 text-xs font-bold active-scale flex items-center space-x-0.5">
+                        <span>🔄</span><span>换一批</span>
+                    </button>
+                </div>
+
+                <div id="premium-search-result-box" class="hidden pb-1"></div>
+
+                <div id="premium-random-results-box">
+                    <div id="premium-random-grid" class="grid grid-cols-2 gap-2.5 p-0.5"></div>
+                </div>
+
+                <div class="border border-slate-150 rounded-2xl overflow-hidden bg-slate-50/50">
+                    <button onclick="toggleRulesAccordion()" class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-200/50 outline-none transition-all">
+                        <span class="flex items-center space-x-1.5">
+                            <span id="rules-accordion-arrow">▼</span>
+                            <span>定价与靓号规则说明</span>
+                        </span>
+                    </button>
+                    <div id="rules-accordion-content" class="px-4 pb-3 text-[10px] text-slate-500 space-y-1.5 border-t border-slate-150/40 pt-2.5">
+                        <p class="leading-relaxed">普通号基价：5位 1000 USDT 买断，位数每多一位价格为前者的 0.9 倍（6位900 / 7位810 / 8位729）。</p>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 pt-1 font-mono text-[9.5px]">
+                            <p>· 豹子 (全同): ×50 <span class="text-slate-400">(如 55555)</span></p>
+                            <p>· 顺子 (连号): ×20 <span class="text-slate-400">(如 12345)</span></p>
+                            <p>· 四连同 (4重): ×10 <span class="text-slate-400">(如 11112)</span></p>
+                            <p>· 三连+对 (葫芦): ×8 <span class="text-slate-400">(如 11122)</span></p>
+                            <p>· 双对子 (两对): ×5 <span class="text-slate-400">(如 11223)</span></p>
+                            <p>· 吉尾号 (尾数6/8): ×3 <span class="text-slate-400">(如 12388)</span></p>
+                            <p>· normal (普通): ×1</p>
+                        </div>
+                        <p class="text-[9px] text-indigo-500 mt-2">免费号：随机 10-12 位，自动避开所有靓号段。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: 免费号 -->
+            <div id="content-free" class="space-y-3.5 hidden">
+                <div id="short-free-normal" class="space-y-3.5">
+                    <p class="text-[10px] text-slate-500 leading-normal flex-shrink-0">
+                        系统为您随机生成 10 个免费短号 (10-12 位，不含靓号特征)。每个身份只能免费领取 1 次，领取后不可退换。
+                    </p>
+                    <div id="short-free-grid" class="grid grid-cols-2 gap-2.5 p-0.5"></div>
+                    <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100 flex-shrink-0">
+                        <button onclick="regenerateFreeNumbers()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active-scale flex items-center space-x-1 border border-slate-200/50">
+                            <span>🔄</span><span>换一批</span>
+                        </button>
+                        <button id="btn-claim-free" onclick="claimFreeNumber()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-bold rounded-xl active-scale" disabled>领取选中号</button>
+                    </div>
+                </div>
+
+                <div id="short-free-owned" class="hidden p-4 bg-indigo-50/20 border border-indigo-150 rounded-2xl flex items-center justify-between shadow-sm flex-shrink-0">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">🎁</span>
+                        <div>
+                            <p id="short-free-owned-val" class="text-sm font-extrabold font-mono text-slate-800 tracking-wider">-</p>
+                            <p id="short-free-owned-date" class="text-[9px] text-slate-400 mt-0.5">已免费领取</p>
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-lg border border-indigo-200/50">当前绑定</span>
+                </div>
+
+                <div id="short-free-locked" class="hidden p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center flex-shrink-0">
+                    <span class="text-3xl">🔒</span>
+                    <p class="text-xs font-bold text-slate-700 mt-2">您已购买绑定靓号</p>
+                    <p class="text-[10px] text-slate-400 mt-1">当前身份已绑定有更高权重的靓号，免费号通道已关闭。</p>
+                    <button onclick="switchMainTab('my')" class="mt-4 px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-200/50 active-scale">查看我的短号 ›</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 钱包切换弹窗 -->
+    <div id="modal-wallet-switch" class="absolute inset-0 z-50 overlay-blur flex items-end justify-center hidden">
+        <div class="w-full bg-white rounded-t-[32px] p-6 slide-up shadow-2xl max-h-[70%] overflow-y-auto hide-scrollbar flex flex-col">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto flex-shrink-0 -mt-1 mb-3"></div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 flex-shrink-0">
+                <h4 class="text-sm font-bold text-slate-900 font-display">切换锚定钱包</h4>
+                <button onclick="closeWalletSwitcher()" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 text-xs flex items-center justify-center">✕</button>
+            </div>
+            <div id="wallet-switch-list" class="mt-4 space-y-2 flex-shrink-0"></div>
+        </div>
+    </div>
+
+    <!-- 操作记录弹窗 -->
+    <div id="modal-history" class="absolute inset-0 z-50 overlay-blur flex items-end justify-center hidden">
+        <div class="w-full bg-white rounded-t-[32px] p-6 slide-up shadow-2xl max-h-[75%] overflow-y-auto hide-scrollbar flex flex-col">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto flex-shrink-0 -mt-1 mb-3"></div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 flex-shrink-0">
+                <h4 class="text-sm font-bold text-slate-900 font-display">操作记录</h4>
+                <button onclick="closeHistoryModal()" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 text-xs flex items-center justify-center">✕</button>
+            </div>
+            <div id="history-list" class="mt-4 flex-1"></div>
+        </div>
+    </div>
+
+    <!-- 转移弹窗 -->
+    <div id="modal-transfer" class="absolute inset-0 z-50 overlay-blur flex items-end justify-center hidden">
+        <div class="w-full bg-white rounded-t-[32px] p-6 slide-up shadow-2xl max-h-[85%] overflow-y-auto hide-scrollbar flex flex-col">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto flex-shrink-0 -mt-1 mb-3"></div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 flex-shrink-0">
+                <h4 class="text-sm font-bold text-slate-900 font-display">转移短号</h4>
+                <button onclick="closeTransferModal()" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 text-xs flex items-center justify-center">✕</button>
+            </div>
+            <div id="transfer-asset-info" class="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex-shrink-0"></div>
+            <div class="mt-5 flex-shrink-0">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">转入钱包（仅展示同网络的自己的钱包）</p>
+                <div id="transfer-wallet-list" class="space-y-2"></div>
+            </div>
+            <div class="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl flex-shrink-0">
+                <p class="text-[10px] text-amber-700 leading-relaxed">⚠️ 转移后，该短号将绑定到新地址，原地址将不再持有此短号。</p>
+            </div>
+            <div class="mt-4 relative flex-shrink-0">
+                <span class="absolute left-4 top-3.5 text-xs text-slate-400">🔒</span>
+                <input id="transfer-pin" type="password" placeholder="验证本地 PIN 主密码" class="w-full pl-9 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all font-mono">
+            </div>
+            <div id="transfer-loading" class="hidden py-2 flex items-center justify-center text-indigo-650 text-xs font-semibold animate-pulse bg-indigo-50/50 rounded-xl border border-indigo-100/40 flex-shrink-0">
+                <span>🔄 正在签名并向主网广播智能合约交易...</span>
+            </div>
+            <div class="flex space-x-3 mt-5 flex-shrink-0">
+                <button onclick="closeTransferModal()" class="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-650 font-bold text-xs rounded-2xl active-scale">取消</button>
+                <button onclick="submitTransfer()" class="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-2xl active-scale shadow-lg shadow-indigo-100">确认转移</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 赠送弹窗 -->
+    <div id="modal-gift" class="absolute inset-0 z-50 overlay-blur flex items-end justify-center hidden">
+        <div class="w-full bg-white rounded-t-[32px] p-6 slide-up shadow-2xl max-h-[85%] overflow-y-auto hide-scrollbar flex flex-col">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto flex-shrink-0 -mt-1 mb-3"></div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 flex-shrink-0">
+                <h4 class="text-sm font-bold text-slate-900 font-display">赠送短号</h4>
+                <button onclick="closeGiftModal()" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 text-xs flex items-center justify-center">✕</button>
+            </div>
+            <div id="gift-asset-info" class="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex-shrink-0"></div>
+            <div class="mt-5 flex-shrink-0">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">接收方钱包地址</p>
+                <div class="relative flex items-center">
+                    <input id="gift-address" type="text" placeholder="0x..." class="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all font-mono pr-14">
+                    <button onclick="showToast('扫码功能 - 占位','📷')" class="absolute right-3 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active-scale">
+                        <span class="text-sm">📷</span>
+                    </button>
+                </div>
+                <p id="gift-address-error" class="hidden text-[10px] text-red-500 font-bold mt-1.5 px-1">请输入有效的钱包地址（0x + 40位十六进制）</p>
+            </div>
+            <div class="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl flex-shrink-0">
+                <p class="text-[10px] text-amber-700 leading-relaxed">⚠️ 赠送后无法撤回，请确认地址无误。链上确认后短号将归属接收方。</p>
+            </div>
+            <div class="mt-4 relative flex-shrink-0">
+                <span class="absolute left-4 top-3.5 text-xs text-slate-400">🔒</span>
+                <input id="gift-pin" type="password" placeholder="验证本地 PIN 主密码" class="w-full pl-9 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all font-mono">
+            </div>
+            <div id="gift-loading" class="hidden py-2 flex items-center justify-center text-indigo-650 text-xs font-semibold animate-pulse bg-indigo-50/50 rounded-xl border border-indigo-100/40 flex-shrink-0">
+                <span>🔄 正在签名并向主网广播智能合约交易...</span>
+            </div>
+            <div class="flex space-x-3 mt-5 flex-shrink-0">
+                <button onclick="closeGiftModal()" class="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-650 font-bold text-xs rounded-2xl active-scale">取消</button>
+                <button onclick="submitGift()" class="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-2xl active-scale shadow-lg shadow-indigo-100">确认赠送</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 支付确认弹窗 -->
+    <div id="modal-payment" class="absolute inset-0 z-[60] overlay-blur flex items-end justify-center hidden">
+        <div class="w-full bg-white rounded-t-[32px] p-6 space-y-5 slide-up shadow-2xl max-h-[85%] overflow-y-auto hide-scrollbar flex flex-col border-t border-slate-100">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto flex-shrink-0 -mt-1.5 mb-1.5"></div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 flex-shrink-0">
+                <h4 class="text-sm font-bold text-slate-900 font-display">购买短号 <span id="pay-short-num-title" class="font-mono">21008</span></h4>
+                <button onclick="closePaymentModal()" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 text-xs flex items-center justify-center">✕</button>
+            </div>
+            <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 flex-shrink-0">
+                <div class="flex justify-between text-xs text-slate-500">
+                    <span>所购靓号：</span>
+                    <span id="pay-short-num-val" class="font-bold text-slate-900 font-mono text-sm">21008</span>
+                </div>
+                <div class="flex justify-between text-xs text-slate-500">
+                    <span>靓号类型：</span>
+                    <span id="pay-short-num-type" class="font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-lg text-[10px]">吉尾号 ×3</span>
+                </div>
+                <div class="pt-2.5 border-t border-slate-200/60 flex justify-between items-center">
+                    <span class="text-xs text-slate-800 font-bold">最终价格：</span>
+                    <div class="text-right">
+                        <span id="pay-short-num-price" class="text-base font-extrabold text-emerald-600 font-mono">3000 USDT</span>
+                        <p class="text-[8.5px] text-slate-400 mt-0.5">(永久买断，注册到当前锚定地址)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-3.5 flex-1">
+                <div class="p-3 bg-indigo-50/30 border border-indigo-100 rounded-xl flex items-center justify-between">
+                    <div>
+                        <p class="text-[9px] font-bold text-indigo-500 uppercase tracking-wider">注册网络</p>
+                        <p class="text-[9px] text-slate-400 mt-0.5">短号将注册到当前锚定地址</p>
+                    </div>
+                    <span id="pay-register-network" class="text-xs font-bold text-indigo-650">OBChain</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">支付币种</label>
+                        <select id="pay-currency" class="w-full mt-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer font-bold">
+                            <option value="USDT">USDT</option>
+                            <option value="USDRs">USDRs</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">付款钱包</label>
+                        <select id="pay-wallet" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer font-mono font-medium"></select>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center text-[10px] text-slate-400 px-1 pt-1">
+                    <span>收款国库合约地址：</span>
+                    <span class="font-mono text-slate-600 bg-slate-50 px-2 py-0.5 rounded border">0xaf5cd2...76b66d</span>
+                </div>
+                <p class="text-[9px] text-slate-400 px-1 leading-relaxed">💡 付款钱包可跨链选择，系统自动处理跨链结算，最终注册到当前锚定地址所在网络。</p>
+            </div>
+            <div class="relative flex-shrink-0">
+                <span class="absolute left-4 top-3.5 text-xs text-slate-400">🔒</span>
+                <input id="pay-password" type="password" placeholder="验证本地 PIN 主密码进行链上交易确认" class="w-full pl-9 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all font-mono">
+            </div>
+            <div id="pay-loading-text" class="hidden py-2 flex items-center justify-center text-indigo-650 text-xs font-semibold animate-pulse bg-indigo-50/50 rounded-xl border border-indigo-100/40">
+                <span>🔄 正在签名并向主网广播智能合约交易...</span>
+            </div>
+            <div class="flex space-x-3 pt-2 flex-shrink-0">
+                <button onclick="closePaymentModal()" class="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-650 font-bold text-xs rounded-2xl active-scale">取消</button>
+                <button onclick="submitPremiumPurchase()" class="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-2xl active-scale shadow-lg shadow-indigo-100">确认支付并购买</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast-container" class="absolute top-14 inset-x-0 z-[60] flex flex-col items-center pointer-events-none"></div>
+
+</div>
+
+<script>
+// ========== 数据 ==========
+const wallets = [
+    { id: 'w1', name: '自管钱包 - 地址A', address: '0x71C7656EC7ab88b098defB751B7401B5f6d898A5', chain: 'OBChain' },
+    { id: 'w2', name: '自管钱包 - 地址B', address: '0x3a5b28F0e62fB125C98DE501B7401B5f6d898d1a2', chain: 'Ethereum' },
+    { id: 'w3', name: '自管钱包 - 地址C', address: '0x8c2d4E7f1aB3c5D7e9F0a2B4c6D8e0F1a2B4c6D8', chain: 'Arbitrum' },
+    { id: 'w4', name: '自管钱包 - 地址D', address: '0x5e3a9Bc7D1f2E4a6C8d0F2b4A6c8D0e2F4a6B8c0', chain: 'OBChain' },
+];
+
+let assets = [
+    { id: 'a1', number: '21008', type: 'premium', network: 'OBChain', ownerId: 'w1', acquiredAt: '2026-07-10', acquisitionMethod: 'purchase', premiumType: '豹子', multiplier: 50, status: 'bound', isDefault: true },
+    { id: 'a2', number: '7281930', type: 'premium', network: 'Ethereum', ownerId: 'w2', acquiredAt: '2026-06-20', acquisitionMethod: 'purchase', premiumType: '吉尾号', multiplier: 3, status: 'bound', isDefault: true },
+    { id: 'a3', number: '9573326140', type: 'free', network: 'OBChain', ownerId: 'w1', acquiredAt: '2026-07-10', acquisitionMethod: 'free_claim', status: 'bound', isDefault: false },
+];
+
+let history = [
+    { date: '07-15', type: 'transfer_in', number: '21008', addr: '0x4f2a...3b8c' },
+    { date: '07-10', type: 'purchase', number: '21008', addr: '' },
+    { date: '07-10', type: 'free_claim', number: '9573326140', addr: '' },
+    { date: '06-20', type: 'purchase', number: '7281930', addr: '' },
+    { date: '07-12', type: 'gift_out', number: '88888', addr: '0x9d1e...5c6a' },
+];
+
+// 当前锚定钱包
+let anchorWalletId = 'w1';
+
+let currentMainTab = 'my';
+let transferAssetId = null;
+let giftAssetId = null;
+let selectedTransferWallet = null;
+let selectedDigitLength = 5;
+let shortFreeCandidates = [];
+let shortFreeSelected = null;
+let payPendingNumber = null;
+let rulesAccordionOpen = true;
+
+// ========== 工具 ==========
+function showToast(msg, icon) {
+    icon = icon || '✨';
+    var c = document.getElementById('toast-container');
+    var t = document.createElement('div');
+    t.className = 'mb-2 px-4 py-2.5 bg-slate-900/95 text-white text-xs font-bold rounded-full shadow-lg flex items-center space-x-2 pointer-events-auto';
+    t.innerHTML = '<span>' + icon + '</span><span>' + msg + '</span>';
+    c.appendChild(t);
+    setTimeout(function() {
+        t.style.transition = 'opacity 0.3s, transform 0.3s';
+        t.style.opacity = '0';
+        t.style.transform = 'translateY(-10px)';
+        setTimeout(function() { t.remove(); }, 300);
+    }, 2000);
+}
+
+function shortAddr(addr) { return addr.substring(0, 8) + '...' + addr.substring(addr.length - 6); }
+function getWalletById(id) { return wallets.find(function(w) { return w.id === id; }); }
+function getAssetById(id) { return assets.find(function(a) { return a.id === id; }); }
+function getAnchorWallet() { return getWalletById(anchorWalletId); }
+function getAcquisitionLabel(m) {
+    var labels = { 'free_claim': '免费领取', 'purchase': '靓号购买', 'transfer_in': '转入', 'gift_in': '赠送获得' };
+    return labels[m] || m;
+}
+
+// 获取当前锚定地址的短号
+function getAnchorAssets() {
+    return assets.filter(function(a) { return a.ownerId === anchorWalletId; });
+}
+
+// ========== 锚定地址展示 ==========
+function updateAnchorCard() {
+    var w = getAnchorWallet();
+    if (!w) return;
+    document.getElementById('anchor-wallet-name').textContent = w.name;
+    document.getElementById('anchor-wallet-addr').textContent = shortAddr(w.address);
+    document.getElementById('anchor-wallet-chain').textContent = w.chain;
+
+    var anchorAssets = getAnchorAssets();
+    var premium = anchorAssets.filter(function(a) { return a.type === 'premium'; }).length;
+    var free = anchorAssets.filter(function(a) { return a.type === 'free'; }).length;
+    document.getElementById('stat-total').textContent = anchorAssets.length;
+    document.getElementById('stat-premium').textContent = premium;
+    document.getElementById('stat-free').textContent = free;
+
+    document.getElementById('premium-context-addr').textContent = shortAddr(w.address);
+
+    var defaultAsset = anchorAssets.find(function(a) { return a.isDefault; });
+    var defaultRow = document.getElementById('anchor-default-row');
+    if (defaultAsset) {
+        defaultRow.classList.remove('hidden');
+        document.getElementById('anchor-default-num').textContent = defaultAsset.number;
+    } else {
+        defaultRow.classList.add('hidden');
+    }
+}
+
+// 获取当前锚定地址的默认短号
+function getDefaultAsset() {
+    return assets.find(function(a) { return a.ownerId === anchorWalletId && a.isDefault; });
+}
+
+// 设为默认展示
+function setDefaultAsset(assetId) {
+    var target = getAssetById(assetId);
+    if (!target || target.ownerId !== anchorWalletId) return;
+    if (target.isDefault) { showToast('该短号已是默认展示', '⭐'); return; }
+
+    // 同一锚定地址下仅一个为默认
+    assets.forEach(function(a) {
+        if (a.ownerId === anchorWalletId) a.isDefault = (a.id === assetId);
+    });
+    showToast('已将 ' + target.number + ' 设为默认展示短号', '⭐');
+    renderAssetList();
+    updateAnchorCard();
+}
+
+// ========== 钱包切换 ==========
+function openWalletSwitcher() {
+    var listEl = document.getElementById('wallet-switch-list');
+    listEl.innerHTML = wallets.map(function(w) {
+        var isActive = w.id === anchorWalletId;
+        var count = assets.filter(function(a) { return a.ownerId === w.id; }).length;
+        return '<div onclick="selectAnchorWallet(\'' + w.id + '\')" class="p-3.5 rounded-2xl border ' + (isActive ? 'border-indigo-600 bg-indigo-50/20' : 'border-slate-200 bg-white') + ' cursor-pointer transition-all active-scale flex items-center justify-between">' +
+            '<div>' +
+                '<p class="text-xs font-bold text-slate-800">' + w.name + (isActive ? ' <span class="text-indigo-600">✓</span>' : '') + '</p>' +
+                '<p class="text-[10px] text-slate-400 font-mono mt-0.5">' + shortAddr(w.address) + ' · ' + w.chain + ' · ' + count + '个短号</p>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+    document.getElementById('modal-wallet-switch').classList.remove('hidden');
+}
+
+function closeWalletSwitcher() {
+    document.getElementById('modal-wallet-switch').classList.add('hidden');
+}
+
+function selectAnchorWallet(id) {
+    anchorWalletId = id;
+    closeWalletSwitcher();
+    updateAnchorCard();
+    renderAssetList();
+    if (currentMainTab === 'free') checkFreeNumberStatus();
+    showToast('已切换到 ' + getAnchorWallet().name, '👛');
+}
+
+// ========== 操作记录弹窗 ==========
+function openHistoryModal() {
+    renderHistory();
+    document.getElementById('modal-history').classList.remove('hidden');
+}
+
+function closeHistoryModal() {
+    document.getElementById('modal-history').classList.add('hidden');
+}
+
+function renderHistory() {
+    var list = document.getElementById('history-list');
+    var icons = { 'free_claim': '🎁', 'purchase': '💎', 'transfer_in': '📥', 'transfer_out': '📤', 'gift_out': '🎀' };
+    var labels = { 'free_claim': '领取', 'purchase': '购买', 'transfer_in': '转入', 'transfer_out': '转出', 'gift_out': '赠出' };
+
+    list.innerHTML = history.map(function(h, i) {
+        var isLast = i === history.length - 1;
+        var dir = '';
+        if (h.addr) dir = h.type === 'transfer_in' ? '← ' + h.addr : '→ ' + h.addr;
+        return '<div class="flex items-center justify-between px-4 py-3 ' + (isLast ? '' : 'border-b border-slate-50') + '">' +
+            '<div class="flex items-center space-x-2.5">' +
+                '<span class="text-sm">' + (icons[h.type] || '·') + '</span>' +
+                '<div>' +
+                    '<p class="text-xs font-bold text-slate-700">' + (labels[h.type] || h.type) + ' <span class="font-mono text-slate-500">' + h.number + '</span></p>' +
+                    (dir ? '<p class="text-[9px] text-slate-400 font-mono mt-0.5">' + dir + '</p>' : '') +
+                '</div>' +
+            '</div>' +
+            '<span class="text-[10px] text-slate-400 font-mono">' + h.date + '</span>' +
+        '</div>';
+    }).join('');
+}
+
+// ========== Tab 切换 ==========
+function switchMainTab(tab) {
+    currentMainTab = tab;
+    ['my', 'premium', 'free'].forEach(function(t) {
+        var tabEl = document.getElementById('tab-' + t);
+        var contentEl = document.getElementById('content-' + t);
+        if (t === tab) {
+            tabEl.className = 'flex-1 py-2.5 text-xs font-bold rounded-xl bg-white text-indigo-650 shadow-sm transition-all active-scale';
+            contentEl.classList.remove('hidden');
+        } else {
+            tabEl.className = 'flex-1 py-2.5 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all active-scale';
+            contentEl.classList.add('hidden');
+        }
+    });
+    if (tab === 'free') checkFreeNumberStatus();
+    else if (tab === 'premium') triggerRandomNumbers();
+    else if (tab === 'my') renderAssetList();
+}
+
+// ========== 我的短号 ==========
+function renderAssetList() {
+    var list = document.getElementById('asset-list');
+    var anchorAssets = getAnchorAssets();
+
+    if (anchorAssets.length === 0) {
+        list.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">该地址暂无短号<br><span class="text-[10px] mt-1 block">前往「购买靓号」或「免费号」获取</span></div>';
+        return;
+    }
+
+    list.innerHTML = anchorAssets.map(function(a) {
+        var isPremium = a.type === 'premium';
+        var icon = isPremium ? '💎' : '🎁';
+        var typeLabel = isPremium ? (a.premiumType + ' ×' + a.multiplier + ' · ' + a.number.length + '位') : ('免费号 · ' + a.number.length + '位');
+        var gradient = isPremium ? 'gradient-premium' : 'gradient-free';
+        var statusBadge = a.status === 'bound'
+            ? '<span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded-full border border-emerald-100">✓ 已绑定</span>'
+            : '<span class="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-bold rounded-full border border-amber-100">↪ ' + (a.status === 'transferring' ? '转移中' : '挂售中') + '</span>';
+
+        var defaultBadge = a.isDefault
+            ? '<span class="px-2 py-0.5 bg-gradient-to-r from-amber-400 to-yellow-400 text-white text-[9px] font-bold rounded-full border border-amber-300 shadow-sm">⭐ 默认展示</span>'
+            : '';
+
+        var defaultBtn = a.isDefault
+            ? '<button disabled class="flex-1 py-2.5 bg-amber-50 text-amber-600 text-xs font-bold rounded-xl opacity-60 cursor-default">⭐ 当前默认</button>'
+            : '<button onclick="setDefaultAsset(\'' + a.id + '\')" class="flex-1 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-xl active-scale transition-all border border-amber-200/50">⭐ 设为默认</button>';
+
+        return '<div class="premium-card rounded-2xl p-4 relative overflow-hidden animate-fade-in ' + (a.isDefault ? 'ring-2 ring-amber-200' : '') + '">' +
+            '<div class="flex items-start justify-between mb-3">' +
+                '<div class="flex items-center space-x-3">' +
+                    '<div class="w-11 h-11 rounded-xl ' + gradient + ' flex items-center justify-center text-lg shadow-sm">' + icon + '</div>' +
+                    '<div>' +
+                        '<p class="text-base font-black font-mono text-slate-900 tracking-wider">' + a.number + '</p>' +
+                        '<p class="text-[10px] text-slate-400 mt-0.5">' + typeLabel + '</p>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="flex flex-col items-end space-y-1">' + defaultBadge + statusBadge + '</div>' +
+            '</div>' +
+            '<div class="flex items-center justify-between text-[10px] text-slate-400 mb-3 pb-3 border-b border-slate-100">' +
+                '<span>' + a.acquiredAt + '</span>' +
+                '<span>' + getAcquisitionLabel(a.acquisitionMethod) + '</span>' +
+            '</div>' +
+            '<div class="flex space-x-2">' +
+                defaultBtn +
+                '<button onclick="openTransferModal(\'' + a.id + '\')" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active-scale transition-all">📤 转移</button>' +
+                '<button onclick="openGiftModal(\'' + a.id + '\')" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl active-scale shadow-sm transition-all">🎀 赠送</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+// ========== 转移 ==========
+function openTransferModal(assetId) {
+    transferAssetId = assetId;
+    var a = getAssetById(assetId);
+    if (!a) return;
+    var w = getWalletById(a.ownerId);
+    var isPremium = a.type === 'premium';
+    var icon = isPremium ? '💎' : '🎁';
+    var typeLabel = isPremium ? (a.premiumType + ' ×' + a.multiplier + ' · ' + a.number.length + '位') : ('免费号 · ' + a.number.length + '位');
+
+    document.getElementById('transfer-asset-info').innerHTML =
+        '<div class="flex items-center space-x-3">' +
+            '<div class="w-10 h-10 rounded-xl ' + (isPremium ? 'gradient-premium' : 'gradient-free') + ' flex items-center justify-center text-base">' + icon + '</div>' +
+            '<div class="flex-1">' +
+                '<p class="text-sm font-black font-mono text-slate-900">' + a.number + '</p>' +
+                '<p class="text-[10px] text-slate-400 mt-0.5">' + typeLabel + ' · ' + a.network + '</p>' +
+                '<p class="text-[9px] text-slate-400 mt-0.5">当前所有者：' + w.name + ' ' + shortAddr(w.address) + '</p>' +
+            '</div>' +
+        '</div>';
+
+    var candidates = wallets.filter(function(w) { return w.id !== a.ownerId && w.chain === a.network; });
+    var listEl = document.getElementById('transfer-wallet-list');
+    if (candidates.length === 0) {
+        listEl.innerHTML = '<div class="p-4 text-center text-slate-400 text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200">没有同网络的其他钱包可转入</div>';
+    } else {
+        listEl.innerHTML = candidates.map(function(cw) {
+            return '<div onclick="selectTransferWallet(\'' + cw.id + '\')" id="transfer-wallet-' + cw.id + '" class="p-3 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 cursor-pointer transition-all active-scale flex items-center justify-between">' +
+                '<div><p class="text-xs font-bold text-slate-800">' + cw.name + '</p>' +
+                '<p class="text-[10px] text-slate-400 font-mono mt-0.5">' + shortAddr(cw.address) + '</p></div>' +
+                '<div class="w-5 h-5 rounded-full border-2 border-slate-200 transfer-radio"></div>' +
+            '</div>';
+        }).join('');
+    }
+
+    document.getElementById('transfer-pin').value = '';
+    document.getElementById('transfer-loading').classList.add('hidden');
+    selectedTransferWallet = null;
+    document.getElementById('modal-transfer').classList.remove('hidden');
+}
+
+function selectTransferWallet(walletId) {
+    selectedTransferWallet = walletId;
+    var a = getAssetById(transferAssetId);
+    var candidates = wallets.filter(function(w) { return w.id !== a.ownerId && w.chain === a.network; });
+    candidates.forEach(function(cw) {
+        var el = document.getElementById('transfer-wallet-' + cw.id);
+        var radio = el.querySelector('.transfer-radio');
+        if (cw.id === walletId) {
+            el.className = 'p-3 rounded-2xl border border-indigo-600 bg-indigo-50/20 ring-2 ring-indigo-100 cursor-pointer transition-all active-scale flex items-center justify-between';
+            radio.className = 'w-5 h-5 rounded-full border-2 border-indigo-600 bg-indigo-600 flex items-center justify-center transfer-radio';
+            radio.innerHTML = '<span class="w-2 h-2 rounded-full bg-white"></span>';
+        } else {
+            el.className = 'p-3 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition-all active-scale flex items-center justify-between';
+            radio.className = 'w-5 h-5 rounded-full border-2 border-slate-200 transfer-radio';
+            radio.innerHTML = '';
+        }
+    });
+}
+
+function closeTransferModal() {
+    document.getElementById('modal-transfer').classList.add('hidden');
+    transferAssetId = null;
+    selectedTransferWallet = null;
+}
+
+function submitTransfer() {
+    if (!selectedTransferWallet) { showToast('请选择转入钱包', '⚠️'); return; }
+    var pin = document.getElementById('transfer-pin').value.trim();
+    if (!pin) { showToast('请输入 PIN 码', '⚠️'); return; }
+
+    document.getElementById('transfer-loading').classList.remove('hidden');
+    setTimeout(function() {
+        document.getElementById('transfer-loading').classList.add('hidden');
+        var a = getAssetById(transferAssetId);
+        var newWallet = getWalletById(selectedTransferWallet);
+        var wasDefault = a.isDefault;
+        a.ownerId = selectedTransferWallet;
+        a.acquisitionMethod = 'transfer_in';
+        a.isDefault = false; // 转入新地址后不自动设为默认
+        // 原地址若失去默认短号，自动补设一个
+        if (wasDefault) autoPickDefaultIfNeeded(anchorWalletId);
+        history.unshift({ date: new Date().toISOString().split('T')[0].substring(5), type: 'transfer_out', number: a.number, addr: shortAddr(newWallet.address) });
+        showToast('短号 ' + a.number + ' 转移成功！', '✅');
+        closeTransferModal();
+        renderAssetList();
+        updateAnchorCard();
+    }, 1800);
+}
+
+// 自动补设默认短号（仅在原默认被转走/赠出时触发）
+function autoPickDefaultIfNeeded(walletId) {
+    var owned = assets.filter(function(a) { return a.ownerId === walletId; });
+    if (owned.length === 0) return;
+    var hasDefault = owned.some(function(a) { return a.isDefault; });
+    if (!hasDefault) {
+        // 优先选靓号，否则选第一个
+        var pick = owned.find(function(a) { return a.type === 'premium'; }) || owned[0];
+        pick.isDefault = true;
+    }
+}
+
+// ========== 赠送 ==========
+function openGiftModal(assetId) {
+    giftAssetId = assetId;
+    var a = getAssetById(assetId);
+    if (!a) return;
+    var w = getWalletById(a.ownerId);
+    var isPremium = a.type === 'premium';
+    var icon = isPremium ? '💎' : '🎁';
+    var typeLabel = isPremium ? (a.premiumType + ' ×' + a.multiplier + ' · ' + a.number.length + '位') : ('免费号 · ' + a.number.length + '位');
+
+    document.getElementById('gift-asset-info').innerHTML =
+        '<div class="flex items-center space-x-3">' +
+            '<div class="w-10 h-10 rounded-xl ' + (isPremium ? 'gradient-premium' : 'gradient-free') + ' flex items-center justify-center text-base">' + icon + '</div>' +
+            '<div class="flex-1">' +
+                '<p class="text-sm font-black font-mono text-slate-900">' + a.number + '</p>' +
+                '<p class="text-[10px] text-slate-400 mt-0.5">' + typeLabel + ' · ' + a.network + '</p>' +
+                '<p class="text-[9px] text-slate-400 mt-0.5">当前所有者：' + w.name + ' ' + shortAddr(w.address) + '</p>' +
+            '</div>' +
+        '</div>';
+
+    document.getElementById('gift-address').value = '';
+    document.getElementById('gift-pin').value = '';
+    document.getElementById('gift-address-error').classList.add('hidden');
+    document.getElementById('gift-loading').classList.add('hidden');
+    document.getElementById('modal-gift').classList.remove('hidden');
+}
+
+function closeGiftModal() {
+    document.getElementById('modal-gift').classList.add('hidden');
+    giftAssetId = null;
+}
+
+function validateAddress(addr) { return /^0x[a-fA-F0-9]{40}$/.test(addr); }
+
+function submitGift() {
+    var addr = document.getElementById('gift-address').value.trim();
+    var pin = document.getElementById('gift-pin').value.trim();
+    var errorEl = document.getElementById('gift-address-error');
+    if (!addr) { showToast('请输入接收方地址', '⚠️'); return; }
+    if (!validateAddress(addr)) { errorEl.classList.remove('hidden'); return; }
+    errorEl.classList.add('hidden');
+    if (!pin) { showToast('请输入 PIN 码', '⚠️'); return; }
+
+    document.getElementById('gift-loading').classList.remove('hidden');
+    setTimeout(function() {
+        document.getElementById('gift-loading').classList.add('hidden');
+        var a = getAssetById(giftAssetId);
+        var wasDefault = a.isDefault;
+        history.unshift({ date: new Date().toISOString().split('T')[0].substring(5), type: 'gift_out', number: a.number, addr: shortAddr(addr) });
+        assets = assets.filter(function(x) { return x.id !== giftAssetId; });
+        if (wasDefault) autoPickDefaultIfNeeded(anchorWalletId);
+        showToast('短号 ' + a.number + ' 赠送成功！', '🎀');
+        closeGiftModal();
+        renderAssetList();
+        updateAnchorCard();
+    }, 1800);
+}
+
+// ========== 购买靓号 ==========
+function analyzeNumberPattern(numStr) {
+    var len = numStr.length;
+    var basePrice = 1000;
+    if (len === 5) basePrice = 1000;
+    else if (len === 6) basePrice = 900;
+    else if (len === 7) basePrice = 810;
+    else if (len === 8) basePrice = 729;
+
+    if (new Set(numStr).size === 1) return { type: '豹子 (全同)', multiplier: 50, price: basePrice * 50 };
+
+    var asc = true, desc = true;
+    for (var i = 1; i < len; i++) {
+        var diff = numStr.charCodeAt(i) - numStr.charCodeAt(i-1);
+        if (diff !== 1) asc = false;
+        if (diff !== -1) desc = false;
+    }
+    if (asc || desc) return { type: '顺子', multiplier: 20, price: basePrice * 20 };
+
+    var hasFour = false;
+    for (var i = 0; i <= len - 4; i++) {
+        if (numStr[i] === numStr[i+1] && numStr[i] === numStr[i+2] && numStr[i] === numStr[i+3]) { hasFour = true; break; }
+    }
+    if (hasFour) return { type: '四连同', multiplier: 10, price: basePrice * 10 };
+
+    var counts = {};
+    for (var ch of numStr) counts[ch] = (counts[ch] || 0) + 1;
+    var freq = Object.values(counts).sort(function(a,b) { return b-a; });
+    if (freq[0] === 3 && freq[1] === 2) return { type: '三连+对', multiplier: 8, price: basePrice * 8 };
+
+    var pairs = 0;
+    for (var v of Object.values(counts)) if (v >= 2) pairs++;
+    if (pairs >= 2) return { type: '双对子', multiplier: 5, price: basePrice * 5 };
+
+    if (numStr.endsWith('88') || numStr.endsWith('66') || numStr.endsWith('8') || numStr.endsWith('6'))
+        return { type: '吉尾号', multiplier: 3, price: basePrice * 3 };
+
+    return { type: '普通号', multiplier: 1, price: basePrice };
+}
+
+function selectDigitLengthPill(digits) {
+    selectedDigitLength = digits;
+    [5, 6, 7, 8].forEach(function(d) {
+        var pill = document.getElementById('pill-digits-' + d);
+        if (d === digits) pill.className = 'px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full shadow-sm active-scale transition-all font-display';
+        else pill.className = 'px-4 py-2 bg-slate-100 text-slate-655 text-xs font-semibold rounded-full hover:bg-slate-200 active-scale transition-all font-display';
+    });
+    triggerRandomNumbers();
+}
+
+function searchPremiumNumber() {
+    var input = document.getElementById('input-premium-search').value.trim();
+    if (!/^\d{5,8}$/.test(input)) { showToast('请输入 5-8 位纯数字靓号进行查价', '⚠️'); return; }
+    var analysis = analyzeNumberPattern(input);
+    var resultBox = document.getElementById('premium-search-result-box');
+    var randomBox = document.getElementById('premium-random-results-box');
+    randomBox.classList.add('hidden');
+    resultBox.classList.remove('hidden');
+    resultBox.innerHTML =
+        '<div class="flex flex-col items-center justify-center p-5 text-center space-y-3 bg-indigo-50/10 border border-indigo-100 rounded-2xl shadow-inner animate-fade-in">' +
+            '<div class="text-3xl font-black font-mono text-slate-800 tracking-widest">' + input + '</div>' +
+            '<div class="text-xs text-amber-600 font-bold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100/60">' + analysis.type + ' · ' + input.length + '位 ' + (analysis.multiplier > 1 ? '×' + analysis.multiplier : '') + '</div>' +
+            '<div class="text-xl font-black text-emerald-600 font-mono">' + analysis.price + ' USDT</div>' +
+            '<button onclick="openPaymentModal(\'' + input + '\', \'' + analysis.type + ' ' + (analysis.multiplier > 1 ? '×' + analysis.multiplier : '') + '\', ' + analysis.price + ')" class="w-full max-w-[200px] py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-2xl active-scale shadow-lg shadow-indigo-100">立即购买</button>' +
+        '</div>';
+}
+
+function triggerRandomNumbers() {
+    var digitLen = selectedDigitLength;
+    var grid = document.getElementById('premium-random-grid');
+    document.getElementById('premium-search-result-box').classList.add('hidden');
+    document.getElementById('premium-random-results-box').classList.remove('hidden');
+    grid.innerHTML = '';
+
+    var candidates = [];
+    for (var i = 0; i < 8; i++) {
+        var numStr = '';
+        var r = Math.random();
+        if (r < 0.1) { var d = Math.floor(Math.random() * 9) + 1; numStr = String(d).repeat(digitLen); }
+        else if (r < 0.2) { var s = Math.floor(Math.random() * (10 - digitLen)); for (var j = 0; j < digitLen; j++) numStr += (s + j); }
+        else if (r < 0.4) { for (var j = 0; j < digitLen - 2; j++) numStr += Math.floor(Math.random() * 10); numStr += (Math.random() > 0.5 ? '88' : '66'); }
+        else if (r < 0.6) { var d1 = Math.floor(Math.random() * 10); var d2 = (d1 + 1) % 10; numStr = String(d1).repeat(2) + String(d2).repeat(2); for (var j = 4; j < digitLen; j++) numStr += Math.floor(Math.random() * 10); }
+        else { for (var j = 0; j < digitLen; j++) numStr += Math.floor(Math.random() * 10); }
+        candidates.push(numStr);
+    }
+
+    candidates.forEach(function(num) {
+        var analysis = analyzeNumberPattern(num);
+        var isPremium = analysis.multiplier > 1;
+        var typeLabel = analysis.type + ' ' + (analysis.multiplier > 1 ? '×' + analysis.multiplier : '');
+        var card = document.createElement('div');
+        card.className = 'p-3 rounded-2xl border flex flex-col items-center justify-between text-center space-y-2.5 transition-all hover:border-indigo-300 shadow-sm ' + (isPremium ? 'border-amber-200 bg-amber-50/15' : 'border-slate-200 bg-white');
+        card.innerHTML = '<div class="text-sm font-bold font-mono text-slate-800">' + num + '</div>' +
+            '<div class="text-[9px] text-amber-600 font-bold bg-amber-50/60 px-1.5 py-0.5 rounded border border-amber-100/40">' + typeLabel + '</div>' +
+            '<div class="text-xs font-black text-emerald-600 font-mono">' + analysis.price + ' USDT</div>' +
+            '<button onclick="openPaymentModal(\'' + num + '\', \'' + typeLabel + '\', ' + analysis.price + ')" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg active-scale shadow-sm">购买</button>';
+        grid.appendChild(card);
+    });
+}
+
+function toggleRulesAccordion() {
+    rulesAccordionOpen = !rulesAccordionOpen;
+    var content = document.getElementById('rules-accordion-content');
+    var arrow = document.getElementById('rules-accordion-arrow');
+    if (rulesAccordionOpen) { content.classList.remove('hidden'); arrow.innerText = '▼'; }
+    else { content.classList.add('hidden'); arrow.innerText = '►'; }
+}
+
+// ========== 支付 ==========
+function openPaymentModal(number, type, price) {
+    payPendingNumber = number;
+    document.getElementById('pay-short-num-title').innerText = number;
+    document.getElementById('pay-short-num-val').innerText = number;
+    document.getElementById('pay-short-num-type').innerText = type;
+    document.getElementById('pay-short-num-price').innerText = price + ' USDT';
+    document.getElementById('pay-password').value = '';
+    document.getElementById('pay-loading-text').classList.add('hidden');
+
+    document.getElementById('pay-register-network').innerText = getAnchorWallet().chain;
+
+    var ws = document.getElementById('pay-wallet');
+    ws.innerHTML = '';
+    wallets.forEach(function(w) {
+        ws.innerHTML += '<option value="' + w.id + '">' + w.name + ' (' + w.chain + ') - ' + shortAddr(w.address) + '</option>';
+    });
+    document.getElementById('modal-payment').classList.remove('hidden');
+}
+
+function closePaymentModal() {
+    document.getElementById('modal-payment').classList.add('hidden');
+    payPendingNumber = null;
+}
+
+function submitPremiumPurchase() {
+    var password = document.getElementById('pay-password').value.trim();
+    if (!password) { showToast('请输入本地主密码验证交易', '⚠️'); return; }
+
+    document.getElementById('pay-loading-text').classList.remove('hidden');
+    setTimeout(function() {
+        document.getElementById('pay-loading-text').classList.add('hidden');
+        var analysis = analyzeNumberPattern(payPendingNumber);
+        var w = getAnchorWallet();
+        var newAsset = {
+            id: 'a' + Date.now(),
+            number: payPendingNumber,
+            type: 'premium',
+            network: w.chain,
+            ownerId: anchorWalletId,
+            acquiredAt: new Date().toISOString().split('T')[0],
+            acquisitionMethod: 'purchase',
+            premiumType: analysis.type,
+            multiplier: analysis.multiplier,
+            status: 'bound'
+        };
+        assets.unshift(newAsset);
+        history.unshift({ date: new Date().toISOString().split('T')[0].substring(5), type: 'purchase', number: payPendingNumber, addr: '' });
+        showToast('短号 ' + payPendingNumber + ' 购买并注册成功！', '💎');
+        closePaymentModal();
+        switchMainTab('my');
+        updateAnchorCard();
+    }, 1800);
+}
+
+// ========== 免费号 ==========
+function generateFreeNumberCandidates() {
+    var candidates = [];
+    for (var i = 0; i < 10; i++) {
+        var len = Math.floor(Math.random() * 3) + 10;
+        var num = '';
+        for (var j = 0; j < len; j++) num += Math.floor(Math.random() * 10);
+        candidates.push({ number: num, length: len });
+    }
+    return candidates;
+}
+
+function renderFreeNumberGrid() {
+    var grid = document.getElementById('short-free-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    shortFreeCandidates.forEach(function(item) {
+        var num = item.number, len = item.length, isSelected = shortFreeSelected === num;
+        var div = document.createElement('div');
+        div.className = 'p-3 rounded-2xl border flex justify-between items-center cursor-pointer transition-all active-scale ' + (isSelected ? 'border-indigo-600 bg-indigo-50/20 ring-2 ring-indigo-100 font-bold' : 'border-slate-200 bg-white hover:border-slate-350');
+        div.onclick = function() {
+            shortFreeSelected = isSelected ? null : num;
+            renderFreeNumberGrid();
+            document.getElementById('btn-claim-free').disabled = !shortFreeSelected;
+        };
+        div.innerHTML = '<span class="text-xs font-mono text-slate-800">' + num + '</span><span class="text-[9px] text-slate-400">' + len + '位</span>';
+        grid.appendChild(div);
+    });
+}
+
+function regenerateFreeNumbers() {
+    shortFreeCandidates = generateFreeNumberCandidates();
+    shortFreeSelected = null;
+    renderFreeNumberGrid();
+    document.getElementById('btn-claim-free').disabled = true;
+    showToast('已刷新候选免费号码', '🔄');
+}
+
+function claimFreeNumber() {
+    if (!shortFreeSelected) return;
+    var w = getAnchorWallet();
+    var newAsset = {
+        id: 'a' + Date.now(),
+        number: shortFreeSelected,
+        type: 'free',
+        network: w.chain,
+        ownerId: anchorWalletId,
+        acquiredAt: new Date().toISOString().split('T')[0],
+        acquisitionMethod: 'free_claim',
+        status: 'bound'
+    };
+    assets.unshift(newAsset);
+    history.unshift({ date: new Date().toISOString().split('T')[0].substring(5), type: 'free_claim', number: shortFreeSelected, addr: '' });
+    showToast('免费号 ' + shortFreeSelected + ' 领取成功！', '🎉');
+    switchMainTab('my');
+    updateAnchorCard();
+}
+
+function checkFreeNumberStatus() {
+    var anchorAssets = getAnchorAssets();
+    var hasFree = anchorAssets.some(function(a) { return a.type === 'free'; });
+    var hasPremium = anchorAssets.some(function(a) { return a.type === 'premium'; });
+
+    var normalEl = document.getElementById('short-free-normal');
+    var ownedEl = document.getElementById('short-free-owned');
+    var lockedEl = document.getElementById('short-free-locked');
+
+    if (hasFree) {
+        var freeAsset = anchorAssets.find(function(a) { return a.type === 'free'; });
+        normalEl.classList.add('hidden');
+        lockedEl.classList.add('hidden');
+        ownedEl.classList.remove('hidden');
+        document.getElementById('short-free-owned-val').innerText = freeAsset.number;
+        document.getElementById('short-free-owned-date').innerText = '已于 ' + freeAsset.acquiredAt + ' 免费领取';
+    } else if (hasPremium) {
+        normalEl.classList.add('hidden');
+        ownedEl.classList.add('hidden');
+        lockedEl.classList.remove('hidden');
+    } else {
+        lockedEl.classList.add('hidden');
+        ownedEl.classList.add('hidden');
+        normalEl.classList.remove('hidden');
+        shortFreeCandidates = generateFreeNumberCandidates();
+        renderFreeNumberGrid();
+        document.getElementById('btn-claim-free').disabled = true;
+        shortFreeSelected = null;
+    }
+}
+
+// ========== 返回 ==========
+function goBack() { showToast('返回身份模块', '‹'); }
+
+// ========== 初始化 ==========
+updateAnchorCard();
+renderAssetList();
+</script>
+
+</body>
+</html>

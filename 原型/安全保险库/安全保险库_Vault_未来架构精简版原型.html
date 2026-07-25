@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IM 开放服务 - 安全保险库未来架构精简版原型</title>
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: #F1F5F9;
+            color: #0F172A;
+            overflow: hidden;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .page-layer {
+            transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 30px 0 rgba(15, 23, 42, 0.03);
+        }
+        .glass-card-interactive {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card-interactive:active {
+            transform: scale(0.97);
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+        .glow-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(168, 85, 247, 0.03) 50%, rgba(236, 72, 153, 0.02) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.03);
+        }
+        /* Toast 动画 */
+        .toast-enter {
+            animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .toast-exit {
+            animation: toastOut 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
+            to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            to { opacity: 0; transform: translate(-50%, -10px) scale(0.95); }
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-center items-center min-h-screen p-4">
+
+    <!-- 手机边框容器 Mock -->
+    <div class="relative w-[375px] h-[812px] bg-slate-900 rounded-[54px] border-[12px] border-slate-950 overflow-hidden shadow-2xl flex flex-col select-none">
+        
+        <!-- notch & status bar -->
+        <div class="absolute top-0 left-0 right-0 h-10 px-6 flex justify-between items-center text-[11px] font-semibold text-slate-500 z-50 pointer-events-none">
+            <span class="font-mono">13:22</span>
+            <div class="w-24 h-5 bg-slate-950 rounded-full flex justify-center items-center">
+                <div class="w-12 h-3 bg-slate-900 rounded-full"></div>
+            </div>
+            <div class="flex items-center space-x-1">
+                <span>5G</span>
+                <span>📶</span>
+                <span>🔋</span>
+            </div>
+        </div>
+
+        <!-- 页面视图总池 -->
+        <div class="relative flex-1 w-full h-full bg-[#F8FAFC] overflow-hidden pt-10">
+
+            <!-- ==================== 主视图：安全保险柜大厅 ==================== -->
+            <div id="view-dashboard" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar px-5 pb-6 flex flex-col z-10 bg-[#F8FAFC]">
+                
+                <!-- 顶置全局待开发横幅 (Whole Module Pending Alert Banner) - 修复内外间距 -->
+                <div class="mt-4 p-3 bg-amber-50/80 border border-amber-200/60 rounded-2xl flex items-start space-x-2.5 shadow-sm">
+                    <span class="text-sm mt-0.5">🚧</span>
+                    <div class="flex-1">
+                        <p class="text-[10px] font-bold text-amber-700 leading-tight">保险库处于规划建设阶段 (Demo Preview)</p>
+                        <p class="text-[8px] text-amber-500 mt-1 leading-normal">本页面涉及的所有多模态钥匙及高安全服务舱暂处于概念规划与开发阶段。</p>
+                    </div>
+                </div>
+
+                <header class="py-4 flex justify-between items-center border-b border-slate-200">
+                    <div>
+                        <h1 class="text-lg font-black text-slate-800">安全保险库 (Vault)</h1>
+                        <p class="text-[9px] text-slate-400 mt-0.5">钥匙（鉴权）与保险柜解耦绑定框架</p>
+                    </div>
+                    <span class="px-2 py-0.5 text-[8px] bg-slate-100 border border-slate-200 text-slate-500 font-extrabold rounded">
+                        🧪 待开发验证
+                    </span>
+                </header>
+
+                <main class="flex-1 space-y-5 mt-4">
+                    
+                    <!-- 1. 钥匙 (Keys) 模块 - 沿用旗舰版精致卡片网格布局 -->
+                    <section class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">🔑 钥匙管理器 (Keys Matrix)</h3>
+                            <span class="text-[8px] bg-indigo-50 border border-indigo-100 text-indigo-500 font-bold px-1.5 py-0.5 rounded">演示功能</span>
+                        </div>
+                        
+                        <!-- 钥匙网格 - 修复间距并沿用卡片样式 -->
+                        <div class="grid grid-cols-2 gap-3" id="keys-grid">
+                            
+                            <!-- A. 已开启：设备物理指纹钥匙 -->
+                            <div onclick="showKeyInfo('device')" class="glass-card glass-card-interactive p-4 rounded-2xl cursor-pointer flex flex-col justify-between" style="min-height: 112px;">
+                                <div class="flex justify-between items-start w-full">
+                                    <span class="text-2xl">📱</span>
+                                    <span class="px-1.5 py-0.5 text-[8px] bg-emerald-100 text-emerald-600 font-bold rounded">已启用</span>
+                                </div>
+                                <div class="mt-3">
+                                    <h4 class="text-xs font-bold text-slate-800">设备指纹钥匙</h4>
+                                    <p class="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">L1 物理安全</p>
+                                </div>
+                            </div>
+
+                            <!-- B. 待开发：人脸/虹膜生物钥匙 -->
+                            <div onclick="showPendingKeyInfo('biometrics')" class="glass-card glass-card-interactive p-4 rounded-2xl cursor-pointer flex flex-col justify-between opacity-60 saturate-50" style="min-height: 112px;">
+                                <div class="flex justify-between items-start w-full">
+                                    <span class="text-2xl">👁️</span>
+                                    <span class="px-1.5 py-0.5 text-[8px] bg-slate-100 text-slate-450 font-bold rounded">待开发</span>
+                                </div>
+                                <div class="mt-3">
+                                    <h4 class="text-xs font-bold text-slate-500">人脸/虹膜钥匙</h4>
+                                    <p class="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">L2 个人鉴权</p>
+                                </div>
+                            </div>
+
+                            <!-- C. 待开发：硬件芯片钥匙 -->
+                            <div onclick="showPendingKeyInfo('hardware')" class="glass-card glass-card-interactive p-4 rounded-2xl cursor-pointer flex flex-col justify-between opacity-60 saturate-50" style="min-height: 112px;">
+                                <div class="flex justify-between items-start w-full">
+                                    <span class="text-2xl">💳</span>
+                                    <span class="px-1.5 py-0.5 text-[8px] bg-slate-100 text-slate-450 font-bold rounded">待开发</span>
+                                </div>
+                                <div class="mt-3">
+                                    <h4 class="text-xs font-bold text-slate-500">硬件安全芯片</h4>
+                                    <p class="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">L2 物理隔离</p>
+                                </div>
+                            </div>
+
+                            <!-- D. 待开发：DNA生物信息钥匙 -->
+                            <div onclick="showPendingKeyInfo('dna')" class="glass-card glass-card-interactive p-4 rounded-2xl cursor-pointer flex flex-col justify-between opacity-60 saturate-50" style="min-height: 112px;">
+                                <div class="flex justify-between items-start w-full">
+                                    <span class="text-2xl">🧬</span>
+                                    <span class="px-1.5 py-0.5 text-[8px] bg-slate-100 text-slate-450 font-bold rounded">待开发</span>
+                                </div>
+                                <div class="mt-3">
+                                    <h4 class="text-xs font-bold text-slate-500">DNA生物钥匙</h4>
+                                    <p class="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">L3 终身身份</p>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- 2. 保险柜 (Vaults) 服务舱板块 -->
+                    <section class="space-y-3 pt-1">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">🗄️ 保险柜服务舱 (Vault Cabinets)</h3>
+                            <span class="px-1.5 py-0.5 text-[8px] bg-amber-50 text-amber-600 font-bold rounded">待建设</span>
+                        </div>
+                        
+                        <!-- 待建设状态卡片占位 -->
+                        <div class="glass-card p-5 rounded-2xl border border-dashed border-slate-200/80 flex flex-col items-center text-center space-y-3 bg-white/40">
+                            <span class="text-3xl">🗄️</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-700">托管与存储服务建设中</h4>
+                                <p class="text-[9px] text-slate-400 mt-1.5 leading-relaxed max-w-[240px]">
+                                    暂无可启用的保险柜服务舱。未来将根据具体业务场景，逐步规划并上线资产托管、高防加密存储以及链上智能信托等功能。
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                </main>
+                <footer class="text-center text-[9px] text-slate-400 mt-12 py-2">
+                    IM Secure Enclave Engine v3.0.0
+                </footer>
+            </div>
+
+            <!-- ==================== 子视图：钥匙信息详情 ==================== -->
+            <div id="view-key-info" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar px-6 pb-6 flex flex-col z-20 translate-x-full bg-[#F8FAFC]">
+                <nav class="py-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/90 backdrop-blur-md z-30 border-b border-slate-200">
+                    <button onclick="navigateBack('dashboard')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold active:scale-90 transition">‹</button>
+                    <h2 class="text-sm font-bold text-slate-800" id="key-info-title">钥匙详情</h2>
+                    <div class="w-9 h-9"></div>
+                </nav>
+
+                <div class="flex-1 mt-4 space-y-5" id="key-info-content">
+                    <!-- 动态内容 -->
+                </div>
+            </div>
+
+            <!-- 全局 Toast 容器 -->
+            <div id="toast-container" class="absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-2 z-50 pointer-events-none"></div>
+
+            <!-- 屏幕底部虚拟按键区 -->
+            <div class="absolute bottom-1 left-0 right-0 h-5 flex justify-center items-center pointer-events-none z-50">
+                <div class="w-36 h-1 bg-slate-950 rounded-full opacity-10"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 核心业务状态机与前端渲染 -->
+    <script>
+        // ==================== 数据状态机 (Data State) ====================
+        const state = {
+            viewHistory: ['dashboard']
+        };
+
+        // ==================== 界面导航与层级跳转逻辑 ====================
+        function navigateTo(viewId) {
+            const currentViewId = state.viewHistory[state.viewHistory.length - 1];
+            if (currentViewId === viewId) return;
+
+            const nextView = document.getElementById(`view-${viewId}`);
+            if (nextView) {
+                nextView.classList.remove('translate-x-full');
+                state.viewHistory.push(viewId);
+            }
+        }
+
+        function navigateBack(targetId) {
+            if (state.viewHistory.length <= 1) return;
+            const currentViewId = state.viewHistory.pop();
+            const currentView = document.getElementById(`view-${currentViewId}`);
+            if (currentView) {
+                currentView.classList.add('translate-x-full');
+            }
+        }
+
+        // ==================== 钥匙信息展示 - 修复间距 ====================
+        function showKeyInfo(type) {
+            navigateTo('key-info');
+            document.getElementById('key-info-title').innerText = "设备指纹钥匙";
+
+            document.getElementById('key-info-content').innerHTML = `
+                <div class="glass-card rounded-3xl p-5 border border-indigo-100 bg-white space-y-4">
+                    <span class="text-4xl">📱</span>
+                    <div>
+                        <span class="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[8px] font-bold rounded border border-emerald-200 inline-block">🟢 已激活</span>
+                        <h3 class="text-base font-black text-slate-800 mt-2">设备指纹钥匙 (Device Key)</h3>
+                        <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">本地沙盒级别复合防女巫物理凭证锁。</p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 text-[9px] text-slate-400 space-y-1">
+                        <div>鉴权等级: <span class="font-bold text-slate-700">L1 物理安全</span></div>
+                        <div>校验源: <span class="font-bold text-slate-700">本地 Secure Enclave 硬件特征</span></div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <h4 class="text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-2">安全绑定细节</h4>
+                    <span class="text-[8px] uppercase tracking-wider text-slate-400 font-bold block">本地硬件哈希值 (SHA256)</span>
+                    <span class="text-[9px] font-mono text-indigo-700 break-all select-all block mt-1">0xdf8c8f2a991baex71c8b49ac16d99ab8d6ef778a8e12</span>
+                </div>
+            `;
+        }
+
+        // 待开发钥匙详情提醒 - 修复间距与色彩表达
+        function showPendingKeyInfo(type) {
+            navigateTo('key-info');
+
+            let title = "";
+            let desc = "";
+            let badgeText = "待开发";
+            let alertMsg = "";
+            let icon = "";
+
+            if (type === 'biometrics') {
+                icon = "👁️";
+                title = "人脸/虹膜生物钥匙";
+                desc = "规划未来用于实现 L2 级个人身份鉴权的安全模块。";
+                alertMsg = "此模块当前处于【待开发】状态。未来规划将调用 iOS Secure Enclave 与本地 Android Biometric 接口，获取面部三维光栅投影或虹膜信息。由于仅在本地进行特征提取加密且不对外发送任何敏感物理隐私，因此符合最严格的数据安全合规标准。";
+            } else if (type === 'hardware') {
+                icon = "💳";
+                title = "硬件安全芯片钥匙";
+                desc = "规划未来用于实现 L2 级硬件多重隔离签名的安全模块。";
+                alertMsg = "此模块当前处于【待开发】状态。未来规划将融合手机本地 TPM 2.0 密码防篡改芯片或外部智能多签口令卡。通过物理级断网安全密钥签名，以保障数字货币或法币资产在进行大额资产转移托管时的绝对安全。";
+            } else if (type === 'dna') {
+                icon = "🧬";
+                title = "DNA 生物信息钥匙";
+                desc = "规划未来用于实现 L3 级终身身份绑定与社交恢复的模块。";
+                alertMsg = "此模块当前处于【待开发】状态。未来规划将针对遗产信托、冷数据永久性存储等终身级托管服务，提供由用户指定的脱氧核糖核酸（DNA）多维度哈希映射与冷钱包非对称多签锁。即使设备丢失，也能作为唯一的不可篡改的终身防伪钥匙进行身份找回与继承。";
+            }
+
+            document.getElementById('key-info-title').innerText = title;
+            document.getElementById('key-info-content').innerHTML = `
+                <div class="glass-card rounded-3xl p-5 border border-amber-200 bg-amber-50/10 space-y-4">
+                    <span class="text-4xl">${icon}</span>
+                    <div>
+                        <span class="px-2 py-0.5 bg-amber-50 text-amber-600 text-[8px] font-bold rounded border border-amber-100 inline-block">⏳ ${badgeText}</span>
+                        <h3 class="text-base font-black text-slate-800 mt-2">${title}</h3>
+                        <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">${desc}</p>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <h4 class="text-[10px] font-bold text-indigo-650 flex items-center space-x-1">
+                        <span>🧪 架构规划方案</span>
+                    </h4>
+                    <p class="text-[10px] text-slate-500 leading-relaxed">
+                        ${alertMsg}
+                    </p>
+                </div>
+
+                <button onclick="navigateBack('dashboard')" class="w-full py-3.5 bg-white border border-slate-200 text-slate-500 text-xs font-bold rounded-xl active:scale-95 transition">
+                    返回大厅
+                </button>
+            `;
+        }
+
+        // 展示已开启服务：虚拟权益舱 - 修复间距
+        function showWelfareChamber() {
+            navigateTo('key-info');
+            document.getElementById('key-info-title').innerText = "虚拟权益舱";
+
+            document.getElementById('key-info-content').innerHTML = `
+                <div class="glass-card rounded-3xl p-5 border border-indigo-100 bg-white space-y-4">
+                    <span class="text-4xl">🎫</span>
+                    <div>
+                        <span class="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[8px] font-bold rounded border border-emerald-200 inline-block">🟢 已开启</span>
+                        <h3 class="text-base font-black text-slate-800 mt-2">虚拟权益舱 (Welfare Hub)</h3>
+                        <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">负责平台积分、白名单空投资格、商城卡券等虚拟特权的锁死与领取管理。</p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 text-[9px] text-slate-400 space-y-1">
+                        <div>已绑定密钥: <span class="font-bold text-slate-700">设备指纹物理钥匙</span></div>
+                        <div>防御能力: <span class="font-bold text-slate-700">单设备单钱包排他，杜极批量女巫薅取福利</span></div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <h4 class="text-[10px] font-bold text-slate-450 uppercase tracking-wider">已上线演示记录</h4>
+                    <div class="flex justify-between items-center text-[10px]">
+                        <span class="text-slate-600">迎新专属特权白名单</span>
+                        <span class="text-amber-600 font-bold">待首笔奖励激活</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==================== Toast 提示 ====================
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-slate-800';
+            if (type === 'success') bg = 'bg-emerald-600';
+
+            toast.className = `px-4 py-2.5 rounded-xl shadow-2xl text-[11px] font-bold text-white whitespace-nowrap toast-enter ${bg}`;
+            toast.innerText = msg;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 250);
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

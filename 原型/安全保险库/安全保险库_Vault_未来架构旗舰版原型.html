@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IM 开放服务 - 安全保险库未来架构旗舰版原型</title>
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: #F1F5F9;
+            color: #0F172A;
+            overflow: hidden;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* 页面切换动画 */
+        .page-layer {
+            transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        }
+        /* 隐藏滚动条 */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 精致毛玻璃卡片 */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 30px 0 rgba(15, 23, 42, 0.03);
+        }
+        .glass-card-interactive {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card-interactive:active {
+            transform: scale(0.97);
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        /* Toast 动画 */
+        .toast-enter {
+            animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .toast-exit {
+            animation: toastOut 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
+            to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            to { opacity: 0; transform: translate(-50%, -10px) scale(0.95); }
+        }
+        /* 脉冲红点与流光 */
+        .ping-slow {
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .glow-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 50%, rgba(236, 72, 153, 0.03) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.04), inset 0 0 15px rgba(255, 255, 255, 0.8);
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-center items-center min-h-screen p-4">
+
+    <!-- 顶部测试重置提示面板 -->
+    <div class="mb-4 bg-white/90 border border-slate-200 shadow-md px-5 py-2.5 rounded-2xl flex items-center space-x-3 text-xs font-bold text-slate-800 z-50">
+        <span class="text-indigo-600">🛡️ 架构演示面板:</span>
+        <span class="text-slate-400">|</span>
+        <button onclick="resetPrototype()" class="px-3 py-1 bg-slate-100 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-200 active:scale-95 transition">
+            🔄 重置所有钥匙与服务状态
+        </button>
+    </div>
+
+    <!-- 手机边框容器 Mock -->
+    <div class="relative w-[375px] h-[812px] bg-slate-900 rounded-[54px] border-[12px] border-slate-950 overflow-hidden shadow-2xl flex flex-col select-none">
+        
+        <!-- notch & status bar -->
+        <div class="absolute top-0 left-0 right-0 h-10 px-6 flex justify-between items-center text-[11px] font-semibold text-slate-500 z-50 pointer-events-none">
+            <span class="font-mono">13:09</span>
+            <div class="w-24 h-4.5 bg-slate-950 rounded-full flex justify-center items-center">
+                <div class="w-12 h-2.5 bg-slate-900 rounded-full"></div>
+            </div>
+            <div class="flex items-center space-x-1">
+                <span>5G</span>
+                <span>📶</span>
+                <span>🔋</span>
+            </div>
+        </div>
+
+        <!-- 页面视图总池 -->
+        <div class="relative flex-1 w-full h-full bg-[#F8FAFC] overflow-hidden pt-10">
+
+            <!-- ==================== 主视图：安全保险柜大厅 ==================== -->
+            <div id="view-dashboard" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar px-5 pb-6 flex flex-col z-10 bg-[#F8FAFC]">
+                
+                <header class="py-5 flex justify-between items-center border-b border-slate-200">
+                    <div>
+                        <h1 class="text-xl font-black text-slate-800">安全保险库 (Vault)</h1>
+                        <p class="text-[9px] text-slate-400 mt-0.5">钥匙（鉴权） ➔ 保险柜（托管）架构</p>
+                    </div>
+                    <span class="px-2.5 py-1 text-[8px] bg-indigo-50 border border-indigo-100 text-indigo-600 font-extrabold rounded-full">
+                        🛡️ 复合加密保护中
+                    </span>
+                </header>
+
+                <main class="flex-1 space-y-6 mt-4">
+                    
+                    <!-- 1. 钥匙 (Keys) 矩阵板块 -->
+                    <section class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">🔑 钥匙管理器 (Keys Matrix)</h3>
+                            <span class="text-[9px] text-indigo-500 font-semibold" id="keys-bound-count">已激活 1 / 4</span>
+                        </div>
+                        <p class="text-[9px] text-slate-400 leading-relaxed">身份与鉴权校验源，提供物理与生物级多模态钥匙，用于解锁不同的保险舱。</p>
+                        
+                        <!-- 钥匙网格 -->
+                        <div class="grid grid-cols-2 gap-3.5" id="keys-grid">
+                            <!-- 动态加载钥匙卡片 -->
+                        </div>
+                    </section>
+
+                    <!-- 2. 保险柜 (Vaults) 服务板块 -->
+                    <section class="space-y-4">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">🗄️ 保险柜服务舱 (Vaults Matrix)</h3>
+                        
+                        <!-- 资产托管舱 -->
+                        <div class="space-y-2.5">
+                            <div class="flex items-center space-x-1.5 pl-1">
+                                <span class="text-xs">🪙</span>
+                                <h4 class="text-[10px] font-bold text-slate-700 uppercase tracking-wider">资产托管服务 (Asset Custody)</h4>
+                            </div>
+                            <div class="space-y-2" id="vaults-assets-list">
+                                <!-- 动态加载资产舱卡片 -->
+                            </div>
+                        </div>
+
+                        <!-- 存储与信托舱 -->
+                        <div class="space-y-2.5 pt-2">
+                            <div class="flex items-center space-x-1.5 pl-1">
+                                <span class="text-xs">💾</span>
+                                <h4 class="text-[10px] font-bold text-slate-700 uppercase tracking-wider">存储与信托服务 (Storage & Trust)</h4>
+                            </div>
+                            <div class="space-y-2" id="vaults-trust-list">
+                                <!-- 动态加载存储信托舱卡片 -->
+                            </div>
+                        </div>
+
+                    </section>
+
+                </main>
+                <footer class="text-center text-[9px] text-slate-400 mt-12 py-2">
+                    IM Secure Enclave Engine v3.0.0
+                </footer>
+            </div>
+
+            <!-- ==================== 子视图：钥匙详情/绑定向导 ==================== -->
+            <div id="view-key-detail" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar px-6 pb-6 flex flex-col z-20 translate-x-full bg-[#F8FAFC]">
+                <nav class="py-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/90 backdrop-blur-md z-30 border-b border-slate-200">
+                    <button onclick="navigateBack('dashboard')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold active:scale-90 transition">‹</button>
+                    <h2 class="text-sm font-bold text-slate-800" id="key-detail-title">钥匙详情</h2>
+                    <div class="w-9 h-9"></div>
+                </nav>
+
+                <div class="flex-1 mt-4 space-y-5" id="key-detail-content">
+                    <!-- 动态内容 -->
+                </div>
+            </div>
+
+            <!-- ==================== 子视图：资产/存储舱配置 ==================== -->
+            <div id="view-vault-detail" class="page-layer absolute inset-0 w-full h-full overflow-y-auto hide-scrollbar px-6 pb-6 flex flex-col z-30 translate-x-full bg-[#F8FAFC]">
+                <nav class="py-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/90 backdrop-blur-md z-30 border-b border-slate-200">
+                    <button onclick="navigateBack('dashboard')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold active:scale-90 transition">‹</button>
+                    <h2 class="text-sm font-bold text-slate-800" id="vault-detail-title">服务舱详情</h2>
+                    <div class="w-9 h-9"></div>
+                </nav>
+
+                <div class="flex-1 mt-4 space-y-5" id="vault-detail-content">
+                    <!-- 动态内容 -->
+                </div>
+            </div>
+
+            <!-- ==================== 全局弹窗：扫描/核验动画 Mock ==================== -->
+            <div id="modal-scanning" class="absolute inset-0 bg-slate-950/45 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center justify-center px-6">
+                <div class="w-full glass-card rounded-3xl p-8 border border-slate-200 text-center flex flex-col items-center translate-y-8 transition-transform duration-300">
+                    <!-- 旋转外圈 -->
+                    <div class="w-20 h-20 relative mb-6">
+                        <div class="absolute inset-0 rounded-full border-4 border-indigo-100"></div>
+                        <div class="absolute inset-0 rounded-full border-4 border-t-indigo-600 animate-spin" id="scan-ring"></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-3xl" id="scan-emoji">🧬</div>
+                    </div>
+                    <h3 class="text-md font-black text-slate-800" id="scan-title">正在录入特征</h3>
+                    <p class="text-[10px] text-slate-450 mt-2 max-w-[210px] leading-relaxed" id="scan-desc">请保持物理设备静止，系统正在对生物唯一特征值进行安全哈希验签并生成钥匙凭证...</p>
+                </div>
+            </div>
+
+            <!-- 全局 Toast 容器 -->
+            <div id="toast-container" class="absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-2 z-50 pointer-events-none"></div>
+
+            <!-- 屏幕底部虚拟按键区 -->
+            <div class="absolute bottom-1 left-0 right-0 h-5 flex justify-center items-center pointer-events-none z-50">
+                <div class="w-36 h-1 bg-slate-950 rounded-full opacity-10"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 核心业务状态机与前端渲染 -->
+    <script>
+        // ==================== 数据状态机 (Data State) ====================
+        const state = {
+            viewHistory: ['dashboard'],
+            currentSelectionId: null,
+
+            // 1. 钥匙管理器状态
+            keys: [
+                {
+                    id: 'key_device',
+                    name: '设备指纹钥匙',
+                    desc: 'Device unique identifier tied with local cold key.',
+                    icon: '📱',
+                    level: 'L1 物理安全',
+                    status: 'bound', // 'bound' (已绑定), 'unbound' (未绑定)
+                    boundAt: '2026/07/01 10:15',
+                    deviceHash: '0xdf8c8f2a991baex71c8b49ac16d99ab8d6ef778a8e12',
+                    verifyRule: '依赖本地 Secure Enclave 硬件物理特征'
+                },
+                {
+                    id: 'key_biometrics',
+                    name: '人脸/虹膜生物钥匙',
+                    desc: 'OS-level face/iris biometric identifier.',
+                    icon: '👁️',
+                    level: 'L2 个人鉴权',
+                    status: 'unbound',
+                    boundAt: '--',
+                    verifyRule: '系统生物识别安全 API 单向特征映射'
+                },
+                {
+                    id: 'key_dna',
+                    name: 'DNA生物特征钥匙',
+                    desc: '脱氧核糖核酸唯一数字加密特征映射.',
+                    icon: '🧬',
+                    level: 'L3 终身身份',
+                    status: 'unbound',
+                    boundAt: '--',
+                    verifyRule: '脱氧核糖核酸高阶哈希非对称密钥比对'
+                },
+                {
+                    id: 'key_hardware',
+                    name: '硬件安全芯片钥匙',
+                    desc: '外接硬件密码卡或本地 TPM 2.0 模块.',
+                    icon: '💳',
+                    level: 'L2 物理隔离',
+                    status: 'bound',
+                    boundAt: '2026/07/01 10:20',
+                    verifyRule: '物理级硬件防篡改私钥多重签名'
+                }
+            ],
+
+            // 2. 保险柜服务状态
+            vaults: {
+                assets: [
+                    {
+                        id: 'vault_digital',
+                        name: '数字代币托管舱',
+                        desc: 'Crypto stablecoins and tokens management.',
+                        icon: '💎',
+                        minLevel: 'L2 级鉴权保护',
+                        requireKeys: ['key_device', 'key_hardware'],
+                        balances: [
+                            { symbol: 'USDR', amount: '12,500.00' },
+                            { symbol: 'USDT', amount: '5,000.00' }
+                        ]
+                    },
+                    {
+                        id: 'vault_virtual',
+                        name: '虚拟特权舱',
+                        desc: 'IM points, whitelist status & members coupons.',
+                        icon: '🎫',
+                        minLevel: 'L1 级鉴权保护',
+                        requireKeys: ['key_device'],
+                        benefits: [
+                            { name: '新用户迎新专属空投资格', status: '待激活领取' },
+                            { name: 'IM 商城 2 折硬件折扣券', status: '可使用' }
+                        ]
+                    },
+                    {
+                        id: 'vault_physical',
+                        name: '实物交割与现金舱',
+                        desc: 'Fiat balances & physical inventory warehouse locks.',
+                        icon: '🏢',
+                        minLevel: 'L3 级鉴权保护',
+                        requireKeys: ['key_device', 'key_hardware', 'key_dna'],
+                        escrow: '88,000.00 CNY (银行合规代管中)'
+                    }
+                ],
+                trust: [
+                    {
+                        id: 'vault_permanent_store',
+                        name: '永久性冷数据加密存储',
+                        desc: 'Decentralized IPFS encrypted text or documents.',
+                        icon: '💾',
+                        minLevel: 'L2 级鉴权保护',
+                        requireKeys: ['key_device', 'key_hardware'],
+                        files: [
+                            { name: 'family_will_encrypted.bin', size: '2.5 MB', time: '2026/07/01' },
+                            { name: 'social_recovery_shards.dat', size: '12 KB', time: '2026/07/01' }
+                        ]
+                    },
+                    {
+                        id: 'vault_did_backup',
+                        name: '去中心化身份 (DID) 备份',
+                        desc: 'Root key shards and identity backups.',
+                        icon: '🔑',
+                        minLevel: 'L2 级鉴权保护',
+                        requireKeys: ['key_device', 'key_biometrics'],
+                        did: 'did:im:8f2a991b8d6e3e72411c39e8ea0e83ef72411'
+                    },
+                    {
+                        id: 'vault_smart_inheritance',
+                        name: '智能信托继承协议',
+                        desc: 'Contract-based conditional estate inheritance rules.',
+                        icon: '📜',
+                        minLevel: 'L3 级鉴权保护',
+                        requireKeys: ['key_device', 'key_hardware', 'key_dna'],
+                        activeRules: [
+                            { name: '180天无活跃度自动遗产释放', status: '有效', target: '0x5555...1111' }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        // ==================== 界面导航与层级跳转逻辑 ====================
+        function navigateTo(viewId) {
+            const currentViewId = state.viewHistory[state.viewHistory.length - 1];
+            if (currentViewId === viewId) return;
+
+            const nextView = document.getElementById(`view-${viewId}`);
+            if (nextView) {
+                nextView.classList.remove('translate-x-full');
+                state.viewHistory.push(viewId);
+            }
+        }
+
+        function navigateBack(targetId) {
+            if (state.viewHistory.length <= 1) return;
+            const currentViewId = state.viewHistory.pop();
+            const currentView = document.getElementById(`view-${currentViewId}`);
+            if (currentView) {
+                currentView.classList.add('translate-x-full');
+            }
+            
+            const parentViewId = state.viewHistory[state.viewHistory.length - 1];
+            if (parentViewId === 'dashboard') renderDashboard();
+        }
+
+        // 重置原型状态
+        function resetPrototype() {
+            state.keys[0].status = 'bound';
+            state.keys[1].status = 'unbound';
+            state.keys[2].status = 'unbound';
+            state.keys[3].status = 'bound';
+
+            state.vaults.assets[0].balances = [
+                { symbol: 'USDR', amount: '12,500.00' },
+                { symbol: 'USDT', amount: '5,000.00' }
+            ];
+
+            state.vaults.trust[2].activeRules = [
+                { name: '180天无活跃度自动遗产释放', status: '有效', target: '0x5555...1111' }
+            ];
+
+            resetToDashboard();
+            showToast('✓ 所有钥匙状态及服务数据重置完毕', 'success');
+        }
+
+        function resetToDashboard() {
+            state.viewHistory = ['dashboard'];
+            ['key-detail', 'vault-detail'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (el) el.classList.add('translate-x-full');
+            });
+            renderDashboard();
+        }
+
+        // ==================== 渲染逻辑 (Renderers) ====================
+
+        function renderDashboard() {
+            // 渲染已激活钥匙计数
+            const boundCount = state.keys.filter(k => k.status === 'bound').length;
+            document.getElementById('keys-bound-count').innerText = `已激活 ${boundCount} / ${state.keys.length}`;
+
+            // 1. 渲染钥匙矩阵网格
+            const keysGrid = document.getElementById('keys-grid');
+            keysGrid.innerHTML = state.keys.map(k => {
+                const isBound = k.status === 'bound';
+                const statusBadge = isBound 
+                    ? `<span class="px-1.5 py-0.5 text-[8px] bg-emerald-100 text-emerald-600 font-bold rounded">已启用</span>`
+                    : `<span class="px-1.5 py-0.5 text-[8px] bg-slate-100 text-slate-400 font-bold rounded">未绑定</span>`;
+
+                return `
+                    <div onclick="enterKeyDetail('${k.id}')" class="glass-card glass-card-interactive p-4 rounded-2xl cursor-pointer flex flex-col justify-between" style="min-height: 110px;">
+                        <div class="flex justify-between items-start">
+                            <span class="text-2xl">${k.icon}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="mt-3">
+                            <h4 class="text-xs font-bold text-slate-850">${k.name}</h4>
+                            <p class="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">${k.level}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 2. 渲染资产托管舱列表
+            const assetsList = document.getElementById('vaults-assets-list');
+            assetsList.innerHTML = state.vaults.assets.map(v => {
+                const requiredNames = v.requireKeys.map(kid => state.keys.find(k => k.id === kid)?.name || kid).join(' + ');
+                // 判断是否解锁 (所需的钥匙都必须处于 bound 状态)
+                const isUnlocked = v.requireKeys.every(kid => state.keys.find(k => k.id === kid)?.status === 'bound');
+                const lockStatus = isUnlocked 
+                    ? `<span class="text-[9px] text-emerald-600 font-bold">🟢 安全开启</span>`
+                    : `<span class="text-[9px] text-amber-500 font-bold flex items-center space-x-0.5"><span>🔒 钥匙不足锁死</span></span>`;
+
+                return `
+                    <div onclick="enterVaultDetail('${v.id}', 'assets')" class="glass-card glass-card-interactive p-4.5 rounded-2xl cursor-pointer flex items-center justify-between">
+                        <div class="flex items-center space-x-3.5 min-w-0">
+                            <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-lg">${v.icon}</div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800">${v.name}</h4>
+                                <p class="text-[8px] text-slate-450 truncate mt-0.5">防御策略: ${requiredNames}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            ${lockStatus}
+                            <span class="text-[8px] bg-slate-100 text-slate-500 font-extrabold px-1.5 py-0.5 rounded block w-max ml-auto mt-1">${v.minLevel}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 3. 渲染存储与信托舱列表
+            const trustList = document.getElementById('vaults-trust-list');
+            trustList.innerHTML = state.vaults.trust.map(v => {
+                const requiredNames = v.requireKeys.map(kid => state.keys.find(k => k.id === kid)?.name || kid).join(' + ');
+                const isUnlocked = v.requireKeys.every(kid => state.keys.find(k => k.id === kid)?.status === 'bound');
+                const lockStatus = isUnlocked 
+                    ? `<span class="text-[9px] text-emerald-600 font-bold">🟢 授权已开</span>`
+                    : `<span class="text-[9px] text-amber-500 font-bold">🔒 缺失钥匙锁定</span>`;
+
+                return `
+                    <div onclick="enterVaultDetail('${v.id}', 'trust')" class="glass-card glass-card-interactive p-4.5 rounded-2xl cursor-pointer flex items-center justify-between">
+                        <div class="flex items-center space-x-3.5 min-w-0">
+                            <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-lg">${v.icon}</div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800">${v.name}</h4>
+                                <p class="text-[8px] text-slate-450 truncate mt-0.5">防御策略: ${requiredNames}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            ${lockStatus}
+                            <span class="text-[8px] bg-slate-100 text-slate-500 font-extrabold px-1.5 py-0.5 rounded block w-max ml-auto mt-1">${v.minLevel}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ==================== 钥匙管理流交互 ====================
+
+        function enterKeyDetail(keyId) {
+            state.currentSelectionId = keyId;
+            const k = state.keys.find(x => x.id === keyId);
+            if (!k) return;
+
+            navigateTo('key-detail');
+
+            document.getElementById('key-detail-title').innerText = k.name;
+
+            const isBound = k.status === 'bound';
+            const detailContainer = document.getElementById('key-detail-content');
+
+            let keyBodyHtml = '';
+
+            if (isBound) {
+                let uniqueContent = '';
+                if (k.id === 'key_device') {
+                    uniqueContent = `
+                        <div class="pt-3 border-t border-slate-200/50">
+                            <span class="text-[8px] uppercase tracking-wider text-slate-400 font-bold block">本地硬件指纹 (Composite Hash)</span>
+                            <span class="text-[10px] font-mono text-indigo-650 break-all select-all block mt-0.5">${k.deviceHash}</span>
+                        </div>
+                    `;
+                }
+
+                keyBodyHtml = `
+                    <div class="glow-card rounded-3xl p-6 relative overflow-hidden" style="min-height: 200px;">
+                        <span class="text-5xl block mb-4">${k.icon}</span>
+                        <div class="space-y-3.5">
+                            <div>
+                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[8px] font-bold rounded border border-emerald-200 inline-block">🟢 已激活</span>
+                                <h3 class="text-base font-black text-slate-850 mt-2">${k.name}</h3>
+                                <p class="text-[10px] text-slate-450 mt-1">${k.desc}</p>
+                            </div>
+                            <div class="pt-3 border-t border-slate-200/50 text-[10px] text-slate-550 space-y-1.5">
+                                <div>鉴权特征等级: <span class="font-bold text-slate-700">${k.level}</span></div>
+                                <div>校验规则策略: <span class="font-bold text-slate-700">${k.verifyRule}</span></div>
+                                <div>安全绑定时间: <span class="font-mono text-slate-700">${k.boundAt}</span></div>
+                            </div>
+                            ${uniqueContent}
+                        </div>
+                    </div>
+
+                    <button onclick="unbindKey('${k.id}')" class="w-full py-3.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold text-xs rounded-xl active:scale-95 transition">
+                        🗑️ 注销解绑此物理钥匙
+                    </button>
+                `;
+            } else {
+                let bindPrompt = '';
+                if (k.id === 'key_biometrics') bindPrompt = '将调用手机人脸/虹膜模组采集面部物理光栅特征。';
+                if (k.id === 'key_dna') bindPrompt = '需要导入高阶 DNA 生物特征哈希数据并用冷钱包进行多链非对称加密。';
+
+                keyBodyHtml = `
+                    <div class="glass-card rounded-3xl p-6 border border-slate-200 space-y-4">
+                        <span class="text-5xl block">${k.icon}</span>
+                        <div>
+                            <span class="px-2 py-0.5 bg-slate-100 text-slate-400 text-[8px] font-bold rounded border border-slate-200 inline-block">未绑定</span>
+                            <h3 class="text-base font-black text-slate-800 mt-2">${k.name}</h3>
+                            <p class="text-[10px] text-slate-450 mt-1">${k.desc}</p>
+                        </div>
+                        <div class="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[10px] text-slate-500 leading-relaxed">
+                            💡 <span class="font-bold text-indigo-600">录入说明:</span> ${bindPrompt}
+                        </div>
+                    </div>
+
+                    <button onclick="triggerBindKey('${k.id}')" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/10 active:scale-95 transition">
+                        ⚡ 立即录入并激活此钥匙
+                    </button>
+                `;
+            }
+
+            detailContainer.innerHTML = keyBodyHtml;
+        }
+
+        // 注销解绑钥匙
+        function unbindKey(keyId) {
+            const k = state.keys.find(x => x.id === keyId);
+            if (!k) return;
+
+            if (confirm(`确认注销并停用【${k.name}】吗？这可能导致依赖此钥匙的高等级服务舱被关闭！`)) {
+                k.status = 'unbound';
+                k.boundAt = '--';
+                
+                showToast(`✓ 已成功注销停用 ${k.name}`, 'success');
+                navigateBack('dashboard');
+            }
+        }
+
+        // 模拟触发特征录入
+        function triggerBindKey(keyId) {
+            const k = state.keys.find(x => x.id === keyId);
+            if (!k) return;
+
+            const scanModal = document.getElementById('modal-scanning');
+            const scanTitle = document.getElementById('scan-title');
+            const scanDesc = document.getElementById('scan-desc');
+            const scanEmoji = document.getElementById('scan-emoji');
+
+            scanEmoji.innerText = k.icon;
+
+            if (keyId === 'key_biometrics') {
+                scanTitle.innerText = "生物人脸特征采样中";
+                scanDesc.innerText = "请正对屏幕，手机前置深感光栅投影器正在测量面部 30,000 个三维红外物理特征点...";
+            } else if (keyId === 'key_dna') {
+                scanTitle.innerText = "导入 DNA 加密数据";
+                scanDesc.innerText = "正在读取 DNA 生物特征哈希数据并调用冷钱包密钥派生终身非对称公钥证书...";
+            }
+
+            scanModal.classList.remove('opacity-0', 'pointer-events-none');
+            scanModal.querySelector('div').classList.remove('translate-y-8');
+
+            setTimeout(() => {
+                // 完成绑定
+                k.status = 'bound';
+                k.boundAt = new Date().toLocaleString('zh-CN', { hour12: false });
+                
+                // 隐藏 Modal
+                scanModal.classList.add('opacity-0', 'pointer-events-none');
+                scanModal.querySelector('div').classList.add('translate-y-8');
+
+                showToast(`✓ ${k.name} 激活并绑定成功！`, 'success');
+                enterKeyDetail(k.id); 
+            }, 2500);
+        }
+
+        // ==================== 保险柜服务舱交互 ====================
+
+        function enterVaultDetail(vaultId, category) {
+            state.currentSelectionId = vaultId;
+            let v = null;
+            if (category === 'assets') {
+                v = state.vaults.assets.find(x => x.id === vaultId);
+            } else {
+                v = state.vaults.trust.find(x => x.id === vaultId);
+            }
+            if (!v) return;
+
+            navigateTo('vault-detail');
+            document.getElementById('vault-detail-title').innerText = v.name;
+
+            const isUnlocked = v.requireKeys.every(kid => state.keys.find(k => k.id === kid)?.status === 'bound');
+            const detailContainer = document.getElementById('vault-detail-content');
+
+            let bodyHtml = '';
+
+            if (isUnlocked) {
+                // 1. 资产舱渲染
+                let dynamicContent = '';
+                if (v.id === 'vault_digital') {
+                    dynamicContent = `
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-[9px] uppercase font-bold text-slate-400">资金资产账本</label>
+                                <span class="text-[8px] bg-emerald-100 text-emerald-600 px-1 py-0.5 rounded">免 Gas 交割</span>
+                            </div>
+                            ${v.balances.map(b => `
+                                <div class="p-4 bg-white rounded-xl border border-slate-200 flex justify-between items-center shadow-inner">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                                        <span class="text-xs font-bold text-slate-800">${b.symbol}</span>
+                                    </div>
+                                    <span class="text-sm font-black font-mono text-indigo-700">${b.amount}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="pt-2">
+                            <button onclick="simulateAssetClaim('${v.id}')" class="w-full py-3.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-md active:scale-95 transition">
+                                🚀 定向划转提取代币
+                            </button>
+                        </div>
+                    `;
+                } else if (v.id === 'vault_virtual') {
+                    dynamicContent = `
+                        <div class="space-y-3">
+                            <label class="text-[9px] uppercase font-bold text-slate-400 block">白名单及运营权益</label>
+                            ${v.benefits.map(b => `
+                                <div class="p-3 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-800">${b.name}</p>
+                                        <p class="text-[8px] text-slate-400 mt-0.5">物理指纹防护机制生效中</p>
+                                    </div>
+                                    <span class="text-[9px] px-2 py-0.5 rounded font-extrabold ${b.status === '可使用' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}">${b.status}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else if (v.id === 'vault_physical') {
+                    dynamicContent = `
+                        <div class="p-4 bg-white rounded-xl border border-slate-200 space-y-3.5">
+                            <div>
+                                <span class="text-[8px] uppercase tracking-wider text-slate-400 block font-bold">法币三方合规代管余额</span>
+                                <span class="text-base font-black text-slate-800 font-mono block mt-1">${v.escrow}</span>
+                            </div>
+                            <div class="pt-3 border-t border-slate-150 text-[9px] text-slate-450 leading-relaxed">
+                                实物与现金的提取交割需要触发 L3 级别的高防策略，验证时系统将同时读取您的 **“设备指纹钥匙 + 硬件TPM密钥 + 生物基因特征钥匙”** 组成的三重签名方可指令生效。
+                            </div>
+                        </div>
+                    `;
+                } 
+                // 2. 存储信托舱渲染
+                else if (v.id === 'vault_permanent_store') {
+                    dynamicContent = `
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <label class="text-[9px] uppercase font-bold text-slate-400">去中心化加密冷文件</label>
+                                <span class="text-[8px] text-slate-400">持久性存储 IPFS</span>
+                            </div>
+                            <div class="space-y-2">
+                                ${v.files.map(f => `
+                                    <div class="p-3 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                                        <div>
+                                            <p class="text-xs font-bold text-slate-800">${f.name}</p>
+                                            <p class="text-[8px] text-slate-400 font-mono mt-0.5">${f.size} | 写入于 ${f.time}</p>
+                                        </div>
+                                        <button onclick="showToast('正在利用本地钥匙对IPFS数据块执行非对称解密...', 'info')" class="px-2.5 py-1 text-[8px] bg-slate-100 border border-slate-200 text-indigo-600 font-bold rounded">解密查看</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else if (v.id === 'vault_did_backup') {
+                    dynamicContent = `
+                        <div class="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
+                            <div>
+                                <span class="text-[8px] uppercase tracking-wider text-slate-400 block font-bold">备份的去中心化数字身份 (DID)</span>
+                                <span class="text-[10px] font-mono text-indigo-700 block break-all select-all mt-1">${v.did}</span>
+                            </div>
+                            <p class="text-[9px] text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
+                                根私钥碎片已散列备份在去中心化存储网络。当检测到面部生物人脸与绑定设备均成功匹配时，可以触发社交网络恢复找回该数字主根。
+                            </p>
+                        </div>
+                    `;
+                } else if (v.id === 'vault_smart_inheritance') {
+                    dynamicContent = `
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <label class="text-[9px] uppercase font-bold text-slate-400">信托继承合约规则</label>
+                                <span class="text-[8px] bg-purple-100 text-purple-600 px-1 py-0.5 rounded font-bold">链上智能信托</span>
+                            </div>
+                            <div class="space-y-2">
+                                ${v.activeRules.map(r => `
+                                    <div class="p-3 bg-white rounded-xl border border-slate-200">
+                                        <div class="flex justify-between">
+                                            <p class="text-xs font-bold text-slate-800">${r.name}</p>
+                                            <span class="text-[9px] font-bold text-purple-600">● 智能执行中</span>
+                                        </div>
+                                        <div class="mt-2.5 pt-2.5 border-t border-slate-100 text-[8px] text-slate-450 font-mono">
+                                            <div>触发继承人: <span class="text-slate-800">${r.target}</span></div>
+                                            <div class="mt-0.5">核验源: DNA + 硬件芯片双校验</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="pt-1">
+                                <button onclick="triggerInheritanceAdd('${v.id}')" class="w-full py-3.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-md active:scale-95 transition">
+                                    📜 配置并建立新继承合约规则
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                bodyHtml = `
+                    <div class="glass-card rounded-3xl p-5.5 border border-indigo-200/50 bg-white/60 space-y-4">
+                        <div class="flex items-center space-x-3.5">
+                            <span class="text-4xl">${v.icon}</span>
+                            <div>
+                                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[8px] font-bold rounded border border-emerald-100 uppercase">${v.minLevel}</span>
+                                <h3 class="text-base font-black text-slate-850 mt-1.5">${v.name}</h3>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-relaxed">${v.desc}</p>
+                    </div>
+
+                    ${dynamicContent}
+                `;
+            } else {
+                // 钥匙不足锁死状态
+                const missingKeysHtml = v.requireKeys
+                    .filter(kid => state.keys.find(k => k.id === kid)?.status !== 'bound')
+                    .map(kid => {
+                        const mk = state.keys.find(k => k.id === kid);
+                        return `
+                            <div onclick="navigateBack('dashboard'); setTimeout(() => enterKeyDetail('${mk.id}'), 200);" class="p-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer active:scale-98 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="text-xl">${mk.icon}</span>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-800">${mk.name}</p>
+                                        <p class="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">${mk.level}</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold text-indigo-600 underline">录入钥匙 ›</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                bodyHtml = `
+                    <div class="glass-card rounded-3xl p-6 border border-amber-200 bg-amber-50/10 text-center space-y-4">
+                        <span class="text-5xl block">🔒</span>
+                        <h3 class="text-sm font-black text-amber-700">保险柜钥匙不足已物理锁死</h3>
+                        <p class="text-[10px] text-slate-450 leading-relaxed max-w-[240px] mx-auto">
+                            要打开此安全仓体，必须满足其设定的交叉密钥防御策略。请先补全并激活下列缺失的鉴权钥匙：
+                        </p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">缺失的防御密钥 (Missing Keys)</label>
+                        ${missingKeysHtml}
+                    </div>
+
+                    <div class="pt-2">
+                        <button onclick="navigateBack('dashboard')" class="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold text-xs rounded-xl active:scale-95 transition border border-slate-250">
+                            返回保险柜大厅
+                        </button>
+                    </div>
+                `;
+            }
+
+            detailContainer.innerHTML = bodyHtml;
+        }
+
+        // 模拟定向资产划转提取
+        function simulateAssetClaim(vaultId) {
+            const v = state.vaults.assets.find(x => x.id === vaultId);
+            if (!v) return;
+
+            const scanModal = document.getElementById('modal-scanning');
+            const scanTitle = document.getElementById('scan-title');
+            const scanDesc = document.getElementById('scan-desc');
+            const scanEmoji = document.getElementById('scan-emoji');
+
+            scanEmoji.innerText = '💳';
+            scanTitle.innerText = "L2 双密钥联合验证";
+            scanDesc.innerText = "正在读取当前设备物理 Hash 并校验已绑定的 TPM 2.0 硬件芯片，对定向交割交易完成双密钥签名验证...";
+
+            scanModal.classList.remove('opacity-0', 'pointer-events-none');
+            scanModal.querySelector('div').classList.remove('translate-y-8');
+
+            setTimeout(() => {
+                scanModal.classList.add('opacity-0', 'pointer-events-none');
+                scanModal.querySelector('div').classList.add('translate-y-8');
+                
+                v.balances[0].amount = '2,500.00'; // 模拟转账后余额减少
+                
+                showToast('✓ 成功通过双钥匙签名！10,000 USDR 定向提取划转下发成功！', 'success');
+                enterVaultDetail(v.id, 'assets');
+            }, 2500);
+        }
+
+        // 模拟配置信托继承协议
+        function triggerInheritanceAdd(vaultId) {
+            const v = state.vaults.trust.find(x => x.id === vaultId);
+            if (!v) return;
+
+            const scanModal = document.getElementById('modal-scanning');
+            const scanTitle = document.getElementById('scan-title');
+            const scanDesc = document.getElementById('scan-desc');
+            const scanEmoji = document.getElementById('scan-emoji');
+
+            scanEmoji.innerText = '📜';
+            scanTitle.innerText = "L3 多密钥签名上链";
+            scanDesc.innerText = "由于智能继承信托包含关键继承法权，正在对当前设备、TPM 硬件和脱氧核糖核酸 DNA 根证书这三重钥匙进行超级联合签名，对合约写入以太坊智能信托舱...";
+
+            scanModal.classList.remove('opacity-0', 'pointer-events-none');
+            scanModal.querySelector('div').classList.remove('translate-y-8');
+
+            setTimeout(() => {
+                scanModal.classList.add('opacity-0', 'pointer-events-none');
+                scanModal.querySelector('div').classList.add('translate-y-8');
+                
+                v.activeRules.push({
+                    name: '设备365天未活跃，全部余额100%转移给继承账户',
+                    status: '有效',
+                    target: '0x9999...8888'
+                });
+
+                showToast('✓ 成功通过 L3 多密钥超级鉴权！信托继承合约部署上链成功！', 'success');
+                enterVaultDetail(v.id, 'trust');
+            }, 2500);
+        }
+
+        // ==================== Toast 提示 ====================
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-slate-800';
+            if (type === 'success') bg = 'bg-emerald-600';
+            if (type === 'error') bg = 'bg-red-600';
+
+            toast.className = `px-4 py-2.5 rounded-xl shadow-2xl text-[11px] font-bold text-white whitespace-nowrap toast-enter ${bg}`;
+            toast.innerText = msg;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 250);
+            }, 2200);
+        }
+
+        // 初始化
+        renderDashboard();
+    </script>
+</body>
+</html>
