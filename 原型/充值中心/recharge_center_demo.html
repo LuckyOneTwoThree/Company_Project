@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>统一充值中心 - 原型 demo v1.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Outfit', 'system-ui', 'sans-serif'],
+                        'display': ['Space Grotesk', 'system-ui', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        indigo: { 650: '#4f46e5' },
+                        slate: { 350: '#cbd5e1' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Outfit', system-ui, sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .premium-card {
+            background: #FFFFFF;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 12px -1px rgba(15, 23, 42, 0.03), 0 2px 4px -1px rgba(15, 23, 42, 0.01);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .premium-card:hover {
+            border-color: rgba(99, 102, 241, 0.25);
+            box-shadow: 0 16px 24px -6px rgba(99, 102, 241, 0.08), 0 6px 10px -4px rgba(99, 102, 241, 0.03);
+            transform: translateY(-1px);
+        }
+
+        /* VIP 琥珀色金属光泽(沿用通行证主页) */
+        .vip-card-active {
+            background: linear-gradient(135deg, #FFFDF7 0%, #FFF8E5 100%);
+            border: 1px solid rgba(217, 119, 6, 0.25) !important;
+            box-shadow: 0 4px 15px -3px rgba(217, 119, 6, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+            position: relative;
+            overflow: hidden;
+        }
+        .vip-card-active::after {
+            content: "";
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 60%);
+            transform: rotate(45deg);
+            transition: all 0.5s ease;
+            opacity: 0.45;
+            pointer-events: none;
+            animation: vipShine 8s infinite linear;
+        }
+        @keyframes vipShine {
+            0% { transform: translate(-30%, -30%) rotate(45deg); }
+            100% { transform: translate(30%, 30%) rotate(45deg); }
+        }
+
+        .active-scale { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .active-scale:active { transform: scale(0.96); }
+
+        .home-indicator {
+            width: 134px; height: 5px;
+            background-color: #E2E8F0;
+            border-radius: 100px;
+            margin: 8px auto 0 auto;
+            opacity: 0.8;
+        }
+        .overlay-blur { backdrop-filter: blur(12px); background-color: rgba(15, 23, 42, 0.35); }
+
+        /* 套餐卡片选中态 */
+        .plan-card { transition: all 0.25s cubic-bezier(0.4,0,0.2,1); }
+        .plan-card.selected {
+            border-color: #6366f1 !important;
+            background: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%);
+            box-shadow: 0 8px 20px -6px rgba(99,102,241,0.18);
+            transform: translateY(-2px);
+        }
+        .plan-card.selected .plan-check { opacity: 1; transform: scale(1); }
+        .plan-check { opacity: 0; transform: scale(0.5); transition: all 0.25s; }
+
+        /* 地址校验状态点 */
+        .addr-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        /* 成功对勾动画 */
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        @keyframes drawCheck {
+            to { stroke-dashoffset: 0; }
+        }
+        .check-path {
+            stroke-dasharray: 48;
+            stroke-dashoffset: 48;
+            animation: drawCheck 0.5s 0.2s ease-out forwards;
+        }
+
+        /* 步骤条 */
+        .step-bar { transition: all 0.3s; }
+
+        /* 选中钱包项 */
+        .wallet-item.selected {
+            border-color: #6366f1 !important;
+            background: #EEF2FF;
+        }
+        .wallet-item.selected .wallet-radio { background: #6366f1; border-color: #6366f1; }
+        .wallet-item.selected .wallet-radio::after { opacity: 1; }
+        .wallet-radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #cbd5e1; position: relative; transition: all 0.2s; }
+        .wallet-radio::after {
+            content: ""; position: absolute; inset: 3px;
+            background: white; border-radius: 50%; opacity: 0; transition: opacity 0.2s;
+        }
+
+        /* 数量步进器 */
+        .qty-btn { transition: all 0.15s; }
+        .qty-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* 网格背景装饰 */
+        .grid-bg {
+            background-image: radial-gradient(circle at 1px 1px, rgba(99,102,241,0.08) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+
+        /* select 自定义下拉箭头 */
+        .custom-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* 确认弹窗字段行 */
+        .confirm-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+        }
+        .confirm-row + .confirm-row {
+            border-top: 1px solid #f1f5f9;
+        }
+    </style>
+</head>
+<body class="flex flex-col lg:flex-row justify-center items-center min-h-screen bg-[#F1F5F9] text-slate-800 p-4 md:p-8 font-sans gap-8 overflow-y-auto">
+
+    <!-- ========== 左侧说明面板 (Desktop) ========== -->
+    <div class="w-full lg:w-96 bg-white border border-slate-200 rounded-3xl p-6 flex flex-col justify-between self-stretch shadow-xl shadow-slate-200/50 max-h-[844px]">
+        <div>
+            <div class="flex items-center space-x-2 mb-4">
+                <span class="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-lg tracking-wider uppercase font-display border border-indigo-100">Node Service</span>
+                <span class="text-xs text-slate-400 font-mono">v1.0 Prototype</span>
+            </div>
+            <h1 class="text-2xl font-extrabold text-slate-900 font-display mb-3">统一充值中心</h1>
+            <p class="text-sm text-slate-500 leading-relaxed mb-6">
+                入口位于<b>数字身份通行证(DID Pass)主页</b>内,作为"会员服务"卡片呈现。支持对任意钱包地址进行会员开通/续费,类似淘宝充话费:输入地址 → 识别身份状态 → 选时长 → 付款 → 即时到账。App 身份卡片的会员标签点击可直接预填地址进入充值。
+            </p>
+
+            <div class="space-y-3.5">
+                <div class="flex items-start space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-200/50">
+                    <span class="text-lg">📥</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800">输入任意地址</h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5">手动输入/粘贴/扫码/从地址簿选取,自动校验地址有效性并识别已绑定的身份状态。</p>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-200/50">
+                    <span class="text-lg">👤</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800">识别接收方状态</h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5">未开通 → 引导开通;已开通 → 显示到期日,续费将叠加顺延。</p>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-200/50">
+                    <span class="text-lg">📦</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800">单价+时长</h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5">固定单价 10 USDTob/月,按需选择充值月数,金额实时计算。</p>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-200/50">
+                    <span class="text-lg">🔐</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800">本地 PIN 签名</h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5">复用 Node 通行证本地 6 位 PIN 码签名机制,链上广播后会员权益即时入账。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-slate-100 space-y-3">
+            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">快捷演示</h4>
+            <div class="flex flex-col space-y-2">
+                <button onclick="fillDemoAddress('known')" class="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200/60 text-xs font-bold rounded-xl active-scale">
+                    填入"已开通会员"地址
+                </button>
+                <button onclick="fillDemoAddress('unknown')" class="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 text-xs font-bold rounded-xl active-scale">
+                    填入"未开通"地址
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 中央手机壳 ========== -->
+    <div class="relative w-[390px] h-[844px] bg-[#F8FAFC] rounded-[50px] border-[12px] border-slate-900 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.22)] ring-4 ring-slate-800/10 overflow-hidden flex flex-col select-none">
+
+        <!-- 状态栏 -->
+        <div class="h-10 w-full bg-[#F8FAFC] flex justify-between items-center px-8 z-40 relative text-slate-800 text-xs font-medium flex-shrink-0">
+            <div class="font-display">3:02</div>
+            <div class="absolute left-1/2 -translate-x-1/2 top-2 h-5 w-24 bg-black rounded-full flex items-center justify-end px-3.5 z-50 shadow-[inset_0_1px_2px_rgba(255,255,255,0.25)]">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#080d1a] border border-slate-900/50 flex-shrink-0 flex items-center justify-center mr-1">
+                    <span class="w-1 h-1 rounded-full bg-[#1e293b] opacity-80"></span>
+                </span>
+                <span class="w-1.5 h-1.5 rounded-full bg-[#030712] border border-slate-900/50 flex-shrink-0"></span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-[9.5px] font-bold bg-slate-200/80 text-slate-700 px-1 py-0.5 rounded">5G</span>
+                <span>🔋 57%</span>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast-box" class="absolute top-14 left-1/2 -translate-x-1/2 z-[55] pointer-events-none opacity-0 transition-all duration-300 transform scale-95">
+            <div class="px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center space-x-2 shadow-xl">
+                <span id="toast-icon">✨</span>
+                <span id="toast-text">通知消息</span>
+            </div>
+        </div>
+
+        <!-- ========== 视图 0:数字身份通行证主页 (上一层入口) ========== -->
+        <div id="view-identity-pass" class="flex-1 flex flex-col overflow-hidden">
+            <header class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100 flex-shrink-0">
+                <button onclick="showToast('返回 Node 服务舱', '←')" class="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center hover:text-slate-800 active-scale">
+                    ‹
+                </button>
+                <h1 class="text-sm font-black text-slate-900 font-display">数字通行证 (DID)</h1>
+                <div class="w-8"></div>
+            </header>
+
+            <div class="flex-grow overflow-y-auto hide-scrollbar p-5 space-y-5">
+                <!-- 身份凭证中心 Summary -->
+                <div class="p-4 bg-gradient-to-br from-indigo-50/80 to-slate-50 border border-indigo-100/60 rounded-2xl">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-11 h-11 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xl">🔑</div>
+                        <div>
+                            <h3 class="text-xs font-black text-slate-900 font-display">身份凭证中心</h3>
+                            <p class="text-[9px] text-slate-400 mt-0.5">点击应用进入身份管理,按 Web3 / Web2 与网络分类查看</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 统一充值中心入口(琥珀色,会员服务) -->
+                <div class="premium-card rounded-2xl p-4 relative overflow-hidden">
+                    <div class="absolute -right-10 -top-10 w-36 h-36 bg-gradient-to-br from-amber-500/10 to-amber-400/5 rounded-full blur-2xl"></div>
+                    <div class="relative z-10">
+                        <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">会员服务</h4>
+                        <div onclick="openRechargeCenter()" class="flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-amber-50/80 to-amber-50/30 hover:from-amber-50 hover:to-amber-50/50 border border-amber-200/50 cursor-pointer active-scale">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-50 text-amber-600 flex items-center justify-center text-lg shadow-sm">👑</div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">统一充值中心</h4>
+                                    <p class="text-[9px] text-slate-400 mt-0.5">为任意钱包地址开通/续费会员 · 类似淘宝充话费</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-0.5 bg-amber-100/80 text-amber-700 text-[8px] font-bold rounded-full border border-amber-200">新</span>
+                                <span class="text-lg font-black text-amber-300">›</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 应用身份管理列表 -->
+                <div class="space-y-3">
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">应用身份管理</h4>
+                    <div id="app-auth-list" class="space-y-3">
+                        <!-- JS 注入 App 卡片 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 视图 1:充值中心主页 ========== -->
+        <div id="view-main" class="hidden flex-1 flex flex-col overflow-hidden">
+            <!-- 顶部导航 -->
+            <div class="flex items-center justify-between px-5 py-3 bg-[#F8FAFC] flex-shrink-0">
+                <button onclick="backToIdentityPass()" class="text-slate-400 hover:text-slate-600 text-lg active-scale">←</button>
+                <h3 class="text-sm font-bold text-slate-900 font-display">统一充值中心</h3>
+                <button onclick="openRecords()" class="text-slate-400 hover:text-slate-600 text-base active-scale relative">
+                    📋
+                    <span id="records-badge" class="hidden absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">3</span>
+                </button>
+            </div>
+
+            <!-- 内容滚动区 -->
+            <div class="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 grid-bg">
+
+                <!-- 充值标的 Tab -->
+                <div class="flex bg-slate-100 rounded-2xl p-1 mb-4 mt-2">
+                    <button onclick="switchTarget('member')" id="tab-member" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all bg-white text-indigo-600 shadow-sm">
+                        👑 会员充值
+                    </button>
+                    <button onclick="switchTarget('shortnum')" id="tab-shortnum" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all text-slate-400">
+                        🔢 短号续费
+                    </button>
+                </div>
+
+                <!-- 收款地址输入区 -->
+                <div class="premium-card rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <label class="text-xs font-bold text-slate-700">接收方钱包地址</label>
+                        <button onclick="openAddressBook()" class="text-[10px] text-indigo-500 font-bold active-scale">地址簿</button>
+                    </div>
+                    <div class="relative">
+                        <input id="addr-input" type="text" oninput="onAddrInput()" placeholder="0x... 或粘贴地址"
+                            class="w-full px-3 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all" />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                            <button onclick="pasteAddress()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-500 active-scale" title="粘贴">📋</button>
+                            <button onclick="scanAddress()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-500 active-scale" title="扫码">📷</button>
+                        </div>
+                    </div>
+                    <!-- 校验状态 -->
+                    <div id="addr-status" class="hidden mt-2.5 flex items-center space-x-2 text-[10px]">
+                        <span id="addr-dot" class="addr-dot bg-slate-300"></span>
+                        <span id="addr-status-text" class="text-slate-500">输入地址以识别接收方</span>
+                    </div>
+
+                    <!-- 识别到的身份卡片 -->
+                    <div id="identity-card" class="hidden mt-3 rounded-xl p-3 border"></div>
+                </div>
+
+                <!-- 单价与充值时长 -->
+                <div class="premium-card rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <div class="text-xs font-bold text-slate-700">会员单价</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">固定单价，按需充值</div>
+                        </div>
+                        <div class="text-sm font-bold text-indigo-600 font-display">10 <span class="text-[10px] text-slate-400 font-normal">USDTob / 月</span></div>
+                    </div>
+                    <div class="border-t border-slate-100 pt-3 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold text-slate-700">充值时长</div>
+                            <div id="months-hint" class="text-[10px] text-slate-400 mt-0.5">选择会员有效月数</div>
+                        </div>
+                        <div class="flex items-center space-x-3 bg-slate-50 rounded-full p-1 border border-slate-200">
+                            <button onclick="changeMonths(-1)" id="months-minus" class="qty-btn w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-700 font-bold flex items-center justify-center active-scale">−</button>
+                            <span id="months-value" class="text-sm font-bold text-slate-900 w-10 text-center font-display">1个月</span>
+                            <button onclick="changeMonths(1)" id="months-plus" class="qty-btn w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-700 font-bold flex items-center justify-center active-scale">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 付款方式 -->
+                <div id="payment-section" class="hidden premium-card rounded-2xl p-4 mb-4">
+                    <h4 class="text-xs font-bold text-slate-700 mb-3">付款方式</h4>
+
+                    <!-- 付款钱包（固定展示） -->
+                    <div class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 mb-3">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center text-xs">👛</div>
+                            <div>
+                                <div class="text-[11px] font-bold text-slate-800">自管钱包 - 地址A</div>
+                                <div class="text-[9px] text-slate-400 font-mono">0x71C7...98A5 · 自主链</div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] text-slate-500 font-mono">1,250.00 USDT</span>
+                    </div>
+
+                    <!-- 支付币种 -->
+                    <div>
+                        <div class="text-[10px] text-slate-400 mb-1.5">支付币种</div>
+                        <select id="pay-token" onchange="onPayTokenChange()" class="custom-select w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-400">
+                            <option value="usdtob">USDTob</option>
+                            <option value="usdrs">USDRs</option>
+                            <option value="usdc">USDC</option>
+                            <option value="dai">DAI</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 订单摘要(已识别身份时) -->
+                <div id="summary-section" class="hidden premium-card rounded-2xl p-4 mb-4">
+                    <h4 class="text-xs font-bold text-slate-700 mb-2.5">订单摘要</h4>
+                    <div class="space-y-2 text-[11px]">
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">接收方</span>
+                            <span id="sum-addr" class="font-mono text-slate-700">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">充值时长</span>
+                            <span id="sum-plan" class="text-slate-700">-</span>
+                        </div>
+                        <div id="sum-qty-row" class="hidden flex justify-between">
+                            <span class="text-slate-500">数量</span>
+                            <span id="sum-qty" class="text-slate-700">1</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">生效方式</span>
+                            <span id="sum-effect" class="text-slate-700">即时生效</span>
+                        </div>
+                        <div id="sum-expire-row" class="hidden flex justify-between">
+                            <span class="text-slate-500">续费后到期</span>
+                            <span id="sum-expire" class="text-amber-600 font-bold">-</span>
+                        </div>
+                        <div class="border-t border-slate-100 pt-2 mt-2 flex justify-between items-center">
+                            <span class="text-slate-700 font-bold">应付</span>
+                            <span id="sum-total" class="text-base font-bold text-indigo-600 font-display">0 <span class="text-[10px] text-slate-400">U</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部确认条 -->
+            <div class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 px-5 py-3 flex items-center space-x-3">
+                <div class="flex-1">
+                    <div class="text-[10px] text-slate-400">应付总额</div>
+                    <div class="text-lg font-bold text-slate-900 font-display"><span id="bottom-total">0</span> <span id="bottom-token" class="text-[10px] text-slate-400 font-normal">USDTob</span></div>
+                </div>
+                <button id="confirm-btn" onclick="openConfirm()" disabled class="px-6 py-3.5 bg-slate-200 text-slate-400 text-xs font-black rounded-2xl active-scale">
+                    立即充值
+                </button>
+            </div>
+        </div>
+
+        <!-- ========== 地址簿弹层 ========== -->
+        <div id="view-addressbook" class="hidden absolute inset-0 z-[50] bg-white flex flex-col">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
+                <button onclick="closeAddressBook()" class="text-slate-400 hover:text-slate-600 text-lg active-scale">✕</button>
+                <h3 class="text-sm font-bold text-slate-900 font-display">地址簿</h3>
+                <div class="w-4"></div>
+            </div>
+            <div class="flex-1 overflow-y-auto hide-scrollbar px-5 py-4">
+                <div class="text-[10px] text-slate-400 mb-2">最近充值的地址</div>
+                <div id="addressbook-list" class="space-y-2">
+                    <!-- JS 注入 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 充值记录弹层 ========== -->
+        <div id="view-records" class="hidden absolute inset-0 z-[50] bg-white flex flex-col">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
+                <button onclick="closeRecords()" class="text-slate-400 hover:text-slate-600 text-lg active-scale">✕</button>
+                <h3 class="text-sm font-bold text-slate-900 font-display">充值记录</h3>
+                <div class="w-4"></div>
+            </div>
+            <div class="flex-1 overflow-y-auto hide-scrollbar px-5 py-4">
+                <div id="records-list" class="space-y-2.5">
+                    <!-- JS 注入 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 确认支付弹窗 ========== -->
+        <div id="view-confirm" class="hidden absolute inset-0 z-[60] overlay-blur flex items-center justify-center p-5" onclick="onOverlayClick(event, 'view-confirm')">
+            <div class="bg-white rounded-3xl p-5 w-full max-w-[340px]" onclick="event.stopPropagation()">
+                <!-- 标题 -->
+                <div class="text-center mb-5">
+                    <h3 class="text-base font-bold text-slate-900 font-display">续费 IM 会员</h3>
+                    <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">按当前钱包身份的链上订阅合约完成充值，充值后会刷新会员到期时间。</p>
+                </div>
+
+                <!-- 字段列表 -->
+                <div class="space-y-0 mb-5 text-[12px]">
+                    <div class="confirm-row">
+                        <span class="text-slate-500">钱包地址</span>
+                        <span id="confirm-addr" class="font-mono text-slate-800">-</span>
+                    </div>
+                    <div class="confirm-row">
+                        <span class="text-slate-500">网络</span>
+                        <span id="confirm-network" class="text-slate-800">OB</span>
+                    </div>
+                    <div class="confirm-row">
+                        <span class="text-slate-500">稳定币</span>
+                        <div class="text-right">
+                            <span id="confirm-stablecoin" class="text-slate-800">USDTob</span>
+                            <span id="confirm-token-addr" class="block text-[10px] text-slate-400 font-mono">0xD57b8c...3c2729</span>
+                        </div>
+                    </div>
+                    <div class="confirm-row">
+                        <span class="text-slate-500">单价</span>
+                        <span id="confirm-unit-price" class="text-slate-800">10.0 USDTob / 月</span>
+                    </div>
+                    <div class="confirm-row">
+                        <span class="text-slate-500">支付币种</span>
+                        <select id="confirm-pay-token" onchange="onConfirmTokenChange()" class="custom-select bg-transparent text-indigo-600 text-xs font-bold py-1 pr-5 border-0 focus:ring-0 cursor-pointer text-right">
+                            <option value="usdtob">USDTob</option>
+                            <option value="usdrs">USDRs</option>
+                            <option value="usdc">USDC</option>
+                            <option value="dai">DAI</option>
+                        </select>
+                    </div>
+                    <div class="confirm-row">
+                        <span class="text-slate-500">充值时长</span>
+                        <select id="confirm-duration" onchange="onConfirmDurationChange()" class="custom-select bg-transparent text-indigo-600 text-xs font-bold py-1 pr-5 border-0 focus:ring-0 cursor-pointer text-right">
+                            <option value="1">1个月</option>
+                            <option value="3">3个月</option>
+                            <option value="6">6个月</option>
+                            <option value="12">12个月</option>
+                        </select>
+                    </div>
+                    <div class="confirm-row" style="border-top:1px solid #f1f5f9; padding-top:10px;">
+                        <span class="text-slate-700 font-bold">合计金额</span>
+                        <span id="confirm-total" class="text-sm font-bold text-indigo-600 font-display">10.0 USDTob</span>
+                    </div>
+                </div>
+
+                <!-- 密码输入 -->
+                <input id="confirm-password" type="password" placeholder="请输入钱包密码"
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all mb-4 text-center" />
+
+                <!-- 按钮 -->
+                <div class="flex space-x-3">
+                    <button onclick="closeConfirm()" class="flex-1 py-3 text-slate-500 text-xs font-bold rounded-xl active-scale">取消</button>
+                    <button onclick="submitConfirm()" class="flex-1 py-3 bg-indigo-600 text-white text-xs font-black rounded-xl active-scale">确认充值</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 支付处理中 ========== -->
+        <div id="view-processing" class="hidden absolute inset-0 z-[65] overlay-blur flex items-center justify-center">
+            <div class="bg-white rounded-3xl p-8 flex flex-col items-center max-w-[280px]">
+                <div class="w-14 h-14 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                <h3 class="text-sm font-bold text-slate-900 mb-1">链上广播中</h3>
+                <p class="text-[11px] text-slate-400 text-center">正在向区块链网络提交交易,请稍候...</p>
+            </div>
+        </div>
+
+        <!-- ========== 充值成功页 ========== -->
+        <div id="view-success" class="hidden absolute inset-0 z-[70] bg-white flex flex-col items-center justify-center p-8">
+            <div class="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center mb-5 pop-in">
+                <svg width="40" height="40" viewBox="0 0 52 52">
+                    <circle cx="26" cy="26" r="24" fill="none" stroke="#10b981" stroke-width="3" opacity="0.2"/>
+                    <path class="check-path" d="M14 27 L22 35 L38 17" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-black text-slate-900 font-display mb-1.5">充值成功</h2>
+            <p class="text-xs text-slate-400 mb-6 text-center">会员权益已即时发放至接收方钱包地址</p>
+
+            <div class="w-full bg-slate-50 rounded-2xl p-4 mb-6 space-y-2 text-[11px]">
+                <div class="flex justify-between"><span class="text-slate-500">接收方</span><span id="success-addr" class="font-mono text-slate-700">-</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">套餐</span><span id="success-plan" class="text-slate-700">-</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">金额</span><span id="success-amount" class="text-slate-700">-</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">交易哈希</span><span id="success-tx" class="font-mono text-indigo-500">0x9a2f...</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">生效状态</span><span id="success-effect" class="text-emerald-600 font-bold">已生效</span></div>
+            </div>
+
+            <div class="w-full space-y-2.5">
+                <button onclick="resetToHome()" class="w-full py-3.5 bg-indigo-600 text-white text-xs font-black rounded-2xl active-scale shadow-md shadow-indigo-100">再充一笔</button>
+                <button onclick="finishRecharge()" class="w-full py-3 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-2xl active-scale">完成</button>
+            </div>
+        </div>
+
+        <!-- Home Indicator -->
+        <div class="home-indicator flex-shrink-0"></div>
+    </div>
+
+    <script>
+        // ============ 数据 ============
+        // 已知地址的身份状态(模拟链上查询)
+        const knownAddresses = {
+            '0x71C7656EC7ab88b098defB751B7401B5f6d898A5': {
+                label: '自管钱包 - 地址A',
+                chain: '自主链',
+                membership: { status: 'active', plan: '终身会员', expireDate: '永久有效' }
+            },
+            '0x3a5b28F0e62fB125C98DE501B7401B5f6d898d1a2': {
+                label: '自管钱包 - 地址B',
+                chain: 'Ethereum',
+                membership: null  // 未开通
+            },
+            '0x9fC299A50aB42de34F12f9e4c198A5eB667382c4': {
+                label: '设备自管密钥 #3',
+                chain: 'Arbitrum',
+                membership: { status: 'active', plan: '年度会员', expireDate: '2027-03-15' }
+            }
+        };
+
+        // 付款钱包列表
+        const payWallets = [
+            { id: 'w1', name: '自管钱包 - 地址A', address: '0x71C7...98A5', chain: '自主链', balance: 1250.00 },
+            { id: 'w2', name: '自管钱包 - 地址B', address: '0x3a5b...d1a2', chain: 'Ethereum', balance: 480.50 },
+            { id: 'w3', name: '设备密钥 #3', address: '0x9fC2...82c4', chain: 'Arbitrum', balance: 88.20 }
+        ];
+
+        // 地址簿(最近充值)
+        const addressBook = [
+            { address: '0x71C7656EC7ab88b098defB751B7401B5f6d898A5', label: '我的地址A', lastUsed: '2026-08-01', times: 3 },
+            { address: '0x9fC299A50aB42de34F12f9e4c198A5eB667382c4', label: '设备密钥#3', lastUsed: '2026-07-28', times: 1 },
+            { address: '0x4b7E1a2c9d8f3a6B5c1E2d3F4a5B6c7D8e9F0a1B', label: '朋友的钱包', lastUsed: '2026-07-15', times: 2 }
+        ];
+
+        // 充值记录（贴合截图参数）
+        const records = [
+            { id: 'TX008', to: '0x71C7...98A5', plan: '年度会员', amount: 120, token: 'USDTob', date: '2026-08-01 14:23', status: 'success' },
+            { id: 'TX007', to: '0x9fC2...82c4', plan: '月度会员', amount: 10, token: 'USDTob', date: '2026-07-28 09:15', status: 'success' },
+            { id: 'TX006', to: '0x4b7E...0a1B', plan: '季度会员', amount: 30, token: 'USDRs', date: '2026-07-15 18:42', status: 'success' }
+        ];
+
+        // 会员单价（贴合截图参数：10 USDTob/月）
+        const unitPrice = 10;
+
+        // ============ 状态 ============
+        let state = {
+            target: 'member',         // member | shortnum
+            addr: '',                 // 当前输入地址
+            addrValid: false,         // 地址格式是否合法
+            identity: null,           // 识别到的身份对象
+            months: 1,                // 充值时长（月）
+            token: 'usdtob',          // 支付币种
+            pin: ''                   // PIN 码
+        };
+
+        // ============ Toast ============
+        function showToast(text, icon = '✨') {
+            const box = document.getElementById('toast-box');
+            document.getElementById('toast-icon').innerText = icon;
+            document.getElementById('toast-text').innerText = text;
+            box.classList.remove('opacity-0', 'scale-95');
+            box.classList.add('opacity-100', 'scale-100');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                box.classList.add('opacity-0', 'scale-95');
+                box.classList.remove('opacity-100', 'scale-100');
+            }, 1800);
+        }
+
+        // ============ 标的切换 ============
+        function switchTarget(t) {
+            state.target = t;
+            const tm = document.getElementById('tab-member');
+            const ts = document.getElementById('tab-shortnum');
+            if (t === 'member') {
+                tm.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+                tm.classList.remove('text-slate-400');
+                ts.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+                ts.classList.add('text-slate-400');
+            } else {
+                ts.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+                ts.classList.remove('text-slate-400');
+                tm.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+                tm.classList.add('text-slate-400');
+                showToast('短号续费功能开发中', '🔢');
+                // 切回会员
+                setTimeout(() => switchTarget('member'), 800);
+            }
+        }
+
+        // ============ 地址输入与校验 ============
+        function onAddrInput() {
+            const v = document.getElementById('addr-input').value.trim();
+            state.addr = v;
+            const statusBox = document.getElementById('addr-status');
+            const idCard = document.getElementById('identity-card');
+
+            if (!v) {
+                statusBox.classList.add('hidden');
+                idCard.classList.add('hidden');
+                state.addrValid = false;
+                state.identity = null;
+                refreshAll();
+                return;
+            }
+
+            statusBox.classList.remove('hidden');
+
+            // 简单校验:0x 开头 + 长度 >= 40
+            const validFormat = /^0x[a-fA-F0-9]{40}$/.test(v);
+            if (!validFormat) {
+                setAddrStatus('invalid', '地址格式不正确,请检查');
+                idCard.classList.add('hidden');
+                state.addrValid = false;
+                state.identity = null;
+                refreshAll();
+                return;
+            }
+
+            // 查是否已知身份
+            const known = knownAddresses[v];
+            if (known) {
+                state.addrValid = true;
+                state.identity = known;
+                setAddrStatus('valid', '地址有效 · 已识别身份');
+                renderIdentityCard(known);
+                idCard.classList.remove('hidden');
+            } else {
+                state.addrValid = true;
+                state.identity = { label: '未注册身份', chain: '未知', membership: null, isUnknown: true };
+                setAddrStatus('valid', '地址有效 · 未绑定身份(可代充)');
+                renderIdentityCard(state.identity);
+                idCard.classList.remove('hidden');
+            }
+            refreshAll();
+        }
+
+        function setAddrStatus(type, text) {
+            const dot = document.getElementById('addr-dot');
+            const t = document.getElementById('addr-status-text');
+            t.innerText = text;
+            dot.className = 'addr-dot';
+            if (type === 'valid') {
+                dot.classList.add('bg-emerald-500');
+                t.className = 'text-emerald-600';
+            } else if (type === 'invalid') {
+                dot.classList.add('bg-rose-500');
+                t.className = 'text-rose-500';
+            } else {
+                dot.classList.add('bg-slate-300');
+                t.className = 'text-slate-500';
+            }
+        }
+
+        function renderIdentityCard(id) {
+            const card = document.getElementById('identity-card');
+            const short = state.addr.slice(0, 6) + '...' + state.addr.slice(-4);
+            if (id.membership && id.membership.status === 'active') {
+                card.className = 'mt-3 rounded-xl p-3 border vip-card-active';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-base">👑</span>
+                            <div>
+                                <div class="text-[11px] font-bold text-slate-800">${id.label}</div>
+                                <div class="text-[9px] text-slate-500 font-mono">${short} · ${id.chain}</div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full border border-amber-200">${id.membership.plan}</span>
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-amber-200/40 text-[10px] text-amber-700">
+                        当前到期: <b>${id.membership.expireDate}</b> · 续费将顺延叠加
+                    </div>
+                `;
+            } else {
+                card.className = 'mt-3 rounded-xl p-3 border border-slate-200 bg-slate-50';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-base">${id.isUnknown ? '🔮' : '🆕'}</span>
+                            <div>
+                                <div class="text-[11px] font-bold text-slate-800">${id.label}</div>
+                                <div class="text-[9px] text-slate-500 font-mono">${short} · ${id.chain}</div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 bg-slate-200 text-slate-600 text-[9px] font-bold rounded-full">未开通</span>
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-500">
+                        ${id.isUnknown ? '该地址尚未在体系内注册,充值后将作为新会员权益发放至该地址' : '将为该地址开通会员,即时生效'}
+                    </div>
+                `;
+            }
+        }
+
+        function pasteAddress() {
+            // 模拟粘贴
+            showToast('请使用模拟按钮填入地址', '📋');
+        }
+        function scanAddress() {
+            showToast('扫码功能开发中', '📷');
+        }
+
+        function fillDemoAddress(type) {
+            const addr = type === 'known'
+                ? '0x71C7656EC7ab88b098defB751B7401B5f6d898A5'
+                : '0x3a5b28F0e62fB125C98DE501B7401B5f6d898d1a2';
+            openRechargeCenter(addr);
+            showToast('已填入演示地址', '📥');
+        }
+
+        // ============ 充值时长调整 ============
+        function changeMonths(delta) {
+            let m = state.months + delta;
+            if (m < 1) m = 1;
+            if (m > 36) m = 36;
+            state.months = m;
+            document.getElementById('months-value').innerText = m + '个月';
+            document.getElementById('months-minus').disabled = (m <= 1);
+            document.getElementById('months-plus').disabled = (m >= 36);
+            refreshAll();
+        }
+
+        // ============ 付款方式 ============
+        function onPayTokenChange() {
+            state.token = document.getElementById('pay-token').value;
+            refreshAll();
+        }
+
+        function getTokenSymbol() {
+            const map = { usdtob: 'USDTob', usdrs: 'USDRs', usdc: 'USDC', dai: 'DAI' };
+            return map[state.token] || state.token.toUpperCase();
+        }
+
+        // ============ 摘要 & 底部按钮刷新 ============
+        function calcTotal() {
+            return unitPrice * state.months;
+        }
+
+        function refreshAll() {
+            const total = calcTotal();
+            const tokenSym = getTokenSymbol();
+
+            // 底部总额
+            document.getElementById('bottom-total').innerText = total.toFixed(1);
+            document.getElementById('bottom-token').innerText = tokenSym;
+
+            // 付款区显隐:地址有效后显示
+            const paySec = document.getElementById('payment-section');
+            const sumSec = document.getElementById('summary-section');
+            if (state.addrValid) {
+                paySec.classList.remove('hidden');
+                sumSec.classList.remove('hidden');
+            } else {
+                paySec.classList.add('hidden');
+                sumSec.classList.add('hidden');
+            }
+
+            // 摘要
+            if (state.addrValid) {
+                const short = state.addr.slice(0, 6) + '...' + state.addr.slice(-4);
+                document.getElementById('sum-addr').innerText = short;
+                document.getElementById('sum-plan').innerText = state.months + '个月';
+                document.getElementById('sum-qty').innerText = state.months + ' 个月';
+                // 生效方式 & 到期日
+                if (state.identity && state.identity.membership) {
+                    document.getElementById('sum-effect').innerText = '续费顺延';
+                    if (state.identity.membership.expireDate === '永久有效') {
+                        document.getElementById('sum-effect').innerText = '已是终身会员,无需续费';
+                        document.getElementById('sum-expire-row').classList.add('hidden');
+                        document.getElementById('sum-expire-row').classList.remove('flex');
+                    } else {
+                        document.getElementById('sum-expire-row').classList.remove('hidden');
+                        document.getElementById('sum-expire-row').classList.add('flex');
+                        document.getElementById('sum-expire').innerText = calcNewExpire();
+                    }
+                } else {
+                    document.getElementById('sum-effect').innerText = '即时生效';
+                    document.getElementById('sum-expire-row').classList.add('hidden');
+                    document.getElementById('sum-expire-row').classList.remove('flex');
+                }
+                document.getElementById('sum-total').innerHTML = total.toFixed(1) + ' <span class="text-[10px] text-slate-400">' + tokenSym + '</span>';
+            }
+
+            // 按钮可用态
+            const btn = document.getElementById('confirm-btn');
+            if (state.addrValid) {
+                btn.disabled = false;
+                btn.className = 'px-6 py-3.5 bg-gradient-to-r from-indigo-500 to-indigo-650 text-white text-xs font-black rounded-2xl active-scale shadow-md shadow-indigo-100';
+                btn.innerText = '立即充值';
+            } else {
+                btn.disabled = true;
+                btn.className = 'px-6 py-3.5 bg-slate-200 text-slate-400 text-xs font-black rounded-2xl';
+                btn.innerText = '立即充值';
+            }
+        }
+
+        function calcNewExpire() {
+            if (!state.identity || !state.identity.membership) return '-';
+            const expire = state.identity.membership.expireDate;
+            if (expire === '永久有效') return '永久有效';
+            const d = new Date(expire);
+            d.setMonth(d.getMonth() + state.months);
+            return d.toISOString().slice(0, 10);
+        }
+
+        // ============ 确认弹窗 ============
+        function openConfirm() {
+            if (!state.addrValid) return;
+
+            const short = state.addr.slice(0, 8) + '...' + state.addr.slice(-6);
+            document.getElementById('confirm-addr').innerText = short;
+
+            // 动态标题：已开通则"续费"，未开通则"开通"
+            const isRenewal = state.identity && state.identity.membership && state.identity.membership.status === 'active';
+            document.querySelector('#view-confirm h3').innerText = (isRenewal ? '续费' : '开通') + ' IM 会员';
+
+            // 网络固定为 OB（截图参数）
+            document.getElementById('confirm-network').innerText = 'OB';
+
+            // 单价（贴合截图参数：固定 10 USDTob / 月）
+            document.getElementById('confirm-unit-price').innerText = unitPrice.toFixed(1) + ' USDTob / 月';
+
+            // 同步支付币种
+            document.getElementById('confirm-pay-token').value = state.token;
+
+            // 充值时长下拉：根据 state.months 生成选项
+            const durSel = document.getElementById('confirm-duration');
+            durSel.innerHTML = '';
+            const opts = [1, 2, 3, 6, 9, 12, 18, 24, 36];
+            if (!opts.includes(state.months)) {
+                opts.push(state.months);
+                opts.sort((a, b) => a - b);
+            }
+            opts.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.innerText = m + '个月';
+                durSel.appendChild(opt);
+            });
+            durSel.value = String(state.months);
+
+            // 重置密码
+            document.getElementById('confirm-password').value = '';
+
+            updateConfirmTotal();
+            document.getElementById('view-confirm').classList.remove('hidden');
+        }
+
+        function closeConfirm() {
+            document.getElementById('view-confirm').classList.add('hidden');
+            document.getElementById('confirm-password').value = '';
+        }
+
+        function onConfirmTokenChange() {
+            state.token = document.getElementById('confirm-pay-token').value;
+            document.getElementById('pay-token').value = state.token;
+            updateConfirmTotal();
+        }
+
+        function onConfirmDurationChange() {
+            updateConfirmTotal();
+        }
+
+        function updateConfirmTotal() {
+            const durSel = document.getElementById('confirm-duration');
+            const months = parseInt(durSel.value, 10);
+            const total = unitPrice * months;
+            const tokenVal = document.getElementById('confirm-pay-token').value;
+            const tokenMap = { usdtob: 'USDTob', usdrs: 'USDRs', usdc: 'USDC', dai: 'DAI' };
+            const tokenSym = tokenMap[tokenVal] || tokenVal.toUpperCase();
+            document.getElementById('confirm-total').innerText = total.toFixed(1) + ' ' + tokenSym;
+        }
+
+        function submitConfirm() {
+            const pwd = document.getElementById('confirm-password').value.trim();
+            if (!pwd) {
+                showToast('请输入钱包密码', '⚠️');
+                return;
+            }
+            closeConfirm();
+            showProcessing();
+        }
+
+        function showProcessing() {
+            document.getElementById('view-processing').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('view-processing').classList.add('hidden');
+                showSuccess();
+            }, 1800);
+        }
+
+        function showSuccess() {
+            const short = state.addr.slice(0, 8) + '...' + state.addr.slice(-6);
+            document.getElementById('success-addr').innerText = short;
+            document.getElementById('success-plan').innerText = state.months + '个月会员';
+            document.getElementById('success-amount').innerText = calcTotal().toFixed(1) + ' ' + getTokenSymbol();
+            document.getElementById('success-tx').innerText = '0x' + Math.random().toString(16).slice(2, 8) + '...';
+            document.getElementById('success-effect').innerText =
+                (state.identity && state.identity.membership) ? '已顺延生效' : '已即时生效';
+            document.getElementById('view-success').classList.remove('hidden');
+        }
+
+        function resetToHome() {
+            document.getElementById('view-success').classList.add('hidden');
+            // 重置表单
+            document.getElementById('addr-input').value = '';
+            state = { target: 'member', addr: '', addrValid: false, identity: null, months: 1, token: 'usdtob', pin: '' };
+            document.getElementById('addr-status').classList.add('hidden');
+            document.getElementById('identity-card').classList.add('hidden');
+            document.getElementById('months-value').innerText = '1个月';
+            document.getElementById('pay-token').value = 'usdtob';
+            refreshAll();
+        }
+
+        function finishRecharge() {
+            document.getElementById('view-success').classList.add('hidden');
+            resetToHome();
+            backToIdentityPass();
+            showToast('已完成,返回数字通行证', '✅');
+        }
+
+        function onOverlayClick(e, viewId) {
+            if (e.target.id === viewId) {
+                if (viewId === 'view-confirm') closeConfirm();
+            }
+        }
+
+        // ============ 地址簿 ============
+        function openAddressBook() {
+            const list = document.getElementById('addressbook-list');
+            list.innerHTML = addressBook.map(a => `
+                <div onclick="pickAddress('${a.address}')" class="premium-card rounded-2xl p-3 cursor-pointer active-scale">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-sm">👤</div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-800">${a.label}</div>
+                                <div class="text-[9px] text-slate-400 font-mono">${a.address.slice(0,10)}...${a.address.slice(-6)}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[9px] text-slate-400">充值 ${a.times} 次</div>
+                            <div class="text-[9px] text-slate-400">${a.lastUsed}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('view-addressbook').classList.remove('hidden');
+        }
+        function closeAddressBook() {
+            document.getElementById('view-addressbook').classList.add('hidden');
+        }
+        function pickAddress(addr) {
+            document.getElementById('addr-input').value = addr;
+            closeAddressBook();
+            onAddrInput();
+            showToast('已从地址簿选取', '✅');
+        }
+
+        // ============ 充值记录 ============
+        function openRecords() {
+            const list = document.getElementById('records-list');
+            list.innerHTML = records.map(r => `
+                <div class="premium-card rounded-2xl p-3.5">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-base">👑</span>
+                            <span class="text-xs font-bold text-slate-800">${r.plan}</span>
+                        </div>
+                        <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded-full border border-emerald-200">✓ 成功</span>
+                    </div>
+                    <div class="space-y-1 text-[10px]">
+                        <div class="flex justify-between"><span class="text-slate-400">接收方</span><span class="font-mono text-slate-600">${r.to}</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">金额</span><span class="text-slate-700 font-bold">${r.amount} ${r.token}</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">时间</span><span class="text-slate-500">${r.date}</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">订单号</span><span class="font-mono text-slate-500">${r.id}</span></div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('view-records').classList.remove('hidden');
+        }
+        function closeRecords() {
+            document.getElementById('view-records').classList.add('hidden');
+        }
+
+        // ============ 视图切换 ============
+        function openRechargeCenter(prefillAddr) {
+            document.getElementById('view-identity-pass').classList.add('hidden');
+            document.getElementById('view-main').classList.remove('hidden');
+            if (prefillAddr) {
+                document.getElementById('addr-input').value = prefillAddr;
+                onAddrInput();
+            }
+        }
+        function backToIdentityPass() {
+            document.getElementById('view-main').classList.add('hidden');
+            document.getElementById('view-identity-pass').classList.remove('hidden');
+        }
+
+        // ============ App 身份管理列表 ============
+        const appList = [
+            {
+                id: 'r9lab_im', name: 'R9Lab IM', icon: '💬',
+                web3: [{ addr: '0x71C7656EC7ab88b098defB751B7401B5f6d898A5', chain: '自主链', membership: { plan: '终身会员', expireDate: '永久有效' } }],
+                web2: [{ type: 'phone', account: '138****5678', membership: { plan: '年度会员', expireDate: '2027-03-15' } }]
+            },
+            {
+                id: 'xx_im', name: 'XX IM', icon: '✉️',
+                web3: [{ addr: '0x3a5b28F0e62fB125C98DE501B7401B5f6d898d1a2', chain: 'Ethereum', membership: null }],
+                web2: [{ type: 'email', account: 'u***@r9lab.org', membership: null }]
+            }
+        ];
+
+        function renderAppList() {
+            const container = document.getElementById('app-auth-list');
+            container.innerHTML = appList.map(app => {
+                const total = app.web3.length + app.web2.length;
+                const memberTags = [];
+                app.web3.forEach(w => {
+                    const short = w.addr.slice(0, 6) + '...' + w.addr.slice(-4);
+                    if (w.membership) {
+                        memberTags.push(`<span onclick="event.stopPropagation();openRechargeCenter('${w.addr}')" class="inline-flex items-center space-x-0.5 px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[9px] font-bold rounded border border-amber-200/50 cursor-pointer active-scale">👑${w.membership.plan}</span>`);
+                    } else {
+                        memberTags.push(`<span onclick="event.stopPropagation();openRechargeCenter('${w.addr}')" class="inline-flex items-center px-1.5 py-0.5 bg-slate-50 text-slate-400 text-[9px] font-bold rounded border border-slate-200/50 cursor-pointer active-scale">👑开通会员</span>`);
+                    }
+                });
+                app.web2.forEach(a => {
+                    if (a.membership) {
+                        memberTags.push(`<span class="inline-flex items-center space-x-0.5 px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[9px] font-bold rounded border border-amber-200/50">👑${a.membership.plan}</span>`);
+                    } else {
+                        memberTags.push(`<span class="inline-flex items-center px-1.5 py-0.5 bg-slate-50 text-slate-400 text-[9px] font-bold rounded border border-slate-200/50">👑开通会员</span>`);
+                    }
+                });
+                return `
+                    <div class="premium-card rounded-2xl p-3.5 cursor-pointer active-scale" onclick="showToast('进入 ${app.name} 身份管理', '${app.icon}')">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-base">${app.icon}</div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">${app.name}</h4>
+                                    <p class="text-[9px] text-slate-400 mt-0.5">${total} 个关联身份</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-bold rounded">💳${app.web3.length}</span>
+                                <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 text-[8px] font-bold rounded">📱${app.web2.length}</span>
+                            </div>
+                        </div>
+                        <div class="pt-2.5 border-t border-slate-100 flex items-center space-x-1.5 flex-wrap gap-1.5">
+                            ${memberTags.join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ============ 初始化 ============
+        renderAppList();
+        refreshAll();
+    </script>
+</body>
+</html>
