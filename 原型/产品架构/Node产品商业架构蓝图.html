@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Node 产品商业架构蓝图 v2.0 · 全局关联版</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0a0e1a;
+    color: #e8eaf0;
+    padding: 20px;
+    min-width: 1500px;
+  }
+  .canvas { max-width: 1800px; margin: 0 auto; }
+
+  /* 标题 */
+  .header {
+    text-align: center;
+    padding: 20px 0 24px;
+    border-bottom: 1px solid #1e2638;
+    margin-bottom: 24px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 600;
+    background: linear-gradient(90deg, #4fc3f7, #81d4fa, #4dd0e1, #4fc3f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+  }
+  .header .meta { font-size: 12px; color: #6b7589; }
+  .header .positioning {
+    margin-top: 12px; padding: 12px 20px;
+    background: linear-gradient(135deg, rgba(79,195,247,0.08), rgba(77,208,225,0.05));
+    border: 1px solid rgba(79,195,247,0.2); border-radius: 6px;
+    font-size: 14px; color: #b3e5fc;
+  }
+
+  /* 图例 */
+  .legend {
+    display: flex; gap: 16px; justify-content: center;
+    margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: #9aa3b5;
+  }
+  .legend-dot {
+    width: 12px; height: 12px; border-radius: 3px; border: 1px solid;
+  }
+  .ld-done { background: rgba(102,187,106,0.15); border-color: #66bb6a; }
+  .ld-dev { background: rgba(255,183,77,0.15); border-color: #ffb74d; }
+  .ld-plan { background: rgba(206,147,216,0.15); border-color: #ce93d8; }
+  .ld-core { background: rgba(79,195,247,0.15); border-color: #4fc3f7; }
+
+  /* 主架构区 */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr 580px;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  /* 左侧:基础与关系 */
+  .side-col {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .side-block {
+    padding: 14px;
+    background: #111726;
+    border: 1px solid #1e2638;
+    border-radius: 8px;
+  }
+  .side-block h3 {
+    font-size: 12px; font-weight: 600;
+    color: #81d4fa; margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid #1e2638;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  /* 中间:核心流转链路 */
+  .center-col {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  /* 流转生命周期 - 核心 */
+  .lifecycle {
+    padding: 18px;
+    background: linear-gradient(180deg, #111726 0%, #0d1320 100%);
+    border: 1px solid #2a3548;
+    border-radius: 10px;
+  }
+  .lifecycle h2 {
+    font-size: 14px; font-weight: 600;
+    color: #4dd0e1; margin-bottom: 14px;
+    text-align: center;
+  }
+  .lifecycle-flow {
+    display: flex; align-items: stretch; gap: 6px;
+    overflow-x: auto; padding-bottom: 4px;
+  }
+  .lc-stage {
+    flex: 1; min-width: 120px;
+    padding: 10px 8px;
+    background: #1a2235;
+    border: 1px solid #2a3548;
+    border-radius: 6px;
+    text-align: center;
+    position: relative;
+  }
+  .lc-stage .lc-num {
+    position: absolute; top: -8px; left: 50%;
+    transform: translateX(-50%);
+    width: 18px; height: 18px;
+    background: #4fc3f7; color: #0a0e1a;
+    border-radius: 50%; font-size: 10px;
+    font-weight: 700; line-height: 18px;
+  }
+  .lc-stage .lc-name {
+    font-size: 12px; font-weight: 600;
+    color: #e8eaf0; margin-top: 6px; margin-bottom: 4px;
+  }
+  .lc-stage .lc-desc {
+    font-size: 10px; color: #9aa3b5; line-height: 1.4;
+  }
+  .lc-stage .lc-status {
+    display: inline-block; margin-top: 4px;
+    padding: 1px 5px; font-size: 9px;
+    border-radius: 2px;
+  }
+  .lc-stage.done .lc-status { background: rgba(102,187,106,0.2); color: #66bb6a; }
+  .lc-stage.dev .lc-status { background: rgba(255,183,77,0.2); color: #ffb74d; }
+  .lc-stage.plan .lc-status { background: rgba(206,147,216,0.2); color: #ce93d8; }
+  .lc-stage.plan { border-color: rgba(206,147,216,0.3); }
+  .lc-stage.dev { border-color: rgba(255,183,77,0.3); }
+
+  .lc-arrow {
+    align-self: center;
+    color: #4fc3f7; font-size: 16px;
+    flex: 0 0 auto;
+  }
+
+  /* 引擎区 */
+  .engines {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .engine {
+    padding: 10px;
+    background: #111726;
+    border: 1px solid #1e2638;
+    border-radius: 6px;
+  }
+  .engine .ename {
+    font-size: 12px; font-weight: 600;
+    color: #ce93d8; margin-bottom: 4px;
+  }
+  .engine .edesc {
+    font-size: 10px; color: #9aa3b5; line-height: 1.4;
+  }
+
+  /* 资金流 */
+  .fund-flow {
+    padding: 14px;
+    background: #111726;
+    border: 1px solid #1e2638;
+    border-radius: 8px;
+  }
+  .fund-flow h3 {
+    font-size: 12px; font-weight: 600;
+    color: #4dd0e1; margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid #1e2638;
+  }
+  .fund-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .fund-side h4 {
+    font-size: 11px; color: #81d4fa; margin-bottom: 6px;
+  }
+  .fund-item {
+    display: flex; align-items: flex-start;
+    margin-bottom: 4px; font-size: 10px;
+    color: #b0b8c8; line-height: 1.5;
+  }
+  .fund-item .n {
+    color: #4fc3f7; font-weight: 600;
+    margin-right: 6px; min-width: 16px;
+  }
+  .fund-item .t { color: #ffb74d; font-weight: 500; }
+
+  /* 右侧:2列网格,平衡L3-L7纵向长度 */
+  .right-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-content: start;
+  }
+  .right-col .side-col {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  /* 模块通用样式 */
+  .mod {
+    padding: 8px 10px;
+    background: #1a2235;
+    border: 1px solid #2a3548;
+    border-radius: 4px;
+    margin-bottom: 6px;
+  }
+  .mod .mn {
+    font-size: 11px; font-weight: 600;
+    color: #e8eaf0; margin-bottom: 2px;
+  }
+  .mod .md {
+    font-size: 10px; color: #9aa3b5; line-height: 1.4;
+  }
+  .mod.core { border-color: #4fc3f7; background: rgba(79,195,247,0.06); }
+  .mod.core .mn { color: #4fc3f7; }
+  .mod.done { border-left: 3px solid #66bb6a; }
+  .mod.dev { border-left: 3px solid #ffb74d; }
+  .mod.plan { border-left: 3px solid #ce93d8; }
+
+  /* 飞轮 */
+  .flywheels {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; margin-bottom: 24px;
+  }
+  .fw {
+    padding: 12px;
+    background: #111726;
+    border: 1px solid #1e2638;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .fw .fn {
+    font-size: 12px; font-weight: 600;
+    color: #ce93d8; margin-bottom: 8px;
+  }
+  .fw .ff {
+    font-size: 10px; color: #b39ddb; line-height: 1.8;
+  }
+  .fw .ff .s {
+    display: inline-block; padding: 2px 6px;
+    background: rgba(206,147,216,0.1);
+    border-radius: 2px; margin: 1px;
+  }
+  .fw .ff .a { color: #6b7589; }
+
+  /* 演进 */
+  .evolution {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px; margin-bottom: 20px;
+  }
+  .es {
+    padding: 14px; border-radius: 8px; border: 1px solid;
+  }
+  .es.v1 { background: rgba(102,187,106,0.05); border-color: rgba(102,187,106,0.25); }
+  .es.vx { background: rgba(255,183,77,0.05); border-color: rgba(255,183,77,0.25); }
+  .es.v2 { background: rgba(206,147,216,0.05); border-color: rgba(206,147,216,0.25); }
+  .es .vn { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .es.v1 .vn { color: #66bb6a; }
+  .es.vx .vn { color: #ffb74d; }
+  .es.v2 .vn { color: #ce93d8; }
+  .es ul { list-style: none; font-size: 10px; color: #b0b8c8; line-height: 1.7; }
+  .es li::before { content: "·"; margin-right: 5px; color: #6b7589; }
+
+  .section-title {
+    font-size: 13px; font-weight: 600;
+    color: #4dd0e1; margin-bottom: 12px;
+    padding-bottom: 6px; border-bottom: 1px solid #1e2638;
+  }
+
+  /* 铁律 */
+  .iron-laws {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; margin-bottom: 24px;
+  }
+  .il {
+    padding: 10px 14px;
+    background: rgba(255,82,82,0.06);
+    border: 1px solid rgba(255,82,82,0.25);
+    border-radius: 6px;
+  }
+  .il .t { font-size: 12px; font-weight: 600; color: #ff8a80; margin-bottom: 3px; }
+  .il .d { font-size: 10px; color: #9aa3b5; line-height: 1.4; }
+
+  .footer {
+    text-align: center; padding: 20px 0;
+    border-top: 1px solid #1e2638;
+    font-size: 11px; color: #6b7589;
+  }
+
+  /* 关联线说明 */
+  .relation-note {
+    padding: 10px 14px;
+    background: rgba(79,195,247,0.04);
+    border: 1px dashed rgba(79,195,247,0.3);
+    border-radius: 6px;
+    font-size: 10px; color: #81d4fa;
+    line-height: 1.6; margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+
+  <div class="header">
+    <h1>Node 产品商业架构蓝图 · 全局关联版</h1>
+    <div class="meta">v2.0 · 2026-07-31 · 包含已实现+开发中+规划中全量能力 · 后续按分类(国内/国外·安卓/iOS)拆分</div>
+    <div class="positioning">
+      Node = <b>自管钱包 + 关系网络 + 资产流转 + 身份通行证 + 应用分发</b> 五位一体的 Web3 商业闭环
+    </div>
+  </div>
+
+  <!-- 图例 -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot ld-core"></div>核心模块</div>
+    <div class="legend-item"><div class="legend-dot ld-done"></div>✅ 已上线</div>
+    <div class="legend-item"><div class="legend-dot ld-dev"></div>🟡 开发中</div>
+    <div class="legend-item"><div class="legend-dot ld-plan"></div>⚪ 规划中</div>
+  </div>
+
+  <!-- 三大铁律 -->
+  <div class="iron-laws">
+    <div class="il">
+      <div class="t">铁律一 · 私钥永不上链/上云</div>
+      <div class="d">资产主权归用户,平台不托管,合规免责</div>
+    </div>
+    <div class="il">
+      <div class="t">铁律二 · 关系永久 set-once</div>
+      <div class="d">链上不可改,关系资产化,平台护城河</div>
+    </div>
+    <div class="il">
+      <div class="t">铁律三 · 地址即身份</div>
+      <div class="d">算钱/绑定/鉴权只信链上地址,Web2仅辅助</div>
+    </div>
+  </div>
+
+  <!-- 关联说明 -->
+  <div class="relation-note">
+    <b>核心关联链路</b>:商品发行(L3) → 发货资产化(codeId成RWA资产凭证,L3→L5) → 流转市场处置(L5,不触发分润) → 资产token化(L3,ERC-721/1155标准化) → 跨场景组合(集邮挖矿/L2规划)
+    <br><b>分润关联</b>:购买触发(L3) → 沿关系链(L2) → 级差返利(L4) → 积分累加(L4) → 等级升级(L4) → 返利比例提升(反哺L4)
+    <br><b>信任根基</b>:所有功能前置设备指纹校验(L6保险库),物理层反女巫
+  </div>
+
+  <!-- 主架构:三栏布局 -->
+  <div class="main-grid">
+
+    <!-- 左栏:基础+关系 -->
+    <div class="side-col">
+
+      <div class="side-block">
+        <h3>L1 · 基础层(资产基座)</h3>
+        <div class="mod core done">
+          <div class="mn">自管钱包</div>
+          <div class="md">创建/导入/Swap/收发 · 私钥本地Keychain加密</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">代币体系(四币+USDT)</div>
+          <div class="md">RC获客 · USDRs结算 · HRCs生态 · RSTs储备 · USDT计价基准</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">Swap兑换</div>
+          <div class="md">自建AMM · 滑点保护4档 · 白名单分级(rank/持仓双轨)</div>
+        </div>
+        <div class="mod dev">
+          <div class="mn">Swap权益白名单</div>
+          <div class="md">大额/特殊代币分级控制(待补充)</div>
+        </div>
+      </div>
+
+      <div class="side-block">
+        <h3>L2 · 关系层(信任网络)</h3>
+        <div class="mod core done">
+          <div class="mn">设备指纹(DeviceRegistry)</div>
+          <div class="md">一机一包 · 全App前置闸门 · 物理层反女巫</div>
+        </div>
+        <div class="mod core done">
+          <div class="mn">关系绑定(ReferralRegistry)</div>
+          <div class="md">链上set-once · 5渠道归因 · 防环 · 购买即绑定</div>
+        </div>
+        <div class="mod dev">
+          <div class="mn">关系转移/地址迁移</div>
+          <div class="md">换地址迁移 · 多签治理(2/2+3天锁) · 地址丢失兜底</div>
+        </div>
+        <div class="mod plan">
+          <div class="mn">团队积分转移</div>
+          <div class="md">高级代理按比例转移下级 · 不可用于升级(防刷级)</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 中栏:核心流转生命周期 + 引擎 + 资金流 -->
+    <div class="center-col">
+
+      <!-- 商品资产化生命周期(核心关联链路) -->
+      <div class="lifecycle">
+        <h2>📦 商品资产化生命周期 · 核心流转链路</h2>
+        <div class="lifecycle-flow">
+
+          <div class="lc-stage done">
+            <div class="lc-num">1</div>
+            <div class="lc-name">商品发行</div>
+            <div class="lc-desc">官方上架<br>统一商品池</div>
+            <div class="lc-status">✅ 已上线</div>
+          </div>
+          <div class="lc-arrow">→</div>
+
+          <div class="lc-stage dev">
+            <div class="lc-num">2</div>
+            <div class="lc-name">SKU规格化</div>
+            <div class="lc-desc">属性选择<br>8+128/12+256</div>
+            <div class="lc-status">🟡 代销体系</div>
+          </div>
+          <div class="lc-arrow">→</div>
+
+          <div class="lc-stage done">
+            <div class="lc-num">3</div>
+            <div class="lc-name">购买下单</div>
+            <div class="lc-desc">支付+发码<br>触发返利</div>
+            <div class="lc-status">✅ 已上线</div>
+          </div>
+          <div class="lc-arrow">→</div>
+
+          <div class="lc-stage done">
+            <div class="lc-num">4</div>
+            <div class="lc-name">发货资产化</div>
+            <div class="lc-desc">miner确认发货<br>codeId→RWA资产凭证</div>
+            <div class="lc-status">✅ 已上线</div>
+          </div>
+          <div class="lc-arrow">→</div>
+
+          <div class="lc-stage done">
+            <div class="lc-num">5</div>
+            <div class="lc-name">流转处置</div>
+            <div class="lc-desc">一口价/拍卖<br>赠送/租赁</div>
+            <div class="lc-status">✅ 已上线</div>
+          </div>
+          <div class="lc-arrow">→</div>
+
+          <div class="lc-stage plan">
+            <div class="lc-num">6</div>
+            <div class="lc-name">资产token化</div>
+            <div class="lc-desc">codeId→ERC-721<br>/1155标准化</div>
+            <div class="lc-status">⚪ 规划中</div>
+          </div>
+          <div class="lc-arrow">→</div>
+
+          <div class="lc-stage plan">
+            <div class="lc-num">7</div>
+            <div class="lc-name">跨场景组合</div>
+            <div class="lc-desc">集邮挖矿<br>荷兰拍渠道</div>
+            <div class="lc-status">⚪ 规划中</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 六大引擎 -->
+      <div class="section-title">六大商业引擎</div>
+      <div class="engines">
+        <div class="engine">
+          <div class="ename">引擎一·统一商品池</div>
+          <div class="edesc">官方统一上架,全平台同价同库存,破除层级割裂</div>
+        </div>
+        <div class="engine">
+          <div class="ename">引擎二·永久关系绑定</div>
+          <div class="edesc">链上set-once + 5渠道归因,关系资产化护城河</div>
+        </div>
+        <div class="engine">
+          <div class="ename">引擎三·级差返利</div>
+          <div class="edesc">3层分润+10级等级+动态压缩,激励推广+培养团队</div>
+        </div>
+        <div class="engine">
+          <div class="ename">引擎四·双积分体系</div>
+          <div class="edesc">个人积分防白嫖 + 团队积分防空团长,Soulbound</div>
+        </div>
+        <div class="engine">
+          <div class="ename">引擎五·流转市场</div>
+          <div class="edesc">一口价/拍卖/赠送(租赁规划),资产可流通</div>
+        </div>
+        <div class="engine">
+          <div class="ename">引擎六·应用中心</div>
+          <div class="edesc">CPS抽成+上架费,独立利润中心,不参与团队归因</div>
+        </div>
+      </div>
+
+      <!-- 资金流闭环 -->
+      <div class="fund-flow">
+        <h3>💰 资金流闭环 · 单笔购买五路分流 + 退款三重防护</h3>
+        <div class="fund-grid">
+          <div class="fund-side">
+            <h4>付款分流(成交即分配,冻结7/14/30天)</h4>
+            <div class="fund-item"><span class="n">①</span>货款 → <span class="t">treasury</span>(平台/商家)</div>
+            <div class="fund-item"><span class="n">②</span>级差返利 → 沿上线链3层,按<span class="t">rebateBps[rank][layer]</span>分配至各上线RewardClaim(compression跳过未达标)</div>
+            <div class="fund-item"><span class="n">③</span>买家自身奖励 → rewards[]写入买家<span class="t">RewardClaim</span></div>
+            <div class="fund-item"><span class="n">④</span>积分mint → <span class="t">AgentPoints</span>(个人,Soulbound) + <span class="t">AgentLevel</span>(团队,沿E链累加)</div>
+            <div class="fund-item"><span class="n">⑤</span>手续费 → 各渠道独立(拍卖2.5%等)</div>
+          </div>
+          <div class="fund-side">
+            <h4>退款回滚(三重防护,退货不退关系)</h4>
+            <div class="fund-item"><span class="n">①</span><span class="t">前置硬条件</span>:退货前必须先returnReward退回奖励</div>
+            <div class="fund-item"><span class="n">②</span><span class="t">逐层revoke</span>:AgentReward沿链撤销未领取奖励</div>
+            <div class="fund-item"><span class="n">③</span><span class="t">自动抵扣</span>:已领取从后续未领取佣金抵扣,抵扣未完成禁新领取</div>
+            <div class="fund-item" style="color:#ff8a80;margin-top:6px;"><span class="n">⚠</span>codeId状态变3永久作废,关系不解除(铁律)</div>
+            <div class="fund-item" style="color:#ffb74d;"><span class="n">⚠</span>P0漏洞:直写奖励退货不撤销(矿工后台兜底)</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 右栏:资产+返利+流转+身份+应用 (2列分组,平衡纵向长度) -->
+    <div class="right-col">
+
+      <div class="side-col">
+      <div class="side-block">
+        <h3>L3 · 资产层(发行+资产化)</h3>
+        <div class="mod core done">
+          <div class="mn">商品市场(GoodsMarket)</div>
+          <div class="md">统一商品池 · 直购下单 · 唯一码库存0/1/2/3 · 退货</div>
+        </div>
+        <div class="mod core done">
+          <div class="mn">SKU资产(ISkuRegistry)</div>
+          <div class="md">codeId状态机 · 发货即RWA资产化 · 资产凭证</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">短号中心(ShortNumRegistry)</div>
+          <div class="md">免费号/靓号/转移/赠送 · 链上资产</div>
+        </div>
+        <div class="mod dev">
+          <div class="mn">代销体系(ConsignmentRegistry)</div>
+          <div class="md">买断式 · 任意层级 · 资格准入 · 按SKU定价 · 下级看上级代销池</div>
+        </div>
+        <div class="mod dev">
+          <div class="mn">增加提货方式/支付代付</div>
+          <div class="md">自提/配送 · 他人代付订单</div>
+        </div>
+        <div class="mod plan">
+          <div class="mn">资产token化</div>
+          <div class="md">codeId→ERC-721/1155 · 跨场景使用 · 集邮挖矿前置</div>
+        </div>
+      </div>
+
+      <div class="side-block">
+        <h3>L4 · 返利层(分润+升级)</h3>
+        <div class="mod core done">
+          <div class="mn">级差返利(AgentReward)</div>
+          <div class="md">3层分润 · rebateBps[rank][layer] · 动态压缩(maxSkips=20)</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">双积分(AgentPoints)</div>
+          <div class="md">个人积分(防白嫖) + 团队积分(防空团长) · Soulbound ERC20</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">等级体系(AgentLevel)</div>
+          <div class="md">rank 1-10 · 升级审核(enforceThreshold) · rebateBps矩阵</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">奖励领取(RewardClaim)</div>
+          <div class="md">额度制 · 冻结期7/14/30天 · 自动抵扣</div>
+        </div>
+        <div class="mod plan">
+          <div class="mn">烧断保护</div>
+          <div class="md">弱上级吃强下级场景(评审中)</div>
+        </div>
+      </div>
+      </div>
+
+      <div class="side-col">
+      <div class="side-block">
+        <h3>L5 · 流转层(二级处置)</h3>
+        <div class="mod done">
+          <div class="mn">一口价(FixedPriceMarket)</div>
+          <div class="md">channelId=2 · 0%手续费 · 主渠道</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">拍卖(AuctionHouse)</div>
+          <div class="md">channelId=3 · 2.5%手续费 · 价格发现 · forceSettle</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">赠送(GiftChannel)</div>
+          <div class="md">channelId=1 · 即时过户 · 社交流转</div>
+        </div>
+        <div class="mod dev">
+          <div class="mn">租赁(RentalChannel)</div>
+          <div class="md">channelId=5 · ERC-4907使用权分离(本版未上线)</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">统一台账(TradeLedger)</div>
+          <div class="md">跨渠道订单中心 · lockSku互斥锁</div>
+        </div>
+        <div class="mod plan">
+          <div class="mn">荷兰拍渠道</div>
+          <div class="md">降价拍卖 · 清仓/稀缺资产快速定价</div>
+        </div>
+        <div style="font-size:10px;color:#ff8a80;margin-top:6px;padding:6px;background:rgba(255,82,82,0.06);border-radius:3px;">
+          ⚠ 铁律:流转市场不触发归因、不触发分润
+        </div>
+      </div>
+
+      <div class="side-block">
+        <h3>L6 · 身份层(信任+激励)</h3>
+        <div class="mod core done">
+          <div class="mn">保险库L1(Vault)</div>
+          <div class="md">设备指纹钥匙 · 全App安全闸门 · 解绑500USDT</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">DID通行证</div>
+          <div class="md">被动授权 · EIP-712签名 · Web3+Web2聚合</div>
+        </div>
+        <div class="mod done">
+          <div class="mn">福利特权</div>
+          <div class="md">空投/资产/互动 · 多合约 · 一键领取</div>
+        </div>
+        <div class="mod dev">
+          <div class="mn">水龙头社区制任务</div>
+          <div class="md">任务激励取代免费领取 · 首期链上可验证任务</div>
+        </div>
+        <div class="mod plan">
+          <div class="mn">保险库L2/L3</div>
+          <div class="md">L2人脸+硬件 · L3 DNA · 钥匙权重1/2/3票</div>
+        </div>
+        <div class="mod plan">
+          <div class="mn">信托能力</div>
+          <div class="md">继承/托管/联合签名</div>
+        </div>
+      </div>
+
+      <div class="side-block">
+        <h3>L7 · 应用层(独立利润)</h3>
+        <div class="mod done">
+          <div class="mn">应用中心·核心</div>
+          <div class="md">应用上架 + 下载更新 + 5大品类导航</div>
+        </div>
+        <div class="mod dev">
+          <div class="mn">抽成结算体系</div>
+          <div class="md">CPS+上架费 · T+7/T+30 · 费率待定</div>
+        </div>
+        <div style="font-size:10px;color:#ffb74d;margin-top:6px;padding:6px;background:rgba(255,183,77,0.06);border-radius:3px;">
+          ⚠ 独立于L2-L6,不参与团队归因(合规防火墙)
+        </div>
+      </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- 三大飞轮 -->
+  <div class="section-title">三大飞轮 · 商业动力学(相互驱动)</div>
+  <div class="flywheels">
+    <div class="fw">
+      <div class="fn">交易飞轮</div>
+      <div class="ff">
+        <span class="s">购买商品</span><span class="a">→</span>
+        <span class="s">级差返利</span><span class="a">→</span>
+        <span class="s">上线获得佣金</span><span class="a">→</span>
+        <span class="s">复投</span>
+      </div>
+    </div>
+    <div class="fw">
+      <div class="fn">关系飞轮</div>
+      <div class="ff">
+        <span class="s">绑定上下级</span><span class="a">→</span>
+        <span class="s">发展下级</span><span class="a">→</span>
+        <span class="s">团队积分累加</span><span class="a">→</span>
+        <span class="s">等级升级</span>
+      </div>
+    </div>
+    <div class="fw">
+      <div class="fn">资产飞轮</div>
+      <div class="ff">
+        <span class="s">购买商品</span><span class="a">→</span>
+        <span class="s">发货资产化</span><span class="a">→</span>
+        <span class="s">流转市场处置</span><span class="a">→</span>
+        <span class="s">token化增值</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 演进路径 -->
+  <div class="section-title">演进路径 · 三阶段(全局包含)</div>
+  <div class="evolution">
+    <div class="es v1">
+      <div class="vn">v1.0 已定版 ✅</div>
+      <ul>
+        <li>L1-L6 核心闭环完成</li>
+        <li>钱包/团队/商城/流转/身份</li>
+        <li>B端服务管理后台</li>
+        <li>应用中心核心(上架+下载)</li>
+        <li>六大引擎全部就位</li>
+        <li>商品资产化(发货即RWA)</li>
+      </ul>
+    </div>
+    <div class="es vx">
+      <div class="vn">v1.x 开发中 🟡</div>
+      <ul>
+        <li>代销体系(买断式+资格准入)</li>
+        <li>SKU规格化(代销前置)</li>
+        <li>流转市场租赁渠道</li>
+        <li>关系转移/地址迁移</li>
+        <li>水龙头社区制任务</li>
+        <li>应用中心抽成结算</li>
+        <li>提货方式/支付代付/Swap白名单</li>
+      </ul>
+    </div>
+    <div class="es v2">
+      <div class="vn">v2.0 规划中 ⚪</div>
+      <ul>
+        <li>资产token化(ERC-721/1155)</li>
+        <li>荷兰拍渠道/集邮挖矿</li>
+        <li>团队积分转移(不可升级)</li>
+        <li>烧断保护</li>
+        <li>保险库L2(人脸+硬件)/L3(DNA)</li>
+        <li>信托能力(继承/托管)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 分类拆分预留 -->
+  <div class="section-title">后续分类拆分维度(待细化)</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+    <div style="padding:12px;background:#111726;border:1px dashed #2a3548;border-radius:6px;">
+      <div style="font-size:12px;color:#ffb74d;font-weight:600;margin-bottom:6px;">按地域拆分</div>
+      <div style="font-size:10px;color:#9aa3b5;line-height:1.7;">
+        <b>国内版</b>:合规优先,应用中心不涉加密交易,DID仅被动授权,Swap白名单更严<br>
+        <b>国外版</b>:全功能开放,支持加密生态,HRCs生态联合,Swap大额通道
+      </div>
+    </div>
+    <div style="padding:12px;background:#111726;border:1px dashed #2a3548;border-radius:6px;">
+      <div style="font-size:12px;color:#ffb74d;font-weight:600;margin-bottom:6px;">按平台拆分</div>
+      <div style="font-size:10px;color:#9aa3b5;line-height:1.7;">
+        <b>iOS</b>:App Store合规,跳转商店,Wallet Kit限制<br>
+        <b>Android</b>:APK直发,DApp深度集成,权限更开放
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Node 产品商业架构蓝图 v2.0 · 全局关联版 · 2026-07-31<br>
+    基于功能定版清单 + 六大引擎 + 商品资产化生命周期 · 后续按分类拆分
+  </div>
+
+</div>
+</body>
+</html>
