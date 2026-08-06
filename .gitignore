@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# 本地编辑器配置
+.obsidian/
+
+# 本地会话/记忆数据（非协作内容，不进远程仓库）
+.workbuddy/
